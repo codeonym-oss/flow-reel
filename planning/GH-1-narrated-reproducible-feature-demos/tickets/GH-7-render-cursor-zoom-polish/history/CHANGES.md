@@ -1,0 +1,1 @@
+- 2026-11-02: tracked as GH-7 (https://github.com/codeonym-oss/flow-reel/issues/7).

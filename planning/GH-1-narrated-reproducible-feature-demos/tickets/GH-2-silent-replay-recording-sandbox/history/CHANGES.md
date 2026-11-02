@@ -1,0 +1,2 @@
+- 2026-11-02: tracked as GH-2 (https://github.com/codeonym-oss/flow-reel/issues/2).
+- 2026-11-02: ticket pass: decisions 001-004, impl.md written, draft.md updated (master, events.json, wrapped page).

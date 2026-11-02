@@ -1,0 +1,3 @@
+- 2026-11-02: drafted the story and its five tickets after shaping (001-007) and the global pass (008-011).
+- 2026-11-02: tracked as GH-1 (https://github.com/codeonym-oss/flow-reel/issues/1).
+- 2026-11-02: polish joins the story (decisions 012, 013): three tickets added (polish, SFX, release); eight tickets in order.

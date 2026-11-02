@@ -1,0 +1,2 @@
+- 2026-11-02: tracked as GH-5 (https://github.com/codeonym-oss/flow-reel/issues/5).
+- 2026-11-02: out-of-scope line updated after story decision 012.
