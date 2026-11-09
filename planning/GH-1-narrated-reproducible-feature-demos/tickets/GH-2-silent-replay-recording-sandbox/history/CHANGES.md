@@ -1,2 +1,6 @@
 - 2026-11-02: tracked as GH-2 (https://github.com/codeonym-oss/flow-reel/issues/2).
 - 2026-11-02: ticket pass: decisions 001-004, impl.md written, draft.md updated (master, events.json, wrapped page).
+- 2026-11-02: building on feat/2-silent-replay-recording-sandbox.
+- 2026-11-03: building: decisions 005 (1440p master) and 006 (.flow-reel/ folder); impl.md corrections noted; draft.md updated to 1440p.
+- 2026-11-09: decision 007 (fail clearly when overloaded), with the capture benchmark.
+- 2026-11-09: review fixes (page-level actions, network-idle wait, act budget) and corrections noted in impl.md.
