@@ -4,3 +4,4 @@
 - 2026-11-03: building: decisions 005 (1440p master) and 006 (.flow-reel/ folder); impl.md corrections noted; draft.md updated to 1440p.
 - 2026-11-09: decision 007 (fail clearly when overloaded), with the capture benchmark.
 - 2026-11-09: review fixes (page-level actions, network-idle wait, act budget) and corrections noted in impl.md.
+- 2026-11-09: in review: https://github.com/codeonym-oss/flow-reel/pull/10.
