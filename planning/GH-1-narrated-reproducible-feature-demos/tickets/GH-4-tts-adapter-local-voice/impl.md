@@ -37,7 +37,7 @@ and ticket decisions 001-007. No existing follow-ups are taken up. GH-5 owns hol
   artifacts on focused reruns. npm pack dry-run includes the compiled adapter, worker, requirements and asset
   specifications, without model weights (about 23 KB packed).
 - Parallel Standards and Spec reviews against 487d62b, including all new files and final incremental changes,
-  found zero issues on both axes. No agreed feature was changed or left unimplemented. Awaiting commit approval.
+  found zero issues on both axes. No agreed feature was changed or left unimplemented. PR #12 merged as `2e1e32d` after final-head CI passed.
 
 ## Current code and baseline
 
