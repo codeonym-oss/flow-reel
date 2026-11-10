@@ -1,1 +1,5 @@
 - 2026-11-02: tracked as GH-3 (https://github.com/codeonym-oss/flow-reel/issues/3).
+- 2026-11-10: ticket pass against merged GH-2: decisions 001-004 agreed, impl.md written, draft clarified and status set to planned. Seven schema tests and typecheck passed; GitHub issue description not yet updated.
+- 2026-11-10: with approval, updated GH-3's GitHub issue description to match draft.md and verified an exact match.
+- 2026-11-10: building on feat/3-narrated-transcript-and-captions; planning changes carried into the branch.
+- 2026-11-10: implementation complete: original narration, SRT/VTT sidecars, serializer and playback tests, README. Typecheck/build, 45 unit tests and 6 E2E tests passed; screenshot inspected; standards/spec reviews found no issues. Awaiting commit approval.

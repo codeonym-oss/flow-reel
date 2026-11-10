@@ -13,13 +13,15 @@ const OUT = resolve("test/e2e/out");
 const html = readFileSync(resolve("test/e2e/app/index.html"));
 let server: Server;
 let port: number;
+let image: string;
+const NARRATIONS = ["  Type <b>Ada</b> & &lt; --> 保存.\r\n  ", "Scroll down and save.", "Open the settings."];
 
 const script = (p: number) => `import { demo } from "flow-reel";
 
 export default demo({ url: "http://localhost:${p}/" }, async ({ page, step }) => {
-  await step("Type a name.", () => page.getByRole("textbox", { name: "Name" }).fill("Ada"));
-  await step("Scroll down and save.", () => page.getByRole("button", { name: "Save" }).click());
-  await step("Open the settings.", () => page.getByRole("link", { name: "Settings" }).click());
+  await step(${JSON.stringify(NARRATIONS[0])}, () => page.getByRole("textbox", { name: "Name" }).fill("Ada"));
+  await step(${JSON.stringify(NARRATIONS[1])}, () => page.getByRole("button", { name: "Save" }).click());
+  await step(${JSON.stringify(NARRATIONS[2])}, () => page.getByRole("link", { name: "Settings" }).click());
 });
 `;
 
@@ -62,7 +64,8 @@ let b: Run;
 beforeAll(async () => {
   rmSync(OUT, { recursive: true, force: true });
   const { version } = JSON.parse(readFileSync("package.json", "utf8"));
-  execFileSync("docker", ["build", "-q", "-t", `ghcr.io/codeonym-oss/flow-reel:${version}`, "-f", "docker/Dockerfile", "."], { stdio: "inherit" });
+  image = `ghcr.io/codeonym-oss/flow-reel:${version}`;
+  execFileSync("docker", ["build", "-q", "-t", image, "-f", "docker/Dockerfile", "."], { stdio: "inherit" });
   server = createServer((_req, res) => res.writeHead(200, { "content-type": "text/html" }).end(html));
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   port = (server.address() as AddressInfo).port;
@@ -73,6 +76,37 @@ beforeAll(async () => {
 afterAll(() => server?.close());
 
 describe("flow-reel record", () => {
+  it("loads WebVTT in Chromium with literal text and displays the active caption during playback", async () => {
+    for (const run of [a, b]) {
+      const { stdout } = await promisify(execFile)("docker", ["run", "--rm", "--init", "--shm-size=1g",
+        "--user", `${process.getuid!()}:${process.getgid!()}`,
+        "-v", `${run.dir}:/work`, "-v", `${resolve("test/e2e/player.ts")}:/opt/flow-reel/player.ts:ro`,
+        "--entrypoint", "node", image, "/opt/flow-reel/player.ts"]);
+      const playback = JSON.parse(stdout);
+      expect(playback.cues).toEqual(run.transcript.steps.map((s, i) => ({
+        startMs: s.startMs, endMs: s.endMs,
+        text: ["Type <b>Ada</b> & &lt; --> 保存.", "Scroll down and save.", "Open the settings."][i],
+      })));
+      expect(playback.active).toEqual(["Type <b>Ada</b> & &lt; --> 保存."]);
+    }
+  });
+
+  it("preserves original narration and writes SRT cues on each run's calibrated timeline", () => {
+    for (const run of [a, b]) {
+      expect(run.transcript.steps.map((s) => s.narration)).toEqual(NARRATIONS);
+      const srt = readFileSync(join(run.dir, "demo.srt"), "utf8");
+      expect(srt.split("\n\n").filter(Boolean).map((cue) => cue.split("\n")[2])).toEqual([
+        "Type &lt;b&gt;Ada&lt;/b&gt; &amp; &amp;lt; --&gt; 保存.", "Scroll down and save.", "Open the settings.",
+      ]);
+      const { packets } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_packets",
+        "-show_entries", "packet=pts_time,duration_time", "-of", "json", join(run.dir, "demo.srt")], { encoding: "utf8" }));
+      expect(packets.map((p: { pts_time: string; duration_time: string }) => ({
+        startMs: Math.round(Number(p.pts_time) * 1000), durationMs: Math.round(Number(p.duration_time) * 1000),
+      }))).toEqual(run.transcript.steps.map((s) => ({ startMs: s.startMs, durationMs: s.endMs - s.startMs })));
+      expect(readFileSync(join(run.dir, "demo.vtt"), "utf8")).toContain("WEBVTT\n\n");
+    }
+  });
+
   it("writes a 1440p 30 fps master and a 1080p copy, dropping no frames", () => {
     const master = probe(join(a.dir, ".flow-reel/demo/master.mp4"));
     expect(master).toMatchObject({ width: 2560, height: 1440, fps: "30/1" });

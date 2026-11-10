@@ -4,8 +4,8 @@ Record reproducible feature demos from a short Playwright script. A coding agent
 writes the script, and `flow-reel` replays it in a sandbox on a virtual display while recording the screen. The same
 script gives the same video, step for step.
 
-This release records **silent** video with step timings. Narration, captions, voice, cursor and zoom polish, and sound
-effects come in later releases.
+This release records **silent** video with narration text, captions and step timings. Voice, cursor and zoom polish,
+and sound effects come in later releases.
 
 ## Requirements
 
@@ -58,8 +58,18 @@ Next to the script:
 | File | What it is |
 |---|---|
 | `settings.mp4` | The silent demo, 1920×1080, 30 fps. |
-| `settings.transcript.json` | Each step's `startMs`, `actionEndMs` and `endMs` on the video's timeline (schema version 1). |
+| `settings.transcript.json` | Each step's original narration and `startMs`, `actionEndMs` and `endMs` on the video's timeline (schema version 1). |
 | `settings.events.json` | Every move, click, keystroke run and scroll the runner made, timed the same way (schema version 1). |
+| `settings.srt` | Captions for a subtitle-capable video player. |
+| `settings.vtt` | WebVTT captions for a browser's `<video>` / `<track>`. |
+
+Each caption shows one step's narration from its `startMs` to its `endMs`. Caption whitespace is normalized and the
+player wraps the text; the transcript keeps the original narration. Blank narration and steps lasting zero
+milliseconds stay in the transcript but produce no caption. Short actions can be too brief to read: step holds for
+voice clips come in a later release.
+
+Captions escape `&`, `<` and `>` so narration is emitted without raw tags. WebVTT displays the literal text; some
+SRT players display escape sequences such as `&lt;` instead. Use WebVTT in a browser when literal symbols matter.
 
 In `.flow-reel/settings/`: the 2560×1440 master the polish steps will render from. The `.flow-reel/` folder ignores
 itself in git; the files next to the script are yours to commit or not.
@@ -76,7 +86,7 @@ a script have the same steps, each starting within ±150 ms.
 
 ## Known gaps
 
-- No narration, captions or audio yet.
+- No synthesized voice or audio yet; narration is text only.
 - No cursor drawn in the video yet: the runner logs the motion in `events.json` for the polish step.
 - Playwright calls the runner doesn't cover run without any mouse motion (the warning names them).
 

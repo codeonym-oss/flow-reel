@@ -7,6 +7,7 @@ import type { Step } from "../index.ts";
 import { type RunnerEvent, validateEvents } from "../schema/events.ts";
 import { type Transcript, type TranscriptStep, validateTranscript } from "../schema/transcript.ts";
 import { launchBrowser } from "./browser.ts";
+import { renderCaptions } from "./captions.ts";
 import { screenFor, startDisplay } from "./display.ts";
 import { loadDemo } from "./load.ts";
 import { trackNetwork } from "./network.ts";
@@ -41,6 +42,8 @@ export async function record(scriptPath: string): Promise<void> {
     video: join(dir, `${name}.mp4`),
     transcript: join(dir, `${name}.transcript.json`),
     events: join(dir, `${name}.events.json`),
+    srt: join(dir, `${name}.srt`),
+    vtt: join(dir, `${name}.vtt`),
   };
   const { viewport, url } = demo.options;
 
@@ -79,7 +82,7 @@ export async function record(scriptPath: string): Promise<void> {
           throw new Error(`step ${steps.length} ("${narration}") failed: ${(e as Error).message}`, { cause: e });
         }
         const actionEndMs = Math.round(recording.now());
-        steps.push({ index: steps.length, startMs, actionEndMs, endMs: actionEndMs });
+        steps.push({ index: steps.length, narration, startMs, actionEndMs, endMs: actionEndMs });
       };
       let ranMs = 0;
       try {
@@ -119,6 +122,9 @@ export async function record(scriptPath: string): Promise<void> {
         steps,
       };
       writeChecked(out.transcript, transcript, validateTranscript(transcript));
+      const captions = renderCaptions(transcript.steps);
+      writeFileSync(out.srt, captions.srt, "utf8");
+      writeFileSync(out.vtt, captions.vtt, "utf8");
       const log = { version: 1 as const, events };
       writeChecked(out.events, log, validateEvents(log));
     } finally {
