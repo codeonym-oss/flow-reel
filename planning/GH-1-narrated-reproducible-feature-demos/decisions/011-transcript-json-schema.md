@@ -1,5 +1,7 @@
 # 011: `transcript.json` has one versioned schema; each ticket fills its own fields
 
+**Partly superseded by GH-4 decision 001** (GH-4 writes `voice` and step `audio`; GH-5 still owns held `endMs`).
+
 **Date:** 2026-11-02 (global pass, Q9; agreed: "ok")
 
 **Question:** what does `transcript.json` hold, given four tickets read or write it?

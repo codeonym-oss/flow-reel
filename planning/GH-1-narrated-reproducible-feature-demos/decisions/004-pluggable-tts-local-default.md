@@ -1,5 +1,7 @@
 # 004: TTS sits behind an adapter, with a local open voice by default
 
+**Partly superseded by GH-4 decision 002** (the starting local model is Qwen3-TTS 0.6B instead of Kokoro/Piper).
+
 **Date:** 2026-11-02 (shaping, Q4; agreed: "yes!")
 
 **Question:** local TTS, cloud TTS, or pluggable?
