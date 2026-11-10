@@ -12,6 +12,7 @@ import { screenFor, startDisplay } from "./display.ts";
 import { loadDemo } from "./load.ts";
 import { trackNetwork } from "./network.ts";
 import { FPS, downscale, durationMs, firstFrameOfColour, startRecording } from "./recorder.ts";
+import { voiceSteps } from "./tts.ts";
 import { wrapPage } from "./wrap.ts";
 
 // A still moment before the first step and after the last; a short settle before each step, so its start doesn't
@@ -46,6 +47,8 @@ export async function record(scriptPath: string): Promise<void> {
     vtt: join(dir, `${name}.vtt`),
   };
   const { viewport, url } = demo.options;
+  const steps: TranscriptStep[] = [];
+  const events: RunnerEvent[] = [];
 
   const display = await startDisplay(viewport);
   try {
@@ -57,8 +60,6 @@ export async function record(scriptPath: string): Promise<void> {
       await page.locator("body").boundingBox(); // warms up the round-trip the first step would otherwise pay for
 
       const recording = await startRecording(out.master, screenFor(viewport));
-      const steps: TranscriptStep[] = [];
-      const events: RunnerEvent[] = [];
       const until = (ms: number) => sleep(Math.max(0, ms - recording.now()));
       await until(MARK_AT_MS);
       const markMs = recording.now();
@@ -115,24 +116,27 @@ export async function record(scriptPath: string): Promise<void> {
       writeFileSync(join(work, name, "master.json"), `${JSON.stringify({ startMs })}\n`);
 
       downscale(out.master, out.video, viewport, startMs);
-      const transcript: Transcript = {
-        version: 1,
-        script: basename(scriptPath),
-        video: { file: basename(out.video), width: viewport[0], height: viewport[1], fps: FPS, durationMs: durationMs(out.video) },
-        steps,
-      };
-      writeChecked(out.transcript, transcript, validateTranscript(transcript));
-      const captions = renderCaptions(transcript.steps);
-      writeFileSync(out.srt, captions.srt, "utf8");
-      writeFileSync(out.vtt, captions.vtt, "utf8");
-      const log = { version: 1 as const, events };
-      writeChecked(out.events, log, validateEvents(log));
     } finally {
       await context.close();
     }
   } finally {
     display.kill();
   }
+
+  // CPU synthesis starts only after capture, browser and display have finished.
+  const narration = await voiceSteps(steps, join(dir, `${name}.audio`));
+  const transcript: Transcript = {
+    version: 1,
+    script: basename(scriptPath),
+    video: { file: basename(out.video), width: viewport[0], height: viewport[1], fps: FPS, durationMs: durationMs(out.video) },
+    ...narration,
+  };
+  writeChecked(out.transcript, transcript, validateTranscript(transcript));
+  const captions = renderCaptions(transcript.steps);
+  writeFileSync(out.srt, captions.srt, "utf8");
+  writeFileSync(out.vtt, captions.vtt, "utf8");
+  const log = { version: 1 as const, events };
+  writeChecked(out.events, log, validateEvents(log));
 }
 
 function writeChecked(file: string, value: unknown, errors: string[]) {

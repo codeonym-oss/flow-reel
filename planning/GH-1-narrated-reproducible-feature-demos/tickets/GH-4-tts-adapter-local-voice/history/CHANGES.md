@@ -1,1 +1,15 @@
 - 2026-11-02: tracked as GH-4 (https://github.com/codeonym-oss/flow-reel/issues/4).
+- 2026-11-10: began the ticket pass against main at 487d62b; 45 unit tests and type checking pass. Agreed that GH-4 generates clips and writes voice/audio metadata, with holds and muxing left to GH-5 (decision 001).
+- 2026-11-10: chose Qwen3-TTS 0.6B as the starting local engine, retaining CPU/offline and audio reproducibility requirements (decision 002).
+- 2026-11-10: selected the CustomVoice variant with Ryan in English; cloning and voice design stay outside GH-4 (decision 003).
+- 2026-11-10: limited GH-4 to the local adapter; cloud support would be separately planned work, while GH-5 remains holds and muxing (decision 004).
+- 2026-11-10: selected the official Python CPU runtime with pinned offline assets, fresh-process reproducibility checks and measured resource use (decision 005).
+- 2026-11-10: agreed to skip blank narration audio, preserve transcript text, normalize synthesis whitespace and keep original step indexes in clip filenames (decision 006).
+- 2026-11-10: chose a portable demo-specific audio folder beside the transcript, with transcript-relative clip paths (decision 007).
+- 2026-11-10: confirmed shared understanding ("ok go ahead"), archived previous draft/meta, wrote impl.md against 487d62b, revised the draft to local Qwen scope and marked planned. Tracker update awaits approval; no implementation or git mutation performed.
+- 2026-11-10: after approval ("ok go ahead"), replaced GH-4's GitHub description from draft.md and read it back to verify the agreed scope. Ticket pass complete; ready for groundwork:implement GH-4.
+- 2026-11-10: after approval ("ok"), fetched origin, created feat/4-tts-adapter-local-voice preserving planning changes, and moved GH-4 to In Progress on board 6; implementation started.
+- 2026-11-10: added implementation build notes covering red/green slices, pinned CPU wheel resolution, model asset verification, image size, generation bounds and serial E2E execution; real-model checks still running.
+- 2026-11-10: finished GH-4 implementation and reviewed both axes with zero findings. Type checking, 50 unit tests, build and a clean 10-test Docker E2E run pass (968.05s); audio hashes match and final step deltas are 2/2/3ms. Documented CPU/image costs and set CI timeout45min. Saved the approved odd-viewport issue under GH-2; no capture safeguard was weakened. Awaiting commit approval.
+- 2026-11-10: commit approved ("ok go"); committing the verified implementation and approved planning/follow-up files as feat: generate offline Qwen narration clips (#4).
+- 2026-11-10: pushed dcda11a and opened PR #12 after approval ("yes, push and merge !"); marked in-review and recorded its link. Board 6 has no In Review option, so its item stays In Progress until merge. Waiting for final-head CI before the approved squash merge.

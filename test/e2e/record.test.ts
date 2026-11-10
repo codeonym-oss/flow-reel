@@ -1,5 +1,6 @@
-import { execFile, execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFile, execFileSync, spawnSync } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { type Server, createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join, resolve } from "node:path";
@@ -9,16 +10,16 @@ import { type EventLog, validateEvents } from "../../src/schema/events.ts";
 import { type Transcript, validateTranscript } from "../../src/schema/transcript.ts";
 
 // The whole recorder, in Docker, against a fixture app served from the host's 127.0.0.1 (GH-2 impl.md step 12).
-const OUT = resolve("test/e2e/out");
+const OUT = resolve("test/e2e/out/record");
 const html = readFileSync(resolve("test/e2e/app/index.html"));
 let server: Server;
 let port: number;
 let image: string;
 const NARRATIONS = ["  Type <b>Ada</b> & &lt; --> 保存.\r\n  ", "Scroll down and save.", "Open the settings."];
 
-const script = (p: number) => `import { demo } from "flow-reel";
+const script = (p: number, viewport?: [number, number]) => `import { demo } from "flow-reel";
 
-export default demo({ url: "http://localhost:${p}/" }, async ({ page, step }) => {
+export default demo(${JSON.stringify({ url: `http://localhost:${p}/`, viewport })}, async ({ page, step }) => {
   await step(${JSON.stringify(NARRATIONS[0])}, () => page.getByRole("textbox", { name: "Name" }).fill("Ada"));
   await step(${JSON.stringify(NARRATIONS[1])}, () => page.getByRole("button", { name: "Save" }).click());
   await step(${JSON.stringify(NARRATIONS[2])}, () => page.getByRole("link", { name: "Settings" }).click());
@@ -30,10 +31,16 @@ interface Run { dir: string; transcript: Transcript; events: EventLog }
 // Async: the fixture server lives in this process, so the event loop must stay free while the recording runs.
 async function recordOnce(name: string): Promise<Run> {
   const dir = join(OUT, name);
+  rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "demo.ts"), script(port));
-  const { stderr } = await promisify(execFile)(process.execPath, ["dist/cli.js", "record", join(dir, "demo.ts")]);
-  if (stderr) console.error(stderr);
+  try {
+    const { stderr } = await promisify(execFile)(process.execPath, ["dist/cli.js", "record", join(dir, "demo.ts")]);
+    if (stderr) writeFileSync(join(dir, "record.log"), stderr);
+  } catch (error) {
+    writeFileSync(join(dir, "record.log"), (error as { stderr?: string }).stderr ?? String(error));
+    throw error;
+  }
   return {
     dir,
     transcript: JSON.parse(readFileSync(join(dir, "demo.transcript.json"), "utf8")),
@@ -62,20 +69,60 @@ let a: Run;
 let b: Run;
 
 beforeAll(async () => {
-  rmSync(OUT, { recursive: true, force: true });
+  mkdirSync(OUT, { recursive: true });
   const { version } = JSON.parse(readFileSync("package.json", "utf8"));
   image = `ghcr.io/codeonym-oss/flow-reel:${version}`;
   execFileSync("docker", ["build", "-q", "-t", image, "-f", "docker/Dockerfile", "."], { stdio: "inherit" });
   server = createServer((_req, res) => res.writeHead(200, { "content-type": "text/html" }).end(html));
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   port = (server.address() as AddressInfo).port;
-  a = await recordOnce("a");
-  b = await recordOnce("b");
 }, 900_000);
 
 afterAll(() => server?.close());
 
+it("fails the command without publishing a successful transcript when TTS assets are missing", async () => {
+  const dir = join(OUT, "missing-assets");
+  rmSync(dir, { recursive: true, force: true });
+  const assets = join(dir, "empty-model");
+  mkdirSync(assets, { recursive: true });
+  writeFileSync(join(dir, "demo.ts"), script(port, [960, 540]));
+  const container = `flow-reel-missing-tts-${randomUUID()}`;
+  try {
+    await expect(promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g", "--network", "host",
+      "--user", `${process.getuid!()}:${process.getgid!()}`, "-v", `${dir}:/work`,
+      "-v", `${assets}:/opt/flow-reel/tts-model:ro`, image, "record", "/work/demo.ts"], { timeout: 90_000 }))
+      .rejects.toMatchObject({ code: 1, stderr: expect.stringContaining("Qwen TTS failed") });
+  } finally {
+    // A killed Docker client can leave its container alive, holding the host-network X11 socket.
+    spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
+  }
+  expect(existsSync(join(dir, "demo.transcript.json"))).toBe(false);
+}, 120_000);
+
 describe("flow-reel record", () => {
+  beforeAll(async () => {
+    a = await recordOnce("a");
+    b = await recordOnce("b");
+  }, 900_000);
+
+  it("writes portable Qwen clips with measured metadata and the same audio on both runs", () => {
+    for (const run of [a, b]) {
+      expect(run.transcript.voice).toEqual({ adapter: "qwen3-tts-0.6b", voice: "Ryan", seed: 0 });
+      run.transcript.steps.forEach((step, index) => {
+        expect(step.audio?.file).toBe(`demo.audio/${String(index).padStart(3, "0")}.wav`);
+        const file = join(run.dir, step.audio!.file);
+        const { streams: [audio] } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_streams", "-of", "json", file], { encoding: "utf8" }));
+        expect(audio).toMatchObject({ codec_name: "pcm_s16le", channels: 1 });
+        expect(step.audio!.durationMs).toBe(Math.round(Number(audio.duration) * 1000));
+        expect(step.audio!.durationMs).toBeGreaterThan(0);
+        expect(step.audio!.sha256).toBe(createHash("sha256").update(readFileSync(file)).digest("hex"));
+      });
+      const { streams } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_entries", "stream=codec_type", "-of", "json", join(run.dir, "demo.mp4")], { encoding: "utf8" }));
+      expect(streams.map((s: { codec_type: string }) => s.codec_type)).toEqual(["video"]);
+    }
+    expect(a.transcript.steps.map((s) => s.audio)).toEqual(b.transcript.steps.map((s) => s.audio));
+  });
+
   it("loads WebVTT in Chromium with literal text and displays the active caption during playback", async () => {
     for (const run of [a, b]) {
       const { stdout } = await promisify(execFile)("docker", ["run", "--rm", "--init", "--shm-size=1g",

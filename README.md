@@ -4,8 +4,8 @@ Record reproducible feature demos from a short Playwright script. A coding agent
 writes the script, and `flow-reel` replays it in a sandbox on a virtual display while recording the screen. The same
 script gives the same video, step for step.
 
-This release records **silent** video with narration text, captions and step timings. Voice, cursor and zoom polish,
-and sound effects come in later releases.
+This release records **silent** video with narration text, captions, step timings and separate speech clips.
+Fitting and mixing the speech into the MP4, cursor and zoom polish, and sound effects come in later releases.
 
 ## Requirements
 
@@ -14,6 +14,8 @@ and sound effects come in later releases.
   pulled, `flow-reel` builds it locally once (a few minutes).
 - About 2.5 free CPU cores while recording. On an overloaded machine the recording stops with an error rather than
   save a video whose timing is off.
+- The image is about 7 GB unpacked; its build downloads about 2.5 GB of model weights. Local speech synthesis uses
+  four CPU threads after capture and can require more than 5 GiB of process memory, in addition to your app and OS.
 
 ## Install
 
@@ -62,11 +64,29 @@ Next to the script:
 | `settings.events.json` | Every move, click, keystroke run and scroll the runner made, timed the same way (schema version 1). |
 | `settings.srt` | Captions for a subtitle-capable video player. |
 | `settings.vtt` | WebVTT captions for a browser's `<video>` / `<track>`. |
+| `settings.audio/000.wav` | Local speech clips, named by zero-based step index. |
 
 Each caption shows one step's narration from its `startMs` to its `endMs`. Caption whitespace is normalized and the
 player wraps the text; the transcript keeps the original narration. Blank narration and steps lasting zero
 milliseconds stay in the transcript but produce no caption. Short actions can be too brief to read: step holds for
 voice clips come in a later release.
+
+Narration uses Qwen3-TTS 0.6B CustomVoice, Ryan in English, through the official Python runtime on CPU. Model and
+tokenizer assets are pinned and downloaded when the image is built; synthesis runs offline without a key. Speech
+is generated after capture finishes. The transcript records the voice, seed, and each clip's relative file path,
+duration in milliseconds and complete-file SHA-256 hash. Copy the audio folder with its transcript when sharing it.
+
+Synthesis normalizes whitespace without interpreting caption escapes; the transcript preserves the original text.
+Blank narration produces no clip. Clip numbers retain step indexes, so skipped steps leave gaps. Rerunning replaces
+the generated numeric WAVs in this demo's audio folder; keep personal audio under other filenames or folders.
+Nonblank narration on a zero-duration action still produces speech. Clips can outlast their action windows until
+the next release adds holds and muxing; the MP4 has no audio track yet. A synthesis failure fails the command.
+
+The local generator resets seed 0 for each clip and uses pinned settings. Matching hashes are checked in fresh
+processes on the tested CPU/container platform; byte equality across hardware or architectures is not guaranteed.
+On the tested Ryzen 5 3500U, one fresh process generated three short clips (6.4 seconds of speech) in 147 seconds,
+with about 5.4 GiB peak process memory. Runtime varies with host load. A synthesis job has a 15-minute timeout;
+individual steps also fail if generation reaches its limit, rather than returning truncated speech.
 
 Captions escape `&`, `<` and `>` so narration is emitted without raw tags. WebVTT displays the literal text; some
 SRT players display escape sequences such as `&lt;` instead. Use WebVTT in a browser when literal symbols matter.
@@ -86,7 +106,7 @@ a script have the same steps, each starting within ±150 ms.
 
 ## Known gaps
 
-- No synthesized voice or audio yet; narration is text only.
+- Speech clips are separate; the MP4 remains silent until step holds and audio muxing are added.
 - No cursor drawn in the video yet: the runner logs the motion in `events.json` for the polish step.
 - Playwright calls the runner doesn't cover run without any mouse motion (the warning names them).
 
@@ -96,7 +116,7 @@ a script have the same steps, each starting within ±150 ms.
 npm ci
 npm run typecheck
 npm test            # unit tests
-npm run test:e2e    # builds the image and records a fixture app twice (needs Docker and ffmpeg)
+npm run test:e2e    # builds the image, tests offline synthesis, and records twice (needs Docker and ffmpeg)
 ```
 
 Planning lives in `planning/` (see `groundwork.md`).

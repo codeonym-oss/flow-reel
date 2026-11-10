@@ -6,3 +6,4 @@
 - 2026-11-09: review fixes (page-level actions, network-idle wait, act budget) and corrections noted in impl.md.
 - 2026-11-09: in review: https://github.com/codeonym-oss/flow-reel/pull/10.
 - 2026-11-10: done: PR #10 squash-merged as 1fa4e5d; GH-2 closed and board status set to Done.
+- 2026-11-10: with approval, saved 2026-11-10_1716_odd-viewport-encoder-hang.md after GH-4 validation exposed an existing odd-viewport encoder-exit hang.
