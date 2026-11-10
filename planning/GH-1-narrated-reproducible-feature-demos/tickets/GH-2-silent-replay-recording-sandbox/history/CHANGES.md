@@ -5,3 +5,4 @@
 - 2026-11-09: decision 007 (fail clearly when overloaded), with the capture benchmark.
 - 2026-11-09: review fixes (page-level actions, network-idle wait, act budget) and corrections noted in impl.md.
 - 2026-11-09: in review: https://github.com/codeonym-oss/flow-reel/pull/10.
+- 2026-11-10: done: PR #10 squash-merged as 1fa4e5d; GH-2 closed and board status set to Done.
