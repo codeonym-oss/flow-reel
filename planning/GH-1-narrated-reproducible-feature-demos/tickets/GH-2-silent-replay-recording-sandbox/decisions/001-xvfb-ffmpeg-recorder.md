@@ -1,5 +1,7 @@
 # 001: Record with Xvfb + ffmpeg x11grab into a 4K near-lossless master
 
+**Superseded by 005** (resolution and encoder settings).
+
 **Date:** 2026-11-02 (ticket pass, Q1; agreed: "ok")
 
 **Question:** which recorder captures the video, given that polish (zoom, follow cursor) is rendered in post

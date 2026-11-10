@@ -1,5 +1,7 @@
 # 012: Polish (cursor, click ripple, zoom on click, follow cursor, SFX) is part of this story
 
+**Partly superseded by GH-2 decision 005** (the master is 1440p at device scale 4/3, not 4K at scale 2).
+
 **Date:** 2026-11-02 (GH-2 ticket pass, Q2; asked: "i need something good, lets a tool that offers SFX , zoom on
 click, follow cursor etc ....", agreed: "ok")
 

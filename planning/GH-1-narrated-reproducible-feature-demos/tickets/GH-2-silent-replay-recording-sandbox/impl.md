@@ -3,6 +3,41 @@
 Planned 2026-11-02 against an empty repository (no commits): this ticket starts the codebase. Settled by story
 decisions 002, 008, 009, 010, 011, 012, 013 and this ticket's 001-004.
 
+## Corrections while building (2026-11-03)
+
+What the build found that differs from the steps below; the steps are kept as planned.
+
+- **Master and outputs (decisions 005, 006):** 2560×1440 at device scale 4/3, x264 `ultrafast` CRF 10, written to
+  `.flow-reel/<name>/master.mp4` (the folder holds a `.gitignore` of `*`). Beside the script: `<name>.mp4`,
+  `<name>.transcript.json`, `<name>.events.json`. The runner fails a recording whose master is more than 3 % shorter
+  than the time it ran.
+- **Step 7:** `--kiosk` doesn't apply to `newContext()` windows, so Chromium runs as a persistent context with
+  `viewport: null`; the screen size is the viewport × the scale.
+- **Step 8, clock origin:** ffmpeg's progress lags the capture, so the origin is x11grab's wall-clock `start:` instead.
+  A pixel still reaches the master some 30 ms after the runner acts (more under load), so each run flashes a
+  full-screen marker at 200 ms, finds its first frame in the master and shifts every time by the measured delay (the
+  fallback in Risks). `demo.mp4` starts at about 1 s, after the marker; `.flow-reel/<name>/master.json` holds that
+  start (`startMs`) for the render tickets.
+- **Steps 5 and 9, timing:** Playwright's round-trips jitter, so every action phase has a fixed time budget, there is
+  a lead-in and a 100 ms settle before each step, and the first box read is warmed up before recording.
+- **Step 5, clicks:** a click is logged when Playwright's call returns, because it presses only after checks that wait
+  for rendered frames (~100 ms, more under load). `type()` and `pressSequentially()` click the field for real.
+  `press` is not intercepted (no pointer motion) and logs no event.
+- **Review (2026-11-09):**
+  - `page.click(selector)` and the other page-level actions run through the selector's wrapped locator (decision 002
+    wraps `page` too), instead of warning.
+  - The network-idle wait before each step counts the page's requests (`src/runner/network.ts`): Playwright's
+    `networkidle` load state only covers the first load. Server-sent event streams are not counted (they stay open;
+    checked against a real stream in Chromium); long polling still waits the full 10 s. A page still loading after
+    10 s gets a warning, not a failure.
+  - The `act` budget is 400 ms: Playwright's click took 35-309 ms on a busy machine and shifted the next steps.
+  - No linter: `npm run typecheck` is the lint in steps 1 and 12.
+  - A step's start has nothing visible on screen (the pointer isn't drawn yet), so the done check's "frame where it
+    visibly starts" is checked on the shared clock: the last click's `t` against the frame its colour change shows.
+  - An event's `target` is Playwright's locator description (`getByRole('link', { name: 'Settings' })`), not story
+    decision 013's example form (`link "Settings"`).
+  - The launcher uses a local image with the right tag before pulling (tags are versions, so they don't change).
+
 ## Read first
 
 - Story decisions `../../decisions/009-what-counts-as-the-same-video.md`, `010-demo-script-api.md`,

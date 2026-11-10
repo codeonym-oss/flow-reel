@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>flow-reel fixture</title>
+  <style>
+    body { margin: 0; font: 20px/1.5 sans-serif; background: #fff; color: #111; }
+    nav { padding: 24px 48px; background: #eef; }
+    main { padding: 48px; }
+    .spacer { height: 2400px; }
+    body.flash { background: #f0f; }
+    body.flash > * { visibility: hidden; }
+  </style>
+</head>
+<body>
+  <nav><a href="#settings" id="settings">Settings</a></nav>
+  <main>
+    <label>Name <input id="name"></label>
+    <div class="spacer"></div>
+    <button id="save">Save</button>
+  </main>
+  <script>
+    // The clock marker: clicking Settings turns the whole page magenta at once.
+    document.getElementById("settings").addEventListener("click", (e) => {
+      e.preventDefault();
+      document.body.classList.add("flash");
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+{
+  "name": "flow-reel",
+  "version": "0.1.0",
+  "description": "Record narrated, reproducible feature demos from an agent-written Playwright script.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "flow-reel": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "docker"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run test/unit",
+    "test:e2e": "npm run build && vitest run test/e2e --testTimeout=900000 --hookTimeout=900000"
+  },
+  "dependencies": {
+    "playwright": "1.64.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}
