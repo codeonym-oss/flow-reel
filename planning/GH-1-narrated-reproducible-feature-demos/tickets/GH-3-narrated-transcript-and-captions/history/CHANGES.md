@@ -3,3 +3,4 @@
 - 2026-11-10: with approval, updated GH-3's GitHub issue description to match draft.md and verified an exact match.
 - 2026-11-10: building on feat/3-narrated-transcript-and-captions; planning changes carried into the branch.
 - 2026-11-10: implementation complete: original narration, SRT/VTT sidecars, serializer and playback tests, README. Typecheck/build, 45 unit tests and 6 E2E tests passed; screenshot inspected; standards/spec reviews found no issues. Awaiting commit approval.
+- 2026-11-10: committed as 8aa061f; in review at https://github.com/codeonym-oss/flow-reel/pull/11.
