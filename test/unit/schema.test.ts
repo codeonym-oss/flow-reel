@@ -45,6 +45,13 @@ describe("validateTranscript", () => {
     expect(validateTranscript(rest)).toContain("version must be 1");
   });
 
+  it("rejects non-string narration while accepting original whitespace", () => {
+    expect(validateTranscript({ ...transcript, steps: [{ ...transcript.steps[0], narration: 42 }] }))
+      .toContain("steps[0]: narration must be a string");
+    expect(validateTranscript({ ...transcript, steps: [{ ...transcript.steps[0], narration: " \r\n\t " }] }))
+      .toEqual([]);
+  });
+
   it("rejects a step that ends before it starts", () => {
     const bad = { ...transcript, steps: [{ ...transcript.steps[0], startMs: 500, actionEndMs: 400, endMs: 400 }] };
     expect(validateTranscript(bad)).toContain("steps[0]: actionEndMs must be >= startMs");
