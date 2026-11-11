@@ -59,6 +59,14 @@ describe("validateTranscript", () => {
 });
 
 describe("validateEvents", () => {
+  it("accepts optional off-screen bounds and rejects malformed target bounds", () => {
+    const log = (bounds: unknown) => ({ version: 1, events: [{ ...events.events[1], bounds }] });
+    expect(validateEvents(log({ x: -10, y: 20, width: 100, height: 30 }))).toEqual([]);
+    for (const bounds of [null, {}, { x: 0, y: 0, width: 0, height: 10 },
+      { x: NaN, y: 0, width: 10, height: 10 }, { x: 0, y: 0, width: 10, height: -1 }]) {
+      expect(validateEvents(log(bounds))).not.toEqual([]);
+    }
+  });
   it("accepts the decision 013 example", () => {
     expect(validateEvents(events)).toEqual([]);
   });

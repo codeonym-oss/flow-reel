@@ -2,11 +2,12 @@
 import { type Errors, isObject, nonNegative, point, text } from "./check.ts";
 
 export type Point = [x: number, y: number];
+export interface Bounds { x: number; y: number; width: number; height: number }
 
 export type RunnerEvent =
   | { t: number; type: "move"; from: Point; to: Point; durationMs: number; easing: string }
-  | { t: number; type: "click"; at: Point; button: "left" | "right" | "middle"; target: string }
-  | { t: number; type: "type"; text: string; charDelayMs: number; target: string }
+  | { t: number; type: "click"; at: Point; button: "left" | "right" | "middle"; target: string; bounds?: Bounds }
+  | { t: number; type: "type"; text: string; charDelayMs: number; target: string; bounds?: Bounds }
   | { t: number; type: "scroll"; delta: Point; durationMs: number };
 
 export interface EventLog {
@@ -24,6 +25,11 @@ export function validateEvents(value: unknown): Errors {
     const where = `events[${i}]: `;
     if (!isObject(event)) return void errors.push(`${where}must be an object`);
     nonNegative(errors, where, event, "t");
+    if ((event.type === "click" || event.type === "type") && event.bounds !== undefined) {
+      const b = event.bounds;
+      if (!isObject(b) || ![b.x, b.y, b.width, b.height].every((v) => typeof v === "number" && Number.isFinite(v)) ||
+        Number(b.width) <= 0 || Number(b.height) <= 0) errors.push(`${where}bounds must have finite x/y and positive width/height`);
+    }
     switch (event.type) {
       case "move":
         point(errors, where, event, "from");

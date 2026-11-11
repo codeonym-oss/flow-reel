@@ -1,7 +1,7 @@
 // The page a demo script receives (GH-2 decision 002): plain Playwright, except that actions ease the mouse to their
 // target, type visibly, and append what they did to the event log (story decision 013).
 import type { Locator, Page } from "playwright";
-import type { Point, RunnerEvent } from "../schema/events.ts";
+import type { Bounds, Point, RunnerEvent } from "../schema/events.ts";
 import { easeInOutCubic, moveDuration, pathPoints } from "./easing.ts";
 
 export interface WrapOptions {
@@ -91,7 +91,7 @@ export function wrapPage(page: Page, options: WrapOptions): Page {
   }
 
   // Scrolls the target to the middle of the viewport when it is off screen, then eases the mouse to its centre.
-  async function approach(locator: Locator): Promise<Point | undefined> {
+  async function approach(locator: Locator): Promise<{ at: Point; bounds: Bounds } | undefined> {
     let box = await paced(BUDGET_MS.locate, () => locator.boundingBox());
     if (!box) return undefined;
     const centreY = box.y + box.height / 2;
@@ -104,11 +104,11 @@ export function wrapPage(page: Page, options: WrapOptions): Page {
     }
     const at: Point = [Math.round(box.x + box.width / 2), Math.round(box.y + box.height / 2)];
     await paced(moveDuration(pointer, at) + BUDGET_MS.moveTail, () => moveTo(at));
-    return at;
+    return { at, bounds: box };
   }
 
-  const logClick = (at: Point | undefined, target: string) => {
-    if (at) events.push({ t: clock.now(), type: "click", at, button: "left", target });
+  const logClick = (position: { at: Point; bounds: Bounds } | undefined, target: string) => {
+    if (position) events.push({ t: clock.now(), type: "click", ...position, button: "left", target });
   };
 
   function wrapLocator(locator: Locator): Locator {
@@ -125,27 +125,30 @@ export function wrapPage(page: Page, options: WrapOptions): Page {
       async selectOption(original, args) { return act(original, args, await approach(locator)); },
       async scrollIntoViewIfNeeded(original, args) { await approach(locator); return act(original, args); },
       async fill(original, args) {
-        await act(() => locator.click(), [], await approach(locator));
+        const position = await approach(locator);
+        await act(() => locator.click(), [], position);
         await paced(BUDGET_MS.clear, () => original(""));
-        return typeText(String(args[0]));
+        return typeText(String(args[0]), position?.bounds);
       },
       async type(_original, args) {
-        await act(() => locator.click(), [], await approach(locator));
-        return typeText(String(args[0]));
+        const position = await approach(locator);
+        await act(() => locator.click(), [], position);
+        return typeText(String(args[0]), position?.bounds);
       },
       async pressSequentially(_original, args) {
-        await act(() => locator.click(), [], await approach(locator));
-        return typeText(String(args[0]));
+        const position = await approach(locator);
+        await act(() => locator.click(), [], position);
+        return typeText(String(args[0]), position?.bounds);
       },
     };
-    const act = (original: Function, args: unknown[], clickAt?: Point, clicks = 1) =>
+    const act = (original: Function, args: unknown[], clickAt?: { at: Point; bounds: Bounds }, clicks = 1) =>
       paced(BUDGET_MS.act, async () => {
         const result = await original(...args);
         for (let i = 0; i < clicks; i++) logClick(clickAt, target);
         return result;
       });
-    async function typeText(text: string) {
-      events.push({ t: clock.now(), type: "type", text, charDelayMs: CHAR_DELAY_MS, target });
+    async function typeText(text: string, bounds?: Bounds) {
+      events.push({ t: clock.now(), type: "type", text, charDelayMs: CHAR_DELAY_MS, target, ...(bounds ? { bounds } : {}) });
       await paced(text.length * CHAR_DELAY_MS + BUDGET_MS.typeTail,
         () => locator.pressSequentially(text, { delay: CHAR_DELAY_MS }));
     }

@@ -1,1 +1,9 @@
 - 2026-11-02: tracked as GH-7 (https://github.com/codeonym-oss/flow-reel/issues/7).
+- 2026-11-11: completed ticket pass against main a36dc26; recorded decisions 001–005, confirmed shared understanding, updated draft for the shipped 1440p timeline, and wrote impl.md. Baseline: 63 unit tests, 7 renderer tests and type checking pass. GitHub description update awaits approval.
+- 2026-11-11: after explicit approval ("ok go ahead!"), replaced GH-7’s GitHub description with the updated local draft.
+- 2026-11-11: approved implementation started on feat/7-render-cursor-zoom-polish from origin/main a36dc26; retained approved planning changes and moved board item to In Progress.
+- 2026-11-11: recorded FFmpeg filter-script compatibility and review-driven crop/clock-check corrections in impl.md; design and scope unchanged.
+- 2026-11-11: playback feedback approved slower/longer close-ups; decision 006 supersedes the old zoom timing. Updated local draft/plan; GitHub description needs a later approved sync.
+- 2026-11-11: slower narrated preview approved ("Yes, this feels good."); documented same-target ease continuity and sprite visibility correction.
+- 2026-11-11: user authorized commit, push, PR and merge; synced issue description with final decision 006 timing.
+- 2026-11-11: committed 54c3666, pushed branch and opened PR #14. Status in-review locally; board remains In Progress because it has no In Review option.

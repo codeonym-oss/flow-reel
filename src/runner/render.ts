@@ -1,7 +1,9 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { copyFileSync, rmSync } from "node:fs";
+import { copyFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Timeline } from "./timeline.ts";
+import type { RunnerEvent } from "../schema/events.ts";
+import { polishFilters } from "./polish-render.ts";
 
 function ffmpeg(args: string[]): string {
   return execFileSync("ffmpeg", ["-hide_banner", "-nostdin", "-y", ...args], {
@@ -76,9 +78,10 @@ interface RenderOptions {
   audioDir: string;
   viewport: [number, number];
   timeline: Timeline;
+  events?: readonly RunnerEvent[];
 }
 
-export function renderTimeline({ capture, master, video, voice, audioDir, viewport: [width, height], timeline }: RenderOptions): void {
+export function renderTimeline({ capture, master, video, voice, audioDir, viewport: [width, height], timeline, events = [] }: RenderOptions): void {
   if (!timeline.holds.length) copyFileSync(capture, master);
   else {
     const filters: string[] = [];
@@ -98,9 +101,17 @@ export function renderTimeline({ capture, master, video, voice, audioDir, viewpo
   }
   if (videoFrames(master) !== timeline.frames) throw new Error("rendered master frame count disagrees with timeline");
   const hasVoice = assembleVoice(voice, audioDir, timeline);
-  ffmpeg(["-v", "error", "-i", master, ...(hasVoice ? ["-i", voice] : []), "-map", "0:v:0",
-    ...(hasVoice ? ["-map", "1:a:0", "-c:a", "aac", "-profile:a", "aac_low", "-ar", "48000", "-ac", "2", "-b:a", "192k"] : []), "-vf",
-    `trim=start_frame=${timeline.cutFrames},setpts=PTS-STARTPTS,scale=${width}:${height}:flags=lanczos`,
+  const dimensions = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries",
+    "stream=width,height", "-of", "json", master], { encoding: "utf8" })).streams[0];
+  const polish = polishFilters(events, { viewport: [width, height], source: [dimensions.width, dimensions.height],
+    fps: timeline.fps, frames: timeline.frames - timeline.cutFrames }, video, hasVoice ? 2 : 1);
+  const graph = video + ".filters";
+  writeFileSync(graph, `[0:v]trim=start_frame=${timeline.cutFrames},setpts=PTS-STARTPTS[trimmed];${polish.filters}`);
+  // FFmpeg 8+ removed the old script option; the recording image still uses FFmpeg 6.
+  const major = Number(execFileSync("ffmpeg", ["-version"], { encoding: "utf8" }).match(/ffmpeg version (\d+)/)?.[1]);
+  ffmpeg(["-v", "error", "-i", master, ...(hasVoice ? ["-i", voice] : []), ...polish.inputs,
+    major >= 8 ? "-/filter_complex" : "-filter_complex_script", graph, "-map", "[polished]",
+    ...(hasVoice ? ["-map", "1:a:0", "-c:a", "aac", "-profile:a", "aac_low", "-ar", "48000", "-ac", "2", "-b:a", "192k"] : []),
     "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", video]);
   if (hasVoice) {
     const expectedMs = (timeline.frames - timeline.cutFrames) * 1000 / timeline.fps;

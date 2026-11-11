@@ -10,6 +10,7 @@ import { type EventLog, validateEvents } from "../../src/schema/events.ts";
 import { compareTranscripts } from "../../src/compare.ts";
 import { validateSync } from "../../src/schema/sync.ts";
 import { type Transcript, validateTranscript } from "../../src/schema/transcript.ts";
+import { planPolish } from "../../src/runner/polish.ts";
 
 // The whole recorder, in Docker, against a fixture app served from the host's 127.0.0.1 (GH-2 impl.md step 12).
 const OUT = resolve("test/e2e/out/record");
@@ -204,6 +205,10 @@ describe("flow-reel record", () => {
     expect(validateEvents(a.events)).toEqual([]);
     expect(a.transcript.steps).toHaveLength(3);
     expect(a.events.events.map((e) => e.type)).toEqual(["move", "click", "type", "scroll", "move", "click", "scroll", "move", "click"]);
+    for (const e of a.events.events) if (e.type === "click" || e.type === "type") {
+      expect(e.bounds?.width).toBeGreaterThan(0);
+      expect(e.bounds?.height).toBeGreaterThan(0);
+    }
   });
 
   it("gives the same steps on two runs, every start within ±150 ms (story decision 009)", () => {
@@ -218,6 +223,25 @@ describe("flow-reel record", () => {
 
   it("times events on the video's own clock: the marker click shows within 2 frames of its t", () => {
     const click = a.events.events.filter((e) => e.type === "click").at(-1)!;
-    expect(Math.abs(firstMagentaMs(join(a.dir, "demo.mp4")) - click.t)).toBeLessThanOrEqual(2 * 1000 / 30);
+    const work = join(a.dir, ".flow-reel/demo");
+    const cut = JSON.parse(readFileSync(join(work, "master.json"), "utf8")).startMs;
+    expect(Math.abs(firstMagentaMs(join(work, "master.mp4")) - cut - click.t)).toBeLessThanOrEqual(2 * 1000 / 30);
+  });
+
+  it("draws a blue ripple at every transformed click on the final delivery clock", () => {
+    const plan = planPolish(a.events.events, { viewport: [1920, 1080], source: [2560, 1440], fps: 30,
+      frames: Math.round(a.transcript.video.durationMs * 30 / 1000) });
+    for (const click of a.events.events.filter((e) => e.type === "click")) {
+      const n = Math.ceil(click.t * 30 / 1000 - 1e-9);
+      const { x, y } = plan.frame(n).ripples[0];
+      const left = Math.max(0, Math.min(1856, Math.round(x) - 32));
+      const top = Math.max(0, Math.min(1016, Math.round(y) - 32));
+      const raw = execFileSync("ffmpeg", ["-v", "error", "-i", join(a.dir, "demo.mp4"), "-vf",
+        `select=eq(n\\,${n}),crop=64:64:${left}:${top}`, "-frames:v", "1", "-pix_fmt", "rgb24", "-f", "rawvideo", "-"],
+      { maxBuffer: 1 << 20 });
+      let blue = 0;
+      for (let i = 0; i < raw.length; i += 3) if (raw[i + 2] > 120 && raw[i + 2] > raw[i] * 1.4 && raw[i + 2] > raw[i + 1] * 1.2) blue++;
+      expect(blue).toBeGreaterThan(10);
+    }
   });
 });
