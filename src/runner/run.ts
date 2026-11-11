@@ -1,17 +1,20 @@
 // One recording, inside the container: load the script, open the page, record while the steps run, then write the
 // 1080p video, transcript.json and events.json beside the script, and the master in .flow-reel/ (decision 006).
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { Step } from "../index.ts";
 import { type RunnerEvent, validateEvents } from "../schema/events.ts";
-import { type Transcript, type TranscriptStep, validateTranscript } from "../schema/transcript.ts";
+import { type Transcript, type TranscriptStep } from "../schema/transcript.ts";
+import { validateSync } from "../schema/sync.ts";
 import { launchBrowser } from "./browser.ts";
 import { renderCaptions } from "./captions.ts";
 import { screenFor, startDisplay } from "./display.ts";
 import { loadDemo } from "./load.ts";
 import { trackNetwork } from "./network.ts";
-import { FPS, downscale, durationMs, firstFrameOfColour, startRecording } from "./recorder.ts";
+import { FPS, durationMs, firstFrameOfColour, startRecording } from "./recorder.ts";
+import { renderTimeline, videoFrames } from "./render.ts";
+import { planTimeline, retimeEvents } from "./timeline.ts";
 import { voiceSteps } from "./tts.ts";
 import { wrapPage } from "./wrap.ts";
 
@@ -39,7 +42,9 @@ export async function record(scriptPath: string): Promise<void> {
   // Ignores the whole folder without touching the app's own .gitignore.
   if (!existsSync(join(work, ".gitignore"))) writeFileSync(join(work, ".gitignore"), "*\n");
   const out = {
+    capture: join(work, name, "capture.mp4"),
     master: join(work, name, "master.mp4"),
+    stagedVideo: join(work, name, "delivery.mp4"),
     video: join(dir, `${name}.mp4`),
     transcript: join(dir, `${name}.transcript.json`),
     events: join(dir, `${name}.events.json`),
@@ -50,6 +55,7 @@ export async function record(scriptPath: string): Promise<void> {
   const steps: TranscriptStep[] = [];
   const events: RunnerEvent[] = [];
 
+  let deliveryCutMs = 0;
   const display = await startDisplay(viewport);
   try {
     const { context, page } = await launchBrowser(viewport);
@@ -59,7 +65,7 @@ export async function record(scriptPath: string): Promise<void> {
       await page.mouse.move(viewport[0] / 2, viewport[1] / 2);
       await page.locator("body").boundingBox(); // warms up the round-trip the first step would otherwise pay for
 
-      const recording = await startRecording(out.master, screenFor(viewport));
+      const recording = await startRecording(out.capture, screenFor(viewport));
       const until = (ms: number) => sleep(Math.max(0, ms - recording.now()));
       await until(MARK_AT_MS);
       const markMs = recording.now();
@@ -83,7 +89,9 @@ export async function record(scriptPath: string): Promise<void> {
           throw new Error(`step ${steps.length} ("${narration}") failed: ${(e as Error).message}`, { cause: e });
         }
         const actionEndMs = Math.round(recording.now());
-        steps.push({ index: steps.length, narration, startMs, actionEndMs, endMs: actionEndMs });
+        if (!(await network.idle())) console.warn(`step ${steps.length}: the page was still loading after 10 s; going on`);
+        await sleep(STEP_SETTLE_MS);
+        steps.push({ index: steps.length, narration, startMs, actionEndMs, endMs: Math.round(recording.now()) });
       };
       let ranMs = 0;
       try {
@@ -92,7 +100,7 @@ export async function record(scriptPath: string): Promise<void> {
       } finally {
         ranMs = await recording.stop();
       }
-      const masterMs = durationMs(out.master);
+      const masterMs = durationMs(out.capture);
       if (masterMs < ranMs * (1 - MAX_SHORTFALL)) {
         const behind = Math.round((1 - masterMs / ranMs) * 100);
         throw new Error(`the screen capture fell ${behind} % behind real time (${masterMs} ms of video for ` +
@@ -100,7 +108,7 @@ export async function record(scriptPath: string): Promise<void> {
           "apps or containers and record again, or record on a machine with more CPU.");
       }
 
-      const markFrameMs = firstFrameOfColour(out.master, MARK_RGB, CUT_MS);
+      const markFrameMs = firstFrameOfColour(out.capture, MARK_RGB, CUT_MS);
       if (markFrameMs === undefined || markFrameMs < markMs) throw new Error("the timing marker isn't in the master");
       // demo.mp4 starts on the master frame nearest CUT_MS in on-screen time; times move from the runner's clock to it.
       const frameMs = 1000 / FPS;
@@ -115,7 +123,7 @@ export async function record(scriptPath: string): Promise<void> {
       // Where demo.mp4, and so every time in the JSON files, starts in the master (for the render tickets).
       writeFileSync(join(work, name, "master.json"), `${JSON.stringify({ startMs })}\n`);
 
-      downscale(out.master, out.video, viewport, startMs);
+      deliveryCutMs = startMs;
     } finally {
       await context.close();
     }
@@ -125,21 +133,26 @@ export async function record(scriptPath: string): Promise<void> {
 
   // CPU synthesis starts only after capture, browser and display have finished.
   const narration = await voiceSteps(steps, join(dir, `${name}.audio`));
+  const timeline = planTimeline(narration.steps, { fps: FPS, frames: videoFrames(out.capture), cutMs: deliveryCutMs });
+  renderTimeline({ capture: out.capture, master: out.master, video: out.stagedVideo,
+    voice: join(work, name, "voice.wav"), audioDir: dir, viewport, timeline });
   const transcript: Transcript = {
     version: 1,
     script: basename(scriptPath),
-    video: { file: basename(out.video), width: viewport[0], height: viewport[1], fps: FPS, durationMs: durationMs(out.video) },
-    ...narration,
+    video: { file: basename(out.video), width: viewport[0], height: viewport[1], fps: FPS, durationMs: durationMs(out.stagedVideo) },
+    voice: narration.voice, steps: timeline.steps,
   };
-  writeChecked(out.transcript, transcript, validateTranscript(transcript));
+  const log = { version: 1 as const, events: retimeEvents(events, timeline) };
+  const errors = [...validateSync(transcript), ...validateEvents(log)];
+  if (errors.length) throw new Error(`recording is invalid:\n  ${errors.join("\n  ")}`);
+  renameSync(out.stagedVideo, out.video);
+  writeJson(out.transcript, transcript);
   const captions = renderCaptions(transcript.steps);
   writeFileSync(out.srt, captions.srt, "utf8");
   writeFileSync(out.vtt, captions.vtt, "utf8");
-  const log = { version: 1 as const, events };
-  writeChecked(out.events, log, validateEvents(log));
+  writeJson(out.events, log);
 }
 
-function writeChecked(file: string, value: unknown, errors: string[]) {
-  if (errors.length) throw new Error(`${basename(file)} is invalid:\n  ${errors.join("\n  ")}`);
+function writeJson(file: string, value: unknown) {
   writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 }
