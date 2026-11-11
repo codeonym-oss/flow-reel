@@ -46,3 +46,11 @@ and the existing end-to-end record pair. Using the TDD and code-review skills re
 User authorized publication and merge: "ok, go ahead, you are permitted to do whatever you need to push , merge , etc ...". Synced GH-7 description with final draft before commit.
 
 Implementation commit: 54c3666. PR: https://github.com/codeonym-oss/flow-reel/pull/14. Issue description synced. Board 6 has Todo/In Progress/Done only, so it remains In Progress during review. Final-head CI is required before the authorized squash merge.
+
+## Merge and CI infrastructure limitation
+
+- PR #14 squash-merged at 2026-11-11T15:18:31Z as `4dc374072dacfa5cdd70801a9199fa2f92cd7695`. Issue #7 CLOSED and board item Done verified. Local main fast-forwarded to the merge; completion bookkeeping is planning-only.
+- Final PR head: `a63680a28a2e34da4ca2a20df6d453bd43c68b0c`. CI run: https://github.com/codeonym-oss/flow-reel/actions/runs/43043253636 . Attempt 1 (job130600345320, eastus) and attempt 2 (job130605557371, centralus) repeatedly reported temporary DNS failures resolving azure.archive.ubuntu.com, archive.ubuntu.com and security.ubuntu.com. They were canceled before project checks. Attempt 3 (job130612761070) was still in package setup at merge. No project test failure was reported by these attempts; cloud verification is unconfirmed.
+- Superseded implementation-head run 43043199593 was canceled after the final-head run appeared. Previous successful GH-5 CI used the same Ubuntu26 image (westcentralus), so no speculative runner/workflow change was made.
+- Initially waited for full cloud CI, but `gh pr checks 14 --required` reported no required checks. Under the user's explicit authorization to complete push/merge, merged based on 73 local unit tests, final host/image 11-test rendering checks, earlier full 24-test E2E, final actual-master/WAV rerender, package smoke, both clear reviews and accepted playback. No administrator/protection override was used. Do not describe GitHub CI as green.
+- No follow-ups were taken up; existing optional 4K and odd-viewport reminders remain open. GH-1 has remaining children and is not complete.

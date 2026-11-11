@@ -7,3 +7,4 @@
 - 2026-11-11: slower narrated preview approved ("Yes, this feels good."); documented same-target ease continuity and sprite visibility correction.
 - 2026-11-11: user authorized commit, push, PR and merge; synced issue description with final decision 006 timing.
 - 2026-11-11: committed 54c3666, pushed branch and opened PR #14. Status in-review locally; board remains In Progress because it has no In Review option.
+- 2026-11-11: PR #14 squash-merged as 4dc374072dacfa5cdd70801a9199fa2f92cd7695; GH-7 closed and board Done verified. Cloud CI could not reach tests because Ubuntu mirror DNS failed on multiple runners; no required merge checks were configured. Merged using passing local verification and user-approved playback, without admin override.
