@@ -13,3 +13,4 @@
 - 2026-11-11: implementation and both review axes complete; 63 unit tests plus all 19 media checks verified (recording file rerun: 9 passed after user freed CPU for an overload-guard failure). Type/build/package checks pass; human playback approved. Ready for commit approval; no commit or push yet.
 - 2026-11-11: person approved the proposed implementation commit ("ok"); preparing feat: fit narration, mux audio and compare recordings (#5). Push/open-PR approval remains pending.
 - 2026-11-11: person authorized push, PR and merge. Pushed implementation 23c3b42 and opened PR #13; marked in-review. Board has no In Review option, so it stays In Progress until merge. Merge will follow passing final-head CI.
+- 2026-11-11: final-head CI run 43010369277 passed on e15c507. PR #13 squash-merged as bd9ea78; GH-5 automatically closed and board item confirmed Done. Marked local planning done; no follow-ups were taken up.

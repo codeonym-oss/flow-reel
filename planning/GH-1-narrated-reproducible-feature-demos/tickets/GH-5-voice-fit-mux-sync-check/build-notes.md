@@ -85,3 +85,11 @@ it was not hidden or fixed by weakening a guard. No source/test changes occurred
 No implementation steps left undone. Small implementation notes (fractional caption timestamps, explicit AAC peak
 margin, normalization resampling/duration guards and clearing stale buses) retain the approved design. The
 odd-viewport encoder and optional 4K follow-ups remain open and untouched. Ready for commit approval.
+
+## Merge evidence
+
+PR https://github.com/codeonym-oss/flow-reel/pull/13 squash-merged at 2026-11-11T11:26:11Z as
+bd9ea78fd9e5f5415db091efddcc599212091844. Final PR head e15c507d681c0958e706e13b99cf36453d5a2709
+passed the complete CI workflow (type checking, unit tests and full Docker/media suite):
+https://github.com/codeonym-oss/flow-reel/actions/runs/43010369277 (job 130488161198, success).
+GH-5 is closed and its board item is Done. Planning completion bookkeeping changes documentation only.
