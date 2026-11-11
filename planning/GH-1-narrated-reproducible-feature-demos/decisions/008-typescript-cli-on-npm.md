@@ -1,5 +1,7 @@
 # 008: The CLI is TypeScript on npm; on the host it only launches the image
 
+**Partly superseded by GH-5 decision 006** (the read-only `compare` command runs on the host; recording stays in the image).
+
 **Date:** 2026-11-02 (global pass, Q6; agreed: "ok")
 
 **Question:** which language is the CLI written in, and how does it reach the container?

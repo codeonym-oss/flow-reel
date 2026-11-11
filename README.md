@@ -4,8 +4,8 @@ Record reproducible feature demos from a short Playwright script. A coding agent
 writes the script, and `flow-reel` replays it in a sandbox on a virtual display while recording the screen. The same
 script gives the same video, step for step.
 
-This release records **silent** video with narration text, captions, step timings and separate speech clips.
-Fitting and mixing the speech into the MP4, cursor and zoom polish, and sound effects come in later releases.
+This release records narrated video with captions, fitted step timings and original speech clips.
+Cursor and zoom polish, and sound effects come in later releases.
 
 ## Requirements
 
@@ -59,7 +59,7 @@ Next to the script:
 
 | File | What it is |
 |---|---|
-| `settings.mp4` | The silent demo, 1920×1080, 30 fps. |
+| `settings.mp4` | The narrated demo, 1920×1080, 30 fps, with AAC speech audio. |
 | `settings.transcript.json` | Each step's original narration and `startMs`, `actionEndMs` and `endMs` on the video's timeline (schema version 1). |
 | `settings.events.json` | Every move, click, keystroke run and scroll the runner made, timed the same way (schema version 1). |
 | `settings.srt` | Captions for a subtitle-capable video player. |
@@ -68,8 +68,8 @@ Next to the script:
 
 Each caption shows one step's narration from its `startMs` to its `endMs`. Caption whitespace is normalized and the
 player wraps the text; the transcript keeps the original narration. Blank narration and steps lasting zero
-milliseconds stay in the transcript but produce no caption. Short actions can be too brief to read: step holds for
-voice clips come in a later release.
+milliseconds stay in the transcript but produce no caption. Narrated steps include the full speech clip and
+at least 200 ms afterward.
 
 Narration uses Qwen3-TTS 0.6B CustomVoice, Ryan in English, through the official Python runtime on CPU. Model and
 tokenizer assets are pinned and downloaded when the image is built; synthesis runs offline without a key. Speech
@@ -79,8 +79,20 @@ duration in milliseconds and complete-file SHA-256 hash. Copy the audio folder w
 Synthesis normalizes whitespace without interpreting caption escapes; the transcript preserves the original text.
 Blank narration produces no clip. Clip numbers retain step indexes, so skipped steps leave gaps. Rerunning replaces
 the generated numeric WAVs in this demo's audio folder; keep personal audio under other filenames or folders.
-Nonblank narration on a zero-duration action still produces speech. Clips can outlast their action windows until
-the next release adds holds and muxing; the MP4 has no audio track yet. A synthesis failure fails the command.
+Nonblank narration on a zero-duration action still produces speech. Each action runs once at normal speed.
+After its callback returns (`actionEndMs`), the recorder waits for network quiet (500 ms, bounded at 10 seconds),
+then captures another 100 ms. Scripts must still await the UI state they intend to show; network quiet does not
+prove that an operation succeeded. A timeout prints a warning and continues.
+
+After capture and synthesis finish, the renderer adds only the whole frames needed to fit speech plus its tail,
+freezing the last frame of that settled window. Narration starts alongside its action at `startMs`. Longer actions
+continue normally after speech finishes. Transcript windows, captions, events and the master all use this final
+timeline. Blank narration gets no speech padding; an all-blank demo has no audio stream.
+
+The assembled voice is normalized to -16 LUFS with a -1.5 dBTP peak ceiling, then encoded as 48 kHz stereo AAC-LC
+at 192 kb/s. Decoded output is checked within 1 LU of the loudness target and 0.1 dB of the peak ceiling. Original
+WAVs, durations and hashes remain unchanged. Synthesis, rendering or sync failures fail the command before a new
+success transcript is written.
 
 The local generator resets seed 0 for each clip and uses pinned settings. Matching hashes are checked in fresh
 processes on the tested CPU/container platform; byte equality across hardware or architectures is not guaranteed.
@@ -91,12 +103,31 @@ individual steps also fail if generation reaches its limit, rather than returnin
 Captions escape `&`, `<` and `>` so narration is emitted without raw tags. WebVTT displays the literal text; some
 SRT players display escape sequences such as `&lt;` instead. Use WebVTT in a browser when literal symbols matter.
 
-In `.flow-reel/settings/`: the 2560×1440 master the polish steps will render from. The `.flow-reel/` folder ignores
-itself in git; the files next to the script are yours to commit or not.
+In `.flow-reel/settings/`: `capture.mp4` is the original 2560×1440 recording; `master.mp4` has the added holds for
+later polish; `master.json.startMs` gives delivery time zero within the master, preserving its calibration pre-roll.
+`voice.wav` is the normalized voice bus on the delivery timeline. The `.flow-reel/` folder ignores itself in git;
+the files next to the script are yours to commit or not.
 
 To keep runs the same, the runner fixes the viewport, device scale, `prefers-reduced-motion`, the page's clock
 (`2026-01-05T09:00:00Z`) and `Math.random`'s seed, and waits for the network to go idle before each step. Two runs of
 a script have the same steps, each starting within ±150 ms.
+
+## Compare recordings
+
+```sh
+npx flow-reel compare demos/a.transcript.json demos/b.transcript.json
+```
+
+Comparison runs on the host without Docker or FFmpeg. It validates each transcript's schema and sync, then checks
+video dimensions/FPS, step order, exact original narration, voice identity, source audio hashes/durations and step
+starts within ±150 ms inclusive. Script and output paths may differ. Legacy silent transcripts and blank-only
+recordings are supported. Exit status is 0 for a match, 1 for valid recordings that differ, and 2 for invalid input,
+failed sync or usage errors; diagnostics identify the file or step.
+
+These checks read transcript data only. They do not open referenced audio, caption or video files, prove visual/UI
+equality, or promise identical encoded MP4 bytes. Valid action/end/video durations may differ between recordings;
+only step starts have the 150 ms comparison tolerance. Recording automatically checks that all clips fit their
+step windows, including the speech tail, before publishing its transcript.
 
 ## Platforms
 
@@ -106,7 +137,6 @@ a script have the same steps, each starting within ±150 ms.
 
 ## Known gaps
 
-- Speech clips are separate; the MP4 remains silent until step holds and audio muxing are added.
 - No cursor drawn in the video yet: the runner logs the motion in `events.json` for the polish step.
 - Playwright calls the runner doesn't cover run without any mouse motion (the warning names them).
 

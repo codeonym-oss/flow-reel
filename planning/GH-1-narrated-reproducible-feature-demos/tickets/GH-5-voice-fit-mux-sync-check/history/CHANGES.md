@@ -1,2 +1,14 @@
 - 2026-11-02: tracked as GH-5 (https://github.com/codeonym-oss/flow-reel/issues/5).
 - 2026-11-02: out-of-scope line updated after story decision 012.
+- 2026-11-11: began the ticket pass against main at 76a3153; type checking and all 50 unit tests pass (unit suite rerun outside the sandbox after its script-loader subprocess failed inside). Agreed to single-replay capture followed by synthesis and postprocessing holds (decision 001).
+- 2026-11-11: agreed to start each narration clip at its step's start alongside the action, extending the visual step where needed (decision 002).
+- 2026-11-11: agreed to capture a bounded network-idle wait plus 100 ms after each callback before choosing the held frame, preserving the actual actionEndMs and warning on timeout (decision 003).
+- 2026-11-11: agreed to at least 200 ms after each narration clip, counting existing captured time and rounding added holds upward to whole frames; blank narration has no speech padding (decision 004).
+- 2026-11-11: agreed to normalize assembled delivery narration to -16 LUFS and a -1.5 dBTP peak ceiling, preserving original WAV bytes and transcript hashes (decision 005).
+- 2026-11-11: agreed to a Docker-free host compare command with shared schema/sync/reproducibility checks and automatic recording sync validation; documented the narrow exception to story decision 008 (decision 006).
+- 2026-11-11: shared understanding confirmed ("ok"); archived the prior draft/meta, wrote impl.md against 76a3153, updated the draft for postprocessing holds/normalization/host comparison, and marked planned. Tracker description update awaits approval.
+- 2026-11-11: approved tracker description update applied to GH-5 and verified against draft.md; implementation invoked, awaiting the required branch/working-tree and board approval.
+- 2026-11-11: approved implementation branch created from latest origin/main, retaining the agreed planning changes; implementation started with the planned test seams.
+- 2026-11-11: implemented settled capture, frame holds, shared sync/compare, audio assembly/normalization and CLI routing; 63 unit tests, type checking/build and both host/image synthetic media checks pass. Full serial media suite and separate Standards/Spec reviews are running. Archived impl.md before noting fractional caption timestamps and AAC peak margin.
+- 2026-11-11: implementation and both review axes complete; 63 unit tests plus all 19 media checks verified (recording file rerun: 9 passed after user freed CPU for an overload-guard failure). Type/build/package checks pass; human playback approved. Ready for commit approval; no commit or push yet.
+- 2026-11-11: person approved the proposed implementation commit ("ok"); preparing feat: fit narration, mux audio and compare recordings (#5). Push/open-PR approval remains pending.

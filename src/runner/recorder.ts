@@ -50,16 +50,6 @@ export async function startRecording(master: string, [width, height]: [number, n
   };
 }
 
-/** The silent 1080p delivery copy, starting `startMs` into the master. */
-export function downscale(master: string, out: string, [width, height]: [number, number], startMs: number): void {
-  const r = spawnSync("ffmpeg", [
-    "-hide_banner", "-loglevel", "error", "-y", "-i", master, "-ss", String(startMs / 1000),
-    "-vf", `scale=${width}:${height}:flags=lanczos`, "-c:v", "libx264", "-preset", "medium", "-crf", "18",
-    "-pix_fmt", "yuv420p", "-movflags", "+faststart", out,
-  ], { stdio: "inherit" });
-  if (r.status !== 0) throw new Error(`downscaling to ${out} failed`);
-}
-
 export function durationMs(file: string): number {
   const r = spawnSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file], {
     encoding: "utf8",

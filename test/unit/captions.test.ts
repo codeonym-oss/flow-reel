@@ -67,3 +67,9 @@ describe("renderCaptions", () => {
     expect(steps[0].narration).toBe("  <b>Réglages</b>\r\n\r\n\t & &lt; --> 保存 😀  ");
   });
 });
+
+it("serializes fractional frame times as valid millisecond timestamps across second boundaries", () => {
+  const captions = renderCaptions([{ index: 0, narration: "Held.", startMs: 999.7, actionEndMs: 1100, endMs: 1733.333333 }]);
+  expect(captions.srt).toContain("00:00:01,000 --> 00:00:01,733");
+  expect(captions.vtt).toContain("00:00:01.000 --> 00:00:01.733");
+});
