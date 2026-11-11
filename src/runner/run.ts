@@ -134,16 +134,18 @@ export async function record(scriptPath: string): Promise<void> {
   // CPU synthesis starts only after capture, browser and display have finished.
   const narration = await voiceSteps(steps, join(dir, `${name}.audio`));
   const timeline = planTimeline(narration.steps, { fps: FPS, frames: videoFrames(out.capture), cutMs: deliveryCutMs });
+  const log = { version: 1 as const, events: retimeEvents(events, timeline) };
+  const eventErrors = validateEvents(log);
+  if (eventErrors.length) throw new Error(`recording events are invalid:\n  ${eventErrors.join("\n  ")}`);
   renderTimeline({ capture: out.capture, master: out.master, video: out.stagedVideo,
-    voice: join(work, name, "voice.wav"), audioDir: dir, viewport, timeline });
+    voice: join(work, name, "voice.wav"), audioDir: dir, viewport, timeline, events: log.events });
   const transcript: Transcript = {
     version: 1,
     script: basename(scriptPath),
     video: { file: basename(out.video), width: viewport[0], height: viewport[1], fps: FPS, durationMs: durationMs(out.stagedVideo) },
     voice: narration.voice, steps: timeline.steps,
   };
-  const log = { version: 1 as const, events: retimeEvents(events, timeline) };
-  const errors = [...validateSync(transcript), ...validateEvents(log)];
+  const errors = validateSync(transcript);
   if (errors.length) throw new Error(`recording is invalid:\n  ${errors.join("\n  ")}`);
   renameSync(out.stagedVideo, out.video);
   writeJson(out.transcript, transcript);

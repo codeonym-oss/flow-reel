@@ -134,7 +134,10 @@ it("places a later clip after prior holds while preserving the final speech tail
       audio: { file: "two.wav", durationMs: 600, sha256: "b".repeat(64) } },
   ], { fps: 30, frames: 60, cutMs: 500 });
   const out = options("held-audio");
-  renderTimeline({ ...out, timeline });
+  renderTimeline({ ...out, timeline, events: [
+    { t: 100, type: "click", at: [80, 45], button: "left", target: "one" },
+    { t: 1900, type: "click", at: [120, 60], button: "left", target: "two" },
+  ] });
   expect(videoFrames(out.master)).toBe(93);
   expect(videoFrames(out.video)).toBe(78);
   const raw = execFileSync("ffmpeg", ["-v", "error", "-i", out.video, "-vn", "-ac", "1", "-ar", "48000", "-f", "f32le", "-"],

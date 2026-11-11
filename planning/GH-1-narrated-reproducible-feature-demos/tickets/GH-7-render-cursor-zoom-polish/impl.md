@@ -1,0 +1,147 @@
+# Implementation: Cursor, click ripples and target-aware zoom
+
+Planned 2026-11-11 against `main` at `a36dc26`, after GH-5 merged in PR #13.
+Shared understanding confirmed with "confirmed!". Follow story decisions 001–013 with their supersession notes,
+GH-2 decision 005, GH-5's shipped artifact contract, and this ticket's decisions 001–006. No follow-ups are taken up.
+
+## Current code and baseline
+
+- `run.ts` captures once with system-cursor drawing disabled, closes the browser/display, synthesizes clips,
+  plans frame holds, and renders a clean retimed master plus narrated delivery. Calibration pre-roll is retained
+  in the master; `master.json.startMs` maps delivery time zero into it.
+- `retimeEvents` shifts timestamps once; events remain CSS coordinates. Current event logs have click points and
+  target descriptions, but no element bounds or typing positions. Wrapped typing already clicks its field first.
+- `renderTimeline` owns master assembly, normalized voice generation, delivery encoding and frame/audio checks.
+  Add polish in its delivery path, preserving the clean master and existing narration bus.
+- Baseline: 63 unit tests, type checking and all 7 synthetic renderer tests pass. Script-loader/FFmpeg child
+  processes were blocked in the sandbox and passed outside it. Full Docker recording was not repeated for planning;
+  GH-5's final PR CI passed. FFmpeg filter help was inspected locally; official web documentation timed out.
+
+## Read first
+
+- This ticket's decisions 001–006; story decisions 009–013; GH-2 decisions 005–007; GH-5 `impl.md` and decisions.
+- `src/runner/run.ts`, `render.ts`, `timeline.ts`, `wrap.ts`, `easing.ts`, `display.ts`, `recorder.ts`.
+- `src/schema/events.ts`, `check.ts`, `transcript.ts`, `sync.ts`; `src/index.ts` for the unchanged public API.
+- `test/unit/wrap.test.ts`, `schema.test.ts`, `timeline.test.ts`, `easing.test.ts`.
+- `test/e2e/render.test.ts`, `record.test.ts`, `player.ts`, `app/index.html`; `README.md`, `docker/Dockerfile`,
+  `package.json`, `tsconfig.build.json`, `.github/workflows/ci.yml`.
+- FFmpeg's installed-image help and official filter documentation for `zoompan`, `overlay`, alpha/fade and
+  filter scripts. Verify behavior in the image's FFmpeg as well as the host version.
+
+## Implementation shape
+
+Add a pure camera/cursor planner in `src/runner/polish.ts`, with a narrow FFmpeg graph builder in
+`src/runner/polish-render.ts` if needed to keep media details out of geometry. Reuse `easeInOutCubic`.
+Keep framing, overlays and encoding on one frame clock. Prefer `zoompan` with `d=1`, explicit output size/FPS,
+followed by delivery-space overlays. Avoid per-frame dynamic scale reinitialization, a new rendering framework,
+full-frame JavaScript rasterization, or one heavyweight encoder process per frame.
+Generate simple cursor/ripple RGBA assets from owned geometry with existing Node/FFmpeg, or embed them in compiled
+modules; do not depend on SVG decoding, host cursor themes, new raster packages, or unshipped source files.
+Use work-folder graph/assets files if needed to avoid command-line length limits. No new user-facing controls.
+
+## Steps
+
+1. **Extend action metadata without changing action execution.** Add an optional `bounds` object
+   `{ x, y, width, height }` to click and type events. Coordinates must be finite CSS pixels; dimensions positive;
+   x/y may be negative for partially off-screen elements. Old events without bounds remain valid version 1 logs.
+   Carry the approach's latest pre-action bounding box into click metadata, so navigating clicks do not try to
+   locate their target after it disappears. Associate typing with its field's bounds. Keep click timestamps at
+   Playwright return, existing pacing, single execution, event order and warnings. Avoid extra browser calls
+   outside existing paced phases; if a refresh is necessary, measure its effect on timing.
+   → check: failing schema/wrapper tests first for bounds, missing bounds, malformed numbers/dimensions,
+   post-scroll coordinates, click targets removed by navigation, typed fields, unchanged pacing and old logs.
+   Preserve bounds through `retimeEvents` without mutation or a second timing shift.
+
+2. **Plan pointer positions, camera windows and ripple lifetimes purely.** Inputs are final events, CSS viewport,
+   source dimensions and exact delivery frame count/FPS. Initial pointer is viewport center. Follow move events
+   using their logged easing/duration, hold the last point between moves, and use click `at` as the authoritative
+   click location. Define frame time as `n * 1000 / fps`; an event begins on the first frame at or after `t`.
+   Unsupported easing should fail clearly rather than silently drawing a different path.
+   Form click-triggered zoom windows: 650 ms cubic ease-in, last click/typing end plus 2000 ms hold, 800 ms cubic
+   ease-out. Wrapped typing extends its initiating click window using text/cadence; hover/scroll do not initiate
+   zoom. Merge activity without snapping, including activity during ease-out. Clip visuals at video end without
+   adding frames. Empty logs produce a stationary cursor at full view; no clicks means no ripples/zoom.
+   Follow the pointer with smooth camera motion, clamped to the master. Fit current visible target bounds with
+   24 CSS px padding where available, reduce zoom to fit, and fall back to full view for oversized targets.
+   Intersect partly off-screen bounds with the viewport; unavailable source content cannot be recovered.
+   Use click points/last pointer when old logs lack bounds. The maximum zoom is the lesser of 4/3 and the actual
+   source-to-delivery ratio, accounting for rounded custom viewport sizes. Cursor/ripple coordinates use the same
+   crop transform. Keep the cursor hotspot correct at edges and apparent size constant (24 px arrow height at
+   default delivery; ripple expands from 8 to 28 px radius over 400 ms). Draw ripple behind cursor.
+   → check: worked-coordinate unit cases, not copies of the algorithm: center/edge/corner targets, large and
+   partially off-screen bounds, old logs, typing, hover-only/scroll-only, no events, rapid/double clicks, activity
+   during ease-out, final-frame truncation, fractional t, custom viewports and source dimensions, path endpoints,
+   camera continuity, crop containment, zoom limit and constant-size overlay transforms.
+
+3. **Render polish in the delivery filter path.** Trim calibration pre-roll first and reset PTS, then apply the
+   planned camera to the clean held master. With `zoompan`, explicitly set `d=1`, delivery dimensions and timeline
+   FPS to avoid its defaults generating extra frames. Use frame-indexed expressions or bounded filter scripts
+   from the pure plan; keep graph size proportional to activity rather than a giant expression per video frame.
+   Overlay the outlined white arrow at its transformed hotspot, then each blue click ring with its independent
+   400 ms expansion/fade (ring behind arrow). Composite after zoom so overlay size remains constant. Preserve
+   H.264 quality, pixel format, fast-start and existing AAC-LC voice encoding/checks. Pass retimed events from
+   `run.ts` before delivery rendering; continue publishing only after successful render/schema/sync checks.
+   Keep `capture.mp4`, `master.mp4`, `master.json`, voice and original clips in their existing roles. Low-level
+   rendering calls may default to an empty log for existing synthetic tests, while `record` always supplies its
+   final log. No silent fallback if polish fails. Do not change capture settings, TTS, captions or comparison rules.
+   → check: small synthetic video with labeled/color targets and a grid. Decode frames to locate the arrow hotspot,
+   first ripple frame, ring growth/fade, camera crop and edge framing at known times. Verify exact frame count,
+   resolution/FPS, no calibration marker leakage, clean-master preservation, silent/voiced output and failure
+   propagation. Run against host and image FFmpeg, especially variable zoom geometry/chroma rounding.
+
+4. **Prove sync, repeatability and practical rendering cost.** Add focused `test/e2e/polish.test.ts` fixtures with
+   pre-roll, multiple GH-5 holds, typed activity, corner targets, rapid clicks and no events. Render the same
+   synthetic input twice on the same image and compare decoded-frame hashes; do not compare container MP4 bytes
+   or separate live browser captures. Check audio tone onsets/endings, full duration, loudness/peak checks, raw
+   WAV hashes and unchanged timeline metadata alongside visual assertions. Keep all 7 existing render tests.
+   Reuse the real recording pair for cursor/ripple/zoom assertions instead of adding costly Qwen jobs. Keep the
+   magenta click timing check meaningful under camera movement: use the clean master plus cut offset for the
+   original capture-clock assertion, and separately check transformed delivery click/ripple timing. A fixed
+   top-left delivery crop alone can lose the marker when the camera pans. Retain caption playback and compare.
+   → check: `npm test`, `npm run typecheck`, `npm run build`, focused media tests on host/image, then full
+   `npm run test:e2e` serially with existing cleanup/timeouts. Record render elapsed time, peak memory and
+   representative default-viewport clip duration. Inspect a narrated polished MP4 for smooth motion, legibility,
+   target framing, ripple visibility and complete speech; request user playback review of that actual artifact.
+   A long synthetic multi-action fixture must complete within the existing media timeout without graph/argument
+   limits. Do not raise CI's 45-minute budget without measurements and an explicit reason.
+
+5. **Document and package the shipped behavior.** Update README's release description, known gaps and artifact
+   descriptions for automatic cursor/zoom, bounds, sharpness cap, activity timing and old-log limitations. Keep
+   sounds and optional 4K separate. Ensure generated/bundled cursor assets work from built `dist` inside the image
+   and npm package without the source checkout. Do not change the script API, CLI routing or add dependencies.
+   → check: `git diff --check`, `npm pack --dry-run`, built-package asset smoke check, full relevant checks above.
+   Record tests, review findings and render evidence in ticket build notes during implementation.
+
+## Risks
+
+- Camera transforms can hide the target or move the pointer away from it. Use one geometry plan for camera and
+  overlays; test whole visible bounds, corners, padded framing and movement transitions in decoded frames.
+- Bounds are a snapshot before an action, not live DOM tracking. Navigation/layout changes and off-screen content
+  limit what can be guaranteed; preserve captured content and avoid claiming persistent target tracking.
+- Event cadence estimates typing duration; they are not per-character observations. Keep the established event
+  contract, test its use, and do not extend speech/video timing to accommodate polish.
+- Dynamic crops and chroma subsampling can produce jitter. Verify `zoompan` at actual source size with delivery
+  overlays and explicit FPS; measure before switching strategies or adding supersampling/resource cost.
+- Applying holds/cut twice, default zoompan duration, or overlay EOF can change sync or drop frames. Explicit
+  clocks, frame guards and decoded media checks protect the GH-5 contract, including blank narration.
+- Graph size and alpha compositing can be costly for long scripts. Keep work bounded by activity and measure the
+  default viewport; no capture/TTS concurrency, overload-guard weakening or unbounded frame buffers.
+- Deterministic decoded frames are scoped to identical inputs and the same image. They do not expand the story's
+  independent-recording comparison contract or promise equality across FFmpeg versions/hardware.
+- Existing optional 4K and odd-viewport recorder follow-ups remain untouched.
+
+## Implementation notes
+
+- FFmpeg 8+ removed `-filter_complex_script`; use `-/filter_complex` there, while the image's FFmpeg 6 uses
+  the older option. Both read generated graph files, avoiding command-line length limits.
+- Camera movement during ease-out retains its original zoom deadline. A shared pointer-containment constraint
+  is applied to the effective crop in both pure sampling and FFmpeg expressions, so fast pointer moves cannot
+  escape a still-zoomed frame. This fixes the Spec review's reproduced edge case without changing zoom timing.
+- The magenta capture-clock assertion now reads the clean master and subtracts its calibration cut; a separate
+  decoded-delivery check verifies blue ripples at transformed click positions.
+
+- Playback review approved decision 006: 650 ms zoom-in / 2000 ms activity hold / 800 ms zoom-out. Same-target
+  activity extends the scheduled hold without restarting an unfinished ease; a failing regression test caught
+  that interruption before the fix. The revised narrated preview was accepted with "Yes, this feels good."
+- Cursor visibility constraints include 24 delivery pixels right/bottom and 1 pixel left/top where source edges
+  permit. The decoded regression follows the revised clock and checks actual arrow pixels at frames 67–69.

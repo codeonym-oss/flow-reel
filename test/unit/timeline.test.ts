@@ -36,7 +36,8 @@ it("maps gaps and boundary events once while retaining action durations", async 
   expect(plan.holds).toEqual([{ frame: 60, frames: 21 }, { frame: 75, frames: 24 }]);
   expect([999, 1000, 1100, 1499, 1500, 1900].map(plan.mapTime)).toEqual([999, 1700, 1800, 2199, 3000, 3400]);
   const events = [{ t: 1200, type: "scroll" as const, delta: [0, 300] as [number, number], durationMs: 400 },
-    { t: 1500, type: "type" as const, text: "Ada", charDelayMs: 60, target: "Name" }];
+    { t: 1500, type: "type" as const, text: "Ada", charDelayMs: 60, target: "Name",
+      bounds: { x: -10, y: 20, width: 100, height: 30 } }];
   expect(retimeEvents(events, plan)).toEqual([{ ...events[0], t: 1900 }, { ...events[1], t: 3000 }]);
   expect(events[0].t).toBe(1200);
   expect(plan.frames).toBe(135);

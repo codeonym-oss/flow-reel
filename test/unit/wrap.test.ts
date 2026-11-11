@@ -6,7 +6,7 @@ import { wrapPage } from "../../src/runner/wrap.ts";
 // A fake of the Playwright surface the wrapper touches: the page, its mouse and locators. Every call lands in `calls`.
 interface Box { x: number; y: number; width: number; height: number }
 
-function fakePage(boxes: Record<string, Box>, boxLatencyMs = 0, clickLatencyMs = 0) {
+function fakePage(boxes: Record<string, Box>, boxLatencyMs = 0, clickLatencyMs = 0, removeOnClick = false) {
   const calls: string[] = [];
   let scrollY = 0;
   const locator = (name: string): Record<string, unknown> => ({
@@ -16,7 +16,7 @@ function fakePage(boxes: Record<string, Box>, boxLatencyMs = 0, clickLatencyMs =
       const b = boxes[name];
       return b && { ...b, y: b.y - scrollY };
     },
-    click: async () => { now += clickLatencyMs; calls.push(`click ${name}`); },
+    click: async () => { now += clickLatencyMs; calls.push(`click ${name}`); if (removeOnClick) delete boxes[name]; },
     hover: async () => void calls.push(`hover ${name}`),
     fill: async (v: string) => void calls.push(`fill ${name} "${v}"`),
     pressSequentially: async (v: string, o: { delay: number }) =>
@@ -60,7 +60,8 @@ describe("wrapPage", () => {
     // Locating takes its 150 ms budget; the 517.5 px move lasts 394 ms, plus its 30 ms tail.
     expect(events).toEqual([
       { t: 150, type: "move", from: [960, 540], to: [1412, 288], durationMs: 394, easing: "easeInOutCubic" },
-      { t: 574, type: "click", at: [1412, 288], button: "left", target: "link Settings" },
+      { t: 574, type: "click", at: [1412, 288], button: "left", target: "link Settings",
+        bounds: { x: 1400, y: 280, width: 24, height: 16 } },
     ]);
   });
 
@@ -87,7 +88,8 @@ describe("wrapPage", () => {
       'fill textbox Name ""',
       'pressSequentially textbox Name "hello" 60',
     ]);
-    expect(events.at(-1)).toMatchObject({ type: "type", text: "hello", charDelayMs: 60, target: "textbox Name" });
+    expect(events.at(-1)).toMatchObject({ type: "type", text: "hello", charDelayMs: 60, target: "textbox Name",
+      bounds: { x: 100, y: 100, width: 200, height: 30 } });
   });
 
   it("wraps chained locators too", async () => {
@@ -104,6 +106,13 @@ describe("wrapPage", () => {
     expect(events.map((e) => e.type)).toEqual(["scroll", "move", "click"]);
     expect(events[0]).toMatchObject({ delta: [0, 1980] });
     expect(calls.filter((c) => c.startsWith("move")).at(-1)).toBe("move 960,540");
+    expect(events.at(-1)).toMatchObject({ bounds: { x: 900, y: 520, width: 120, height: 40 } });
+  });
+
+  it("keeps pre-action bounds when a navigating click removes its target", async () => {
+    const { page } = fakePage({ "link Next": { x: 200, y: 100, width: 80, height: 20 } }, 0, 0, true);
+    await wrap(page).getByRole("link", { name: "Next" }).click();
+    expect(events.at(-1)).toMatchObject({ type: "click", bounds: { x: 200, y: 100, width: 80, height: 20 } });
   });
 
   it("eases page-level actions too, through the selector's locator", async () => {

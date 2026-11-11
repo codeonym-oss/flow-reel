@@ -4,8 +4,8 @@ Record reproducible feature demos from a short Playwright script. A coding agent
 writes the script, and `flow-reel` replays it in a sandbox on a virtual display while recording the screen. The same
 script gives the same video, step for step.
 
-This release records narrated video with captions, fitted step timings and original speech clips.
-Cursor and zoom polish, and sound effects come in later releases.
+This release records narrated video with captions, fitted step timings, a smooth cursor, click ripples and
+automatic zoom. Sound effects come in a later release.
 
 ## Requirements
 
@@ -59,7 +59,7 @@ Next to the script:
 
 | File | What it is |
 |---|---|
-| `settings.mp4` | The narrated demo, 1920×1080, 30 fps, with AAC speech audio. |
+| `settings.mp4` | The polished narrated demo, 1920×1080, 30 fps, with AAC speech audio. |
 | `settings.transcript.json` | Each step's original narration and `startMs`, `actionEndMs` and `endMs` on the video's timeline (schema version 1). |
 | `settings.events.json` | Every move, click, keystroke run and scroll the runner made, timed the same way (schema version 1). |
 | `settings.srt` | Captions for a subtitle-capable video player. |
@@ -89,6 +89,18 @@ freezing the last frame of that settled window. Narration starts alongside its a
 continue normally after speech finishes. Transcript windows, captions, events and the master all use this final
 timeline. Blank narration gets no speech padding; an all-blank demo has no audio stream.
 
+Visual polish is automatic: a white arrow with a dark outline follows logged pointer motion, and a blue ring
+expands and fades for 400 ms at each click. The cursor and rings keep their screen size while the page zooms.
+Clicks ease the camera in over 650 ms; it stays zoomed until 2 seconds after the latest click or typing ends,
+then eases out over 800 ms. Further activity extends the zoom. Hover and scrolling alone do not trigger it.
+The camera follows the pointer and stays within the recorded page. Zoom is capped at 4/3 (about 1.33×), using
+the default 1440p master for sharp 1080p output; large targets reduce the zoom to keep their visible bounds
+framed with padding. Bounds are captured before the action, so they do not track subsequent layout changes.
+Partly off-screen elements can only show the portion captured in the master. Old version 1 event logs without
+bounds use click points instead, without a whole-element framing guarantee. Polish preserves every frame and
+all narration, transcript and caption times. Zoom animations end with the video and do not lengthen it.
+Polish runs after capture, without replaying actions or changing speed.
+
 The assembled voice is normalized to -16 LUFS with a -1.5 dBTP peak ceiling, then encoded as 48 kHz stereo AAC-LC
 at 192 kb/s. Decoded output is checked within 1 LU of the loudness target and 0.1 dB of the peak ceiling. Original
 WAVs, durations and hashes remain unchanged. Synthesis, rendering or sync failures fail the command before a new
@@ -103,8 +115,10 @@ individual steps also fail if generation reaches its limit, rather than returnin
 Captions escape `&`, `<` and `>` so narration is emitted without raw tags. WebVTT displays the literal text; some
 SRT players display escape sequences such as `&lt;` instead. Use WebVTT in a browser when literal symbols matter.
 
-In `.flow-reel/settings/`: `capture.mp4` is the original 2560×1440 recording; `master.mp4` has the added holds for
-later polish; `master.json.startMs` gives delivery time zero within the master, preserving its calibration pre-roll.
+In `.flow-reel/settings/`: `capture.mp4` is the original 2560×1440 recording; `master.mp4` is the clean recording
+with added holds, preserved before cursor/zoom rendering; `master.json.startMs` gives delivery time zero within
+the master, preserving its calibration pre-roll. Events use CSS pixels and final delivery times; click and typing
+events may include `bounds: { x, y, width, height }` in CSS pixels (schema version 1).
 `voice.wav` is the normalized voice bus on the delivery timeline. The `.flow-reel/` folder ignores itself in git;
 the files next to the script are yours to commit or not.
 
@@ -137,8 +151,8 @@ step windows, including the speech tail, before publishing its transcript.
 
 ## Known gaps
 
-- No cursor drawn in the video yet: the runner logs the motion in `events.json` for the polish step.
 - Playwright calls the runner doesn't cover run without any mouse motion (the warning names them).
+- Camera framing uses pre-action target bounds, not live tracking of elements after navigation or layout changes.
 
 ## Develop
 

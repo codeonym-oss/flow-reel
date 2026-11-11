@@ -2,29 +2,26 @@
 
 ## Problem
 
-Playwright's input moves no real cursor, so the recorded master shows things being clicked with no pointer, and a
-1080p frame of a full 4K page is hard to follow (story decision 012).
+The recorder deliberately excludes the system cursor. Its clean master shows clicks without a pointer, and a full-page view can be hard to follow. GH-5 now supplies the fitted master and events on the final delivery timeline; GH-7 adds visual emphasis without changing that timeline.
 
 ## Change
 
-- A post step that reads `events.json` (story decision 013) and the 4K master, and renders `demo.mp4` at 1080p with:
-  a cursor sprite following the runner's eased paths, a ripple on each click, a zoom that eases in around a click or
-  typing target and follows the cursor while zoomed, and eases back out.
-- Built on ffmpeg filter graphs (no Remotion: story decision 012).
-- Voice and timing stay as GH-5 left them: polish never changes `transcript.json` timings.
+- Automatically polish the MP4 produced by `record`, using the existing FFmpeg installation. Preserve the clean retimed master, its calibration offset, original speech clips and normalized voice bus (story decisions 012–013; ticket decision 005).
+- Draw one white arrow with a dark outline following the logged eased paths. Keep its apparent size constant during zoom. Draw an expanding blue ring at every click, fading over 400 ms (decision 004).
+- Clicks trigger a 650 ms eased zoom-in, capped at 4/3 (about 1.33×). Keep zoom until 2000 ms after the most recent click or typing finishes, then ease out over 800 ms. Activity during the zoom extends it; hover and scrolling alone do not trigger zoom (decisions 001–002 and 006).
+- Follow the cursor smoothly while zoomed. Add optional CSS target bounds to click and typing events in the compatible version 1 event log. Keep the crop inside the source frame and reduce zoom as needed to show the visible target with padding. Existing logs without bounds use click-point framing, without a whole-element visibility guarantee (decision 003).
+- Use the shipped 1440p master for default 1080p delivery. This corrects the earlier 4K wording, superseded by GH-2 decision 005. Optional 4K capture remains in its existing story follow-up.
+- Preserve delivery frame count/FPS, speech placement, transcript and caption times. Use final retimed events once, without applying GH-5 holds a second time.
 
 ## Out of scope
 
-Sounds (the SFX ticket); intro and outro cards; burned-in captions.
+Sound effects (GH-8), optional 4K/GPU capture, OS-specific cursor styles, new CLI commands or script controls, intro/outro cards, burned-in captions, and the existing odd-viewport recorder follow-up. No follow-ups are taken up.
 
 ## Done when
 
-- The sample demo shows the cursor moving to and clicking every target, with a ripple at each click's `t`.
-- Zoom-ins are sharp (rendered from the 4K master) and never cut off the clicked element.
-- Two renders from the same inputs are identical (the render is deterministic given its inputs).
-
-## For the ticket pass
-
-- Zoom rules: which events zoom, levels, easing, minimum hold, merging nearby targets.
-- Cursor and ripple assets, and per-OS cursor styles.
-- Filter-graph approach (`zoompan` vs per-frame `crop`+`scale` expressions) and render speed.
+- The sample demo shows the pointer following moves and a ripple beginning at each click's time within one delivery frame.
+- Zoom follows the agreed activity timing, stays at or below 4/3, and keeps the visible target bounds framed; oversized or partly off-screen targets are limited by what the clean master actually captured.
+- Zoom stays inside the source and does not upscale beyond the available source resolution. Cursor size stays constant at delivery scale.
+- Repeated renders of identical master/events/settings produce identical decoded video frames on the same image. Independent browser recordings retain the story's existing ±150 ms comparison contract, rather than requiring identical MP4 bytes.
+- Frame count, audio duration/placement, source WAV hashes, transcript/caption times, silent output, and clean-master behavior remain covered by automated checks.
+- Unit, media and full recording checks pass; a concrete polished narrated demo is visually reviewed, and render time/memory are recorded.
