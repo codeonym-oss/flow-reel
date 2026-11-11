@@ -44,3 +44,5 @@ and the existing end-to-end record pair. Using the TDD and code-review skills re
 - Awaiting commit approval. Proposed message: `feat: render cursor, click ripples and automatic zoom (#7)`. GitHub description still needs the revised approved draft (decision 006) synced after explicit approval.
 
 User authorized publication and merge: "ok, go ahead, you are permitted to do whatever you need to push , merge , etc ...". Synced GH-7 description with final draft before commit.
+
+Implementation commit: 54c3666. PR: https://github.com/codeonym-oss/flow-reel/pull/14. Issue description synced. Board 6 has Todo/In Progress/Done only, so it remains In Progress during review. Final-head CI is required before the authorized squash merge.

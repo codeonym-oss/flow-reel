@@ -6,3 +6,4 @@
 - 2026-11-11: playback feedback approved slower/longer close-ups; decision 006 supersedes the old zoom timing. Updated local draft/plan; GitHub description needs a later approved sync.
 - 2026-11-11: slower narrated preview approved ("Yes, this feels good."); documented same-target ease continuity and sprite visibility correction.
 - 2026-11-11: user authorized commit, push, PR and merge; synced issue description with final decision 006 timing.
+- 2026-11-11: committed 54c3666, pushed branch and opened PR #14. Status in-review locally; board remains In Progress because it has no In Review option.
