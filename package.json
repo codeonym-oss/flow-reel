@@ -3,9 +3,14 @@
   "version": "0.1.0",
   "description": "Record narrated, reproducible feature demos from an agent-written Playwright script.",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/codeonym-oss/flow-reel.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeonym-oss/flow-reel.git"
+  },
   "homepage": "https://github.com/codeonym-oss/flow-reel#readme",
-  "bugs": { "url": "https://github.com/codeonym-oss/flow-reel/issues" },
+  "bugs": {
+    "url": "https://github.com/codeonym-oss/flow-reel/issues"
+  },
   "type": "module",
   "bin": {
     "flow-reel": "dist/cli.js"
