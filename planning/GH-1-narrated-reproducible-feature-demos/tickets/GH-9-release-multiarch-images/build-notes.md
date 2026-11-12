@@ -2,7 +2,7 @@
 
 Started 2026-11-12 from `919f326` on `feat/9-release-multiarch-images`. User authorized implementation and requested no repeated confirmations for the agreed approach. All prior planning edits were retained.
 
-## Implemented so far
+## Implementation
 
 - Test-only supplied-image mode shares preparation between recorder/TTS checks; candidate digest pull failure cannot fall back to building.
 - Native amd64/arm64 PR CI, with fixed official action commits, architecture-specific image caches, sequential media checks and packed-consumer smoke checks.
@@ -23,10 +23,11 @@ Started 2026-11-12 from `919f326` on `feat/9-release-multiarch-images`. User aut
 - Packed consumer recording passed from a clean directory with local builds forbidden. Outputs: `test/e2e/out/gh9-consumer`; Docker command log contains no build.
 - Independent reviews: Standards 0 findings; Spec initially found missing immutable image/consumer evidence, fixed and re-reviewed to 0 remaining findings. Final manifest reference is retained and validated by digest; both consumer jobs always upload logs/outputs. Release command regression check exercises exact-reference retention and conflicting-tag refusal through a fake external registry boundary.
 
-## Pending
-- Native amd64 and arm64 GitHub CI; registry candidate, anonymous pull and first-release verification must run remotely.
-- npm login/ownership and one-time trusted publisher configuration. Host `npm whoami` returned ENEEDAUTH. User reported being unable to create an npm account and supplied a signup page showing access temporarily restricted by npm. Keep npm publishing disabled; continue GHCR work. No npm publication has occurred.
-- Commit, PR, CI and release workflow activation. GH-9 stays building/open until the actual release verification succeeds; use `Part of #9` for the workflow implementation PR to avoid closing the ticket before its release checks.
+## Remaining work
+
+- npm account/ownership setup is unavailable: user supplied a signup page showing access temporarily restricted. Keep PUBLISH_TO_NPM unset/disabled.
+- Once available, bootstrap the exact verified package if required, configure the two trusted publisher identities (release-please.yml and publish.yml), enable routine OIDC publication, and verify registry-installed consumers. Initial manual bootstrap alone does not establish successful OIDC publication.
+- Recover v0.1.0 using source_run 43306468361 as documented. Keep GH-9 open/building until npm checks are complete; GH-1 still has GH-6 outstanding.
 
 Logs/tools under `/tmp/flow-reel-gh9-*` are development evidence, not release artifacts.
 
@@ -40,4 +41,19 @@ Logs/tools under `/tmp/flow-reel-gh9-*` are development evidence, not release ar
 - Saved AMD artifacts reproduce the absent ring at frame 263 for click t=8766.419892333333 ms. The next frame contains 96 blue pixels. Disabling FFmpeg frame synchronization does not fix it. Minimized synthetic regression fails identically (0 blue pixels) in under one second.
 - Root cause: comparing FFmpeg rational frame timestamps with a JavaScript double start time can reject the exact first frame by a rounding difference. Compare frame units with the same 1e-9 tolerance already used by the planner. No assertion/guard is weakened. Focused 17 media tests and type checking pass after the fix.
 - The repository PR-permission setting update was rejected with HTTP409 because organization policy forbids it; setting remained unchanged. Reference projects have RELEASE_PLEASE_TOKEN. User configured the same secret for flow-reel, verified by name only. npm signup remains restricted and publication disabled.
-- Pinned action bundles release-please17.6.0; repeated real-strategy dry run on that exact version passes initial0.1.0/feature0.2.0/fix0.1.1 and metadata updates.
+- Pinned action bundles release-please 17.6.0; repeated real-strategy dry run on that exact version passes initial 0.1.0 / feature 0.2.0 / fix 0.1.1 and metadata updates.
+
+## Release verification and current state
+
+- Implementation PR #16 merged at ba70a7f60961d8d7c65f71ca82bfa2ae0dffeef3 after native CI 43299712016 passed on c6624e867944dd70ca2ce768f2aab7fed22c5dc6: 86 unit tests, 31 media tests, package checks and packed consumer on both architectures. AMD 15m23s / ARM 9m42s. Independent reviews clear.
+- RELEASE_PLEASE_TOKEN successfully created release PR #17. Reviewed only manifest/changelog/package formatting; package JSON semantics unchanged. Renamed to project convention after verifying the pinned parser accepts the issue suffix. Native CI 43303027429 passed both architectures. PR #17 merged at bf5fe70109f0f6188719c79719d3826a990919e6; GitHub v0.1.0 created 2026-11-12T21:03:56Z.
+- Release run 43306468361: package checks pass; both exact pulled candidates pass all 31 media tests (native AMD 17m10s / ARM 16m19s); image assembly 27s; anonymous packed-consumer recordings ARM 2m34s / AMD 2m49s pass. Only the npm job fails at the explicit disabled/setup gate; npm-installed matrix skipped. No npm publication occurred.
+- Public index: ghcr.io/codeonym-oss/flow-reel@sha256:fc8de99cb9555502e76d3f2d58afe112b4ef8edee11a24d6dfde75e5f05c29aa
+- AMD candidate: sha256:af183a0dc40602a7d67341f2a1e792ada8450c2ea675a162e661675c3469174b
+- ARM candidate: sha256:5bcf285a0a476544a1184a6c4bd5e4d392a5911a4f876af7bf9aa40a841f4b5b
+- Package source: bf5fe70109f0f6188719c79719d3826a990919e6; SHA-256 d17f7d50a0474ad70bcc60d06b9552a882ea41db3bc9a6b7aab1f1f59671ebe3; integrity sha512-ywNnbbi9EOA/FhNj33FAy/1jR8h/7Yc78roDzz/WnjprpBS2IOWvuiGbvaVmeLjPlzDAitekGajhxJcbnG1lgQ==. Exact workflow artifact copied to ignored release/; do not regenerate for bootstrap.
+- Live recovery guard checks accepted both real candidates and the existing immutable index, with a Docker wrapper forbidding registry writes. Same recorded image reference, no imagetools create. This validates script-level reuse/conflict guards; a full recovery workflow dispatch remains the npm-resume path.
+- Personal gh API token lacks read:packages, but anonymous GHCR registry reads/pulls work; no visibility change or broader token scope was needed.
+- Local public CLI consumer passed after preserving the development image as gh9-local-before-release and removing its 0.1.0 tag. Tagged tarball's own CLI pulled 0.1.0 anonymously, built no image, and recorded two voiced steps. Outputs test/e2e/out/gh9-public-consumer. Public local image sha256:53983c76883480ea70ef906069b7a84b222a87de1e5cf3888956c964101deb16 is amd64, 7,002,251,491 bytes; version/revision/RepoDigests match the release.
+- Cross-architecture WAV bytes differ (AMD demo 12,500 ms, ARM 12,567 ms in initial native artifacts); repeated runs match within each architecture. This limitation is documented; no cross-architecture byte-identity claim is made.
+- Main remains on the released source plus documentation/planning bookkeeping only. README clarifies npm availability independently of the completed GitHub/GHCR release. Keep board In Progress and issue #9 open pending npm.

@@ -24,7 +24,7 @@ automatic zoom, click/typing sounds and optional named action cues.
 npm install --save-dev flow-reel
 ```
 
-The package and recording image use the same version. Until the first public release is verified, build a package
+The package and recording image use the same version. Until the package is available on npm, build a package
 from a clone (`npm ci && npm run build && npm pack`) and install the `.tgz` it writes.
 See [release setup and verification](docs/releasing.md) for publication status requirements and contributor steps.
 
