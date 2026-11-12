@@ -23,3 +23,10 @@
 - Staged diff check passes after normalizing CRLF/trailing whitespace in the two newly imported Kenney licence text copies; licence wording and original audio bytes are unchanged.
 - Implementation plan complete; no unverified required local checks remain. Playback approved; both review axes clear. Changes staged for commit review, not committed or pushed.
 - Published implementation commit `2a6e39a` as PR https://github.com/codeonym-oss/flow-reel/pull/15 under user approval. Planning status in-review; project board has only Todo/In Progress/Done, so In Progress remains during review.
+
+## Publication and merge
+
+- Implementation commit `2a6e39a`; PR bookkeeping head `e2cb040e0754989a76b39160be25d99e19a4dfed`.
+- Final PR CI [43184569677](https://github.com/codeonym-oss/flow-reel/actions/runs/43184569677) passed in 11m17s, including dependency setup, typecheck, unit suite and complete end-to-end suite. Superseded first-head CI was canceled after the final head was published.
+- Squash-merged [PR #15](https://github.com/codeonym-oss/flow-reel/pull/15) on 2026-11-12T08:50:35Z as `3d9d4873a7f3f429823482617143fc130514b63e`, matching the checked head. No protection override.
+- GH-8 closed automatically and board item moved to Done. Post-merge change is completion metadata only; implementation and tests are unchanged from the checked merge.

@@ -14,3 +14,4 @@
 - 2026-11-11: synchronized local draft with DAEDAL-based refinement; implementation verification ongoing, no playback approval yet.
 - 2026-11-12: full final-image end-to-end suite passed 30/30; offline packed-package/source hashes verified, human-approved mix measured within targets; issue body synced. Implementation review complete; no commit/PR yet.
 - 2026-11-12: user accepted publishing/merge; pushed implementation commit 2a6e39a and opened PR #15. Marked in-review; board lacks an In Review option, so its existing In Progress status remains until merge.
+- 2026-11-12: CI passed on e2cb040; squash-merged PR #15 as 3d9d487, issue #8 closed automatically, project item moved to Done and local main synchronized. Ticket marked done.
