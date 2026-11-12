@@ -22,9 +22,11 @@ Media checks run sequentially per runner; the capture overload guard remains ena
 
 ### Release PRs
 
-Enable **Allow GitHub Actions to create and approve pull requests** in the repository's Actions settings. The
-workflow creates PRs but does not approve its own changes. Its job explicitly requests contents, pull-requests and
-issues write permissions.
+The organization currently blocks Actions-created PRs with the built-in token. Set `RELEASE_PLEASE_TOKEN` as below,
+following design-skills and i18n-ai. If an organization administrator later permits the built-in token, enable
+**Allow GitHub Actions to create and approve pull requests** in the repository's Actions settings. The workflow
+creates PRs but does not approve its own changes. Its job explicitly requests contents, pull-requests and issues
+write permissions.
 
 The organization convention supports an optional `RELEASE_PLEASE_TOKEN` secret: a fine-grained PAT with contents,
 pull requests and issues read/write for this repository. This lets the bot-created release PR trigger ordinary PR

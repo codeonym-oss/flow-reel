@@ -68,3 +68,5 @@ Planned against main `919f326` on 2026-11-12. Scope confirmed after decisions 00
 - Installed release-please 17.11.2 defaults to 1.0.0; set the supported initial-version option to 0.1.0 and retain an empty initial manifest. Real-strategy dry run verifies subsequent ordinary bumps.
 - npm's current documentation specifies the caller workflow identity for reusable publication. Configure release-please.yml and publish.yml as the normal and manual-recovery trusted publishers respectively, with id-token granted by caller and child.
 - Keep GH-9 open through the implementation PR (Part of #9), since first public release verification follows workflow merge and account setup.
+
+- Native CI exposed a release-blocking ripple frame-clock comparison defect: the first overlay frame could fail gte(t,start) by a floating-point rounding difference. Include the minimal renderer correction and synthetic media regression; preserve the existing exact-frame pixel assertion and overload limits. This restores the inherited first-delivery-frame contract rather than broadening polish behavior.

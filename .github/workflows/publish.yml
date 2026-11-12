@@ -129,7 +129,9 @@ jobs:
             org.opencontainers.image.source=https://github.com/codeonym-oss/flow-reel
             org.opencontainers.image.version=${{ needs.package.outputs.version }}
             org.opencontainers.image.revision=${{ needs.package.outputs.commit }}
-          cache-from: type=gha,scope=flow-reel-release-${{ matrix.arch }}
+          cache-from: |
+            type=gha,scope=flow-reel-release-${{ matrix.arch }}
+            type=gha,scope=flow-reel-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=flow-reel-release-${{ matrix.arch }}
       - if: inputs.source_run != ''
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8

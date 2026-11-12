@@ -33,3 +33,11 @@ Logs/tools under `/tmp/flow-reel-gh9-*` are development evidence, not release ar
 ## Implementation PR
 
 [PR #16](https://github.com/codeonym-oss/flow-reel/pull/16), implementation commit `847e69b261d73ec9453551ca4ad65443f5077239`. Native architecture CI must pass before merge. Board has no In Review status; keep In Progress until all ticket verification is done.
+
+## First native CI and prerequisite fix
+
+- Run 43293196973 on 3eaa72c: arm64 passed the complete original 30-test media suite and packed consumer (22m32s job); amd64 passed 29/30 media tests, failing the existing first-frame blue-ripple assertion. All 86 unit tests passed on both.
+- Saved AMD artifacts reproduce the absent ring at frame 263 for click t=8766.419892333333 ms. The next frame contains 96 blue pixels. Disabling FFmpeg frame synchronization does not fix it. Minimized synthetic regression fails identically (0 blue pixels) in under one second.
+- Root cause: comparing FFmpeg rational frame timestamps with a JavaScript double start time can reject the exact first frame by a rounding difference. Compare frame units with the same 1e-9 tolerance already used by the planner. No assertion/guard is weakened. Focused 17 media tests and type checking pass after the fix.
+- The repository PR-permission setting update was rejected with HTTP409 because organization policy forbids it; setting remained unchanged. Reference projects have RELEASE_PLEASE_TOKEN. User configured the same secret for flow-reel, verified by name only. npm signup remains restricted and publication disabled.
+- Pinned action bundles release-please17.6.0; repeated real-strategy dry run on that exact version passes initial0.1.0/feature0.2.0/fix0.1.1 and metadata updates.

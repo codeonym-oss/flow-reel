@@ -80,10 +80,12 @@ export function polishFilters(events: readonly RunnerEvent[], options: PolishOpt
     plan.clicks.forEach((event, i) => {
       const { crop } = positions("t*1000", event.t, event.t + 400);
       // Align to the first delivery frame at or after the event, rather than nearest-time rounding.
-      const start = Math.ceil(event.t * options.fps / 1000 - 1e-9) / options.fps;
+      const startFrame = Math.ceil(event.t * options.fps / 1000 - 1e-9);
+      const start = startFrame / options.fps;
       filters.push(`[r${i}]setpts=PTS+${start}/TB[ring${i}]`);
+      // FFmpeg's rational frame time can fall just below start; compare in frame units with the planner's tolerance.
       filters.push(`[${previous}][ring${i}]overlay=x='(${event.at[0] / width}-(${crop[0]}))*${width}/(${crop[2]})-32':` +
-        `y='(${event.at[1] / height}-(${crop[1]}))*${height}/(${crop[2]})-32':eof_action=pass:repeatlast=0:enable='gte(t,${start})'[click${i}]`);
+        `y='(${event.at[1] / height}-(${crop[1]}))*${height}/(${crop[2]})-32':eof_action=pass:repeatlast=0:enable='gte(t*${options.fps},${startFrame}-1e-9)'[click${i}]`);
       previous = `click${i}`;
     });
   }
