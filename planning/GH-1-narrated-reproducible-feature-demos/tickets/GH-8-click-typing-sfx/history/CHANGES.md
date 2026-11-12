@@ -13,3 +13,4 @@
 - 2026-11-11: user found the first preview too low/generic; decision 008 records a smoother CC0 palette revision and ~6 dB stronger presence, with another listening check required. Archived/updated impl.md.
 - 2026-11-11: synchronized local draft with DAEDAL-based refinement; implementation verification ongoing, no playback approval yet.
 - 2026-11-12: full final-image end-to-end suite passed 30/30; offline packed-package/source hashes verified, human-approved mix measured within targets; issue body synced. Implementation review complete; no commit/PR yet.
+- 2026-11-12: user accepted publishing/merge; pushed implementation commit 2a6e39a and opened PR #15. Marked in-review; board lacks an In Review option, so its existing In Progress status remains until merge.

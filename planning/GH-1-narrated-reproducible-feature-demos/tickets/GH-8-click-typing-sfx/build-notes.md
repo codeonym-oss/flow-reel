@@ -22,3 +22,4 @@
 - Repeated the same real voiced render in the final image: decoded final-audio hashes match exactly (`SHA256=414b22efc8605f2c093a0c6589dc3385357e9e2fae4880965d31668372089041`). No browser replay or new synthesis.
 - Staged diff check passes after normalizing CRLF/trailing whitespace in the two newly imported Kenney licence text copies; licence wording and original audio bytes are unchanged.
 - Implementation plan complete; no unverified required local checks remain. Playback approved; both review axes clear. Changes staged for commit review, not committed or pushed.
+- Published implementation commit `2a6e39a` as PR https://github.com/codeonym-oss/flow-reel/pull/15 under user approval. Planning status in-review; project board has only Todo/In Progress/Done, so In Progress remains during review.
