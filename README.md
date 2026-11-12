@@ -12,6 +12,7 @@ automatic zoom, click/typing sounds and optional named action cues.
 - Node.js 22.18 or later (scripts are TypeScript, run with Node's type stripping).
 - Docker or Podman. The recording runs in the `ghcr.io/codeonym-oss/flow-reel:<version>` image; when it can't be
   pulled, `flow-reel` builds it locally once (a few minutes).
+- Release images target native Linux amd64 and arm64; Docker Desktop supplies the Linux runtime on macOS/Windows.
 - About 2.5 free CPU cores while recording. On an overloaded machine the recording stops with an error rather than
   save a video whose timing is off.
 - The image is about 7 GB unpacked; its build downloads about 2.5 GB of model weights. Local speech synthesis uses
@@ -23,8 +24,9 @@ automatic zoom, click/typing sounds and optional named action cues.
 npm install --save-dev flow-reel
 ```
 
-flow-reel isn't published yet. Until it is, build a package from a clone (`npm ci && npm run build && npm pack`) and
-install the `.tgz` it writes.
+The package and recording image use the same version. Until the first public release is verified, build a package
+from a clone (`npm ci && npm run build && npm pack`) and install the `.tgz` it writes.
+See [release setup and verification](docs/releasing.md) for publication status requirements and contributor steps.
 
 ## Write a demo
 

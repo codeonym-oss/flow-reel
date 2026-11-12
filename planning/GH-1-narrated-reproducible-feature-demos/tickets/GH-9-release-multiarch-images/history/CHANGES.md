@@ -1,1 +1,6 @@
 - 2026-11-02: tracked as GH-9 (https://github.com/codeonym-oss/flow-reel/issues/9).
+- 2026-11-12: completed GH-9 ticket pass against main 919f326; recorded decisions 001–005, confirmed scope, archived draft/meta, wrote impl.md and marked planned. Updated local draft; GitHub description update awaits approval. Baseline: 80 unit tests and type checking pass outside sandbox.
+- 2026-11-12: user approved updating GH-9 ("yes go ahead") and requested no repeated confirmations for the agreed proposals; replaced GitHub issue #9 description with the updated draft and verified the saved body.
+- 2026-11-12: started implementation on feat/9-release-multiarch-images from origin/main 919f326; preserved all GH-9 planning changes. User requested proceeding without repeated confirmations.
+- 2026-11-12: archived impl.md and recorded implementation clarifications: inline native CI, verified initial-version bootstrap, npm caller identities and keeping GH-9 open through first-release verification.
+- 2026-11-12: implementation checks passed (86 unit tests, type checking, 30 media tests, package/consumer smoke, actionlint and release-please dry run); independent reviews clear after evidence fix. npm signup externally restricted; keep publication disabled and GH-9 open.

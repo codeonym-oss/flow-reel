@@ -1,0 +1,324 @@
+name: publish
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+      source_run:
+        type: string
+        default: ''
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag (vX.Y.Z)
+        type: string
+        required: true
+      source_run:
+        description: Previous run with retained package and both candidate artifacts (blank for first attempt)
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: ${{ inputs.tag }}
+  IMAGE: ghcr.io/codeonym-oss/flow-reel
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      commit: ${{ steps.version.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 26
+          package-manager-cache: false
+      - id: version
+        run: |
+          echo "version=$(node scripts/release-cli.ts version)" >> "$GITHUB_OUTPUT"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - if: inputs.source_run == ''
+        run: npm ci && npm run pack:check
+      - if: inputs.source_run != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: release-package
+          path: release
+          run-id: ${{ inputs.source_run }}
+          github-token: ${{ github.token }}
+      - run: node scripts/release-cli.ts artifact
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: release-package
+          path: release/
+          retention-days: 90
+          overwrite: true
+
+  native:
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 75
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 26
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: npm ci && npm run build
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: release-package
+          path: release
+      - run: node scripts/release-cli.ts artifact
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - if: inputs.source_run == ''
+        name: Reserve space for the model and image layers
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      - if: inputs.source_run == ''
+        run: |
+          mkdir -p /tmp/flow-reel-context
+          tar -xzf "release/flow-reel-$VERSION.tgz" -C /tmp/flow-reel-context --strip-components=1
+        env:
+          VERSION: ${{ needs.package.outputs.version }}
+      - if: inputs.source_run == ''
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: /tmp/flow-reel-context
+          file: /tmp/flow-reel-context/docker/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=image,name=ghcr.io/codeonym-oss/flow-reel,push-by-digest=true,name-canonical=true,push=true
+          # Keep candidates as platform manifests so the final index names the exact tested digests.
+          provenance: false
+          sbom: false
+          labels: |
+            org.opencontainers.image.source=https://github.com/codeonym-oss/flow-reel
+            org.opencontainers.image.version=${{ needs.package.outputs.version }}
+            org.opencontainers.image.revision=${{ needs.package.outputs.commit }}
+          cache-from: type=gha,scope=flow-reel-release-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=flow-reel-release-${{ matrix.arch }}
+      - if: inputs.source_run != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: candidate-${{ matrix.arch }}
+          path: release
+          run-id: ${{ inputs.source_run }}
+          github-token: ${{ github.token }}
+      - id: candidate
+        run: |
+          if [ -n "$SOURCE_RUN" ]; then
+            digest=$(node scripts/release-cli.ts reuse "$ARCH")
+          else
+            digest="$BUILD_DIGEST"
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          docker pull "$IMAGE@$digest"
+          node scripts/release-cli.ts candidate "$ARCH" "$digest" false
+        env:
+          SOURCE_RUN: ${{ inputs.source_run }}
+          ARCH: ${{ matrix.arch }}
+          BUILD_DIGEST: ${{ steps.build.outputs.digest }}
+      - run: npm run test:e2e
+        env:
+          FLOW_REEL_TEST_IMAGE: ghcr.io/codeonym-oss/flow-reel@${{ steps.candidate.outputs.digest }}
+      - run: node scripts/release-cli.ts candidate "$ARCH" "$DIGEST" true
+        env:
+          ARCH: ${{ matrix.arch }}
+          DIGEST: ${{ steps.candidate.outputs.digest }}
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: candidate-${{ matrix.arch }}
+          path: release/${{ matrix.arch }}.json
+          retention-days: 90
+          overwrite: true
+          if-no-files-found: warn
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: release-media-${{ matrix.arch }}
+          path: test/e2e/out/
+          retention-days: 7
+          overwrite: true
+
+  image:
+    needs: [package, native]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 26
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: release-package
+          path: release
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: candidate-*
+          path: release
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - run: node scripts/release-cli.ts publish-image
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: release-image
+          path: |
+            release/image-index.json
+            release/image.json
+          retention-days: 90
+          overwrite: true
+
+  consumer:
+    needs: [package, image]
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 26
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: release-package
+          path: release
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: npm ci
+      - run: |
+          mkdir -p /tmp/flow-reel-anonymous
+          docker --config /tmp/flow-reel-anonymous pull "$IMAGE:$VERSION"
+          docker image inspect "$IMAGE:$VERSION" --format '{{.Id}} {{.Architecture}} {{.Size}}'
+          node scripts/consumer.ts "release/flow-reel-$VERSION.tgz"
+        env:
+          VERSION: ${{ needs.package.outputs.version }}
+          DOCKER_CONFIG: /tmp/flow-reel-anonymous
+          FLOW_REEL_CONSUMER_OUT: test/e2e/out/consumer
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: packed-consumer-${{ matrix.arch }}
+          path: test/e2e/out/consumer/
+          retention-days: 7
+          overwrite: true
+
+  npm:
+    needs: [package, consumer]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PUBLISH_TO_NPM: ${{ vars.PUBLISH_TO_NPM }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 26
+          package-manager-cache: false
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: release-package
+          path: release
+      - id: status
+        run: echo "action=$(node scripts/release-cli.ts npm-status)" >> "$GITHUB_OUTPUT"
+      - if: steps.status.outputs.action == 'publish'
+        run: npm publish "release/flow-reel-$VERSION.tgz" --access public
+        env:
+          VERSION: ${{ needs.package.outputs.version }}
+      - if: steps.status.outputs.action != 'disabled'
+        run: |
+          test "$(node scripts/release-cli.ts npm-status)" = existing
+          echo "Published or verified npm package for $RELEASE_TAG" >> "$GITHUB_STEP_SUMMARY"
+      - if: steps.status.outputs.action == 'disabled'
+        run: |
+          echo "Awaiting npm setup: enable PUBLISH_TO_NPM only after trusted publisher configuration. Release is incomplete." >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+
+  installed:
+    needs: [package, npm]
+    if: vars.PUBLISH_TO_NPM == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 26
+          package-manager-cache: false
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: |
+          mkdir -p /tmp/flow-reel-anonymous
+          docker pull "$IMAGE:$VERSION"
+          node scripts/consumer.ts "flow-reel@$VERSION"
+        env:
+          VERSION: ${{ needs.package.outputs.version }}
+          DOCKER_CONFIG: /tmp/flow-reel-anonymous
+          FLOW_REEL_CONSUMER_OUT: test/e2e/out/installed
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: npm-consumer-${{ matrix.arch }}
+          path: test/e2e/out/installed/
+          retention-days: 7
+          overwrite: true

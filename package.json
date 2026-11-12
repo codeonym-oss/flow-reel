@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Record narrated, reproducible feature demos from an agent-written Playwright script.",
   "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/codeonym-oss/flow-reel.git" },
+  "homepage": "https://github.com/codeonym-oss/flow-reel#readme",
+  "bugs": { "url": "https://github.com/codeonym-oss/flow-reel/issues" },
   "type": "module",
   "bin": {
     "flow-reel": "dist/cli.js"
@@ -24,7 +27,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run test/unit",
-    "test:e2e": "npm run build && vitest run test/e2e --no-file-parallelism --testTimeout=900000 --hookTimeout=900000"
+    "test:e2e": "npm run build && vitest run test/e2e --no-file-parallelism --testTimeout=900000 --hookTimeout=900000",
+    "pack:check": "npm run build && node scripts/package.ts"
   },
   "dependencies": {
     "playwright": "1.64.1"
