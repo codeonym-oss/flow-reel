@@ -4,3 +4,4 @@
 - 2026-11-12: started implementation on feat/9-release-multiarch-images from origin/main 919f326; preserved all GH-9 planning changes. User requested proceeding without repeated confirmations.
 - 2026-11-12: archived impl.md and recorded implementation clarifications: inline native CI, verified initial-version bootstrap, npm caller identities and keeping GH-9 open through first-release verification.
 - 2026-11-12: implementation checks passed (86 unit tests, type checking, 30 media tests, package/consumer smoke, actionlint and release-please dry run); independent reviews clear after evidence fix. npm signup externally restricted; keep publication disabled and GH-9 open.
+- 2026-11-12: committed implementation 847e69b, pushed branch and opened PR #16 (Part of #9); status in-review. Board has no In Review option, so remains In Progress. Native architecture CI running; npm account signup remains externally restricted.

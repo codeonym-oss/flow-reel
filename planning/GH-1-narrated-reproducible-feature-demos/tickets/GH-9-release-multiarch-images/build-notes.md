@@ -29,3 +29,7 @@ Started 2026-11-12 from `919f326` on `feat/9-release-multiarch-images`. User aut
 - Commit, PR, CI and release workflow activation. GH-9 stays building/open until the actual release verification succeeds; use `Part of #9` for the workflow implementation PR to avoid closing the ticket before its release checks.
 
 Logs/tools under `/tmp/flow-reel-gh9-*` are development evidence, not release artifacts.
+
+## Implementation PR
+
+[PR #16](https://github.com/codeonym-oss/flow-reel/pull/16), implementation commit `847e69b261d73ec9453551ca4ad65443f5077239`. Native architecture CI must pass before merge. Board has no In Review status; keep In Progress until all ticket verification is done.
