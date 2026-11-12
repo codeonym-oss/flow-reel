@@ -1,1 +1,15 @@
 - 2026-11-02: tracked as GH-8 (https://github.com/codeonym-oss/flow-reel/issues/8).
+
+- 2026-11-11: recorded the request for web-sourced SFX and collected a pinned CC0 audition library with licence evidence, hashes and a searchable player; ticket pass remains in progress.
+- 2026-11-11: agreed GH-8 scope stays automatic click and typing sounds; broader UI cues remain audition candidates.
+- 2026-11-11: corrected scope after explicit clarification: decision 003 supersedes 002; GH-8 includes additional action SFX, with triggers and cue set still to settle.
+- 2026-11-11: agreed automatic clicks/typing plus explicit script cues for additional action sounds (decision 004).
+- 2026-11-11: agreed eight explicit named action cues with bundled defaults (decision 005).
+- 2026-11-11: agreed the narration-first mix, restrained palette, deterministic typing variation, smooth ducking and click/cue overlap policy (decision 006).
+- 2026-11-11: agreed synchronous current-time explicit cues with no added pauses or video extension (decision 007); product questions resolved, awaiting shared-understanding confirmation before impl.md.
+- 2026-11-11: shared understanding confirmed (“ok”); archived meta/draft, expanded draft/title, wrote impl.md against merged GH-7 and set planned. GitHub issue description/title update is pending explicit approval.
+- 2026-11-11: authorized implementation; updated GitHub title/body, created feat/8-action-sound-effects from origin/main and moved GH-8 to In Progress. Carrying only this session’s GH-8 planning changes.
+- 2026-11-11: checked installed Playwright typing contract and clarified code-point/insertText onset scheduling in impl.md; no wrapper timing changes.
+- 2026-11-11: user found the first preview too low/generic; decision 008 records a smoother CC0 palette revision and ~6 dB stronger presence, with another listening check required. Archived/updated impl.md.
+- 2026-11-11: synchronized local draft with DAEDAL-based refinement; implementation verification ongoing, no playback approval yet.
+- 2026-11-12: full final-image end-to-end suite passed 30/30; offline packed-package/source hashes verified, human-approved mix measured within targets; issue body synced. Implementation review complete; no commit/PR yet.

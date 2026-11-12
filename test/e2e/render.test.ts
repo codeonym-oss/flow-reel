@@ -134,7 +134,7 @@ it("places a later clip after prior holds while preserving the final speech tail
       audio: { file: "two.wav", durationMs: 600, sha256: "b".repeat(64) } },
   ], { fps: 30, frames: 60, cutMs: 500 });
   const out = options("held-audio");
-  renderTimeline({ ...out, timeline, events: [
+  renderTimeline({ ...out, timeline, sfx: false, events: [
     { t: 100, type: "click", at: [80, 45], button: "left", target: "one" },
     { t: 1900, type: "click", at: [120, 60], button: "left", target: "two" },
   ] });

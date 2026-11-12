@@ -1,24 +1,27 @@
-// events.json, version 1 (story decision 013): what the runner did, in CSS pixels, on the transcript's clock.
+// events.json: v1 actions (story decision 013), v2 adds explicit sound cues on the same clock.
 import { type Errors, isObject, nonNegative, point, text } from "./check.ts";
 
 export type Point = [x: number, y: number];
 export interface Bounds { x: number; y: number; width: number; height: number }
+export const SFX_NAMES = ["success", "error", "notification", "open", "close", "toggle", "back", "select"] as const;
+export type SfxName = typeof SFX_NAMES[number];
 
 export type RunnerEvent =
   | { t: number; type: "move"; from: Point; to: Point; durationMs: number; easing: string }
   | { t: number; type: "click"; at: Point; button: "left" | "right" | "middle"; target: string; bounds?: Bounds }
   | { t: number; type: "type"; text: string; charDelayMs: number; target: string; bounds?: Bounds }
-  | { t: number; type: "scroll"; delta: Point; durationMs: number };
+  | { t: number; type: "scroll"; delta: Point; durationMs: number }
+  | { t: number; type: "sfx"; name: SfxName };
 
 export interface EventLog {
-  version: 1;
+  version: 1 | 2;
   events: RunnerEvent[];
 }
 
 export function validateEvents(value: unknown): Errors {
   const errors: Errors = [];
   if (!isObject(value)) return ["events log must be an object"];
-  if (value.version !== 1) errors.push("version must be 1");
+  if (value.version !== 1 && value.version !== 2) errors.push("version must be 1 or 2");
   if (!Array.isArray(value.events)) return [...errors, "events must be an array"];
 
   value.events.forEach((event, i) => {
@@ -31,6 +34,10 @@ export function validateEvents(value: unknown): Errors {
         Number(b.width) <= 0 || Number(b.height) <= 0) errors.push(`${where}bounds must have finite x/y and positive width/height`);
     }
     switch (event.type) {
+      case "sfx":
+        if (value.version !== 2) errors.push(`${where}sfx requires event version 2`);
+        if (!SFX_NAMES.includes(event.name as SfxName)) errors.push(`${where}unknown sound cue ${JSON.stringify(event.name)}`);
+        break;
       case "move":
         point(errors, where, event, "from");
         point(errors, where, event, "to");

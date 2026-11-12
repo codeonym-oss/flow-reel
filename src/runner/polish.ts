@@ -47,7 +47,7 @@ export function planPolish(events: readonly RunnerEvent[], options: PolishOption
   let deadline = -Infinity;
   let target = [0, 0, 1];
   let cameraTarget = target;
-  const sorted = [...events].sort((a, b) => a.t - b.t);
+  const sorted = events.filter((e) => e.type !== "sfx").sort((a, b) => a.t - b.t);
   sorted.forEach((event, i) => {
     const previousDeadline = deadline;
     if (event.type === "move") {

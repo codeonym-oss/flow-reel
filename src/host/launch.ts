@@ -16,6 +16,7 @@ export interface RunArgsInput {
   script: string;
   uid: number;
   gid: number;
+  sfx?: boolean;
 }
 
 export const imageFor = (version: string) => `ghcr.io/codeonym-oss/flow-reel:${version}`;
@@ -26,7 +27,7 @@ export function buildRunArgs(i: RunArgsInput): string[] {
     "-v", `${i.workDir}:/work`, "-w", "/work",
     ...(i.engine === "podman" ? ["--userns=keep-id"] : ["--user", `${i.uid}:${i.gid}`]),
     ...(i.desktop ? ["-e", "FLOW_REEL_HOST_MAP=1"] : ["--network", "host"]),
-    i.image, "record", `/work/${i.script}`,
+    i.image, "record", `/work/${i.script}`, ...(i.sfx === false ? ["--no-sfx"] : []),
   ];
 }
 
@@ -52,7 +53,7 @@ function ensureImage(engine: Engine, image: string) {
 }
 
 /** Runs the recording in the container; resolves to its exit code. */
-export function launch(scriptPath: string): number {
+export function launch(scriptPath: string, options: { sfx?: boolean } = {}): number {
   const engine = detectEngine();
   const { version } = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8")) as { version: string };
   const image = imageFor(version);
@@ -62,7 +63,7 @@ export function launch(scriptPath: string): number {
   const script = resolve(scriptPath);
   const args = buildRunArgs({
     engine, desktop, image, workDir: dirname(script), script: basename(script),
-    uid: process.getuid?.() ?? 1000, gid: process.getgid?.() ?? 1000,
+    uid: process.getuid?.() ?? 1000, gid: process.getgid?.() ?? 1000, sfx: options.sfx,
   });
   return run(engine, args, true).status ?? 1;
 }

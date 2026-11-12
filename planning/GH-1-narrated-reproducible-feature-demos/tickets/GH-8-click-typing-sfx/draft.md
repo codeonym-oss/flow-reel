@@ -1,26 +1,34 @@
-# Add click and typing sound effects mixed under the voice
+# Add click, typing and action sound effects mixed under the voice
 
 ## Problem
 
-A silent cursor feels lifeless; clicks and typing without sound read as a slideshow (story decision 012).
+The polished video now has a cursor, ripples and automatic zoom, but no interaction sounds. Demos need a coherent sound palette that supports the actions while keeping narration clear (story decisions 012–013; ticket decisions 001, 003–008; decision 002 is superseded).
 
 ## Change
 
-- Click and key sounds placed at each `click` and typed character's time in `events.json` (story decision 013),
-  mixed under the voice track with ducking so narration stays clear.
-- Bundled, licence-clean sound assets; on by default, `--no-sfx` to turn them off.
+- Automatic short click sounds and quieter per-character typing taps, with three similar typing variants selected in a deterministic sequence.
+- A synchronous `sfx(name): void` helper in the demo body context for eight explicit action cues: `success`, `error`, `notification`, `open`, `close`, `toggle`, `back`, `select`. Authors call it immediately after the relevant action or assertion; no UI heuristics.
+- Use a selected subset of the web-sourced CC0 audition libraries (Kenney initially; DAEDAL after decision 008 listening feedback). Preserve original licence files, source revision, hashes and processing/gain provenance. Bundle selected runtime assets for offline execution; the broader audition library stays in planning.
+- SFX are on by default. `flow-reel record demo.ts --no-sfx` disables every effect while preserving cue logging, narration, visuals and timing.
+- Use the calibrated, held delivery timeline for every effect. Explicit cues suppress nearby automatic click audio, without removing clicks or ripples from the event log/video.
+- A restrained, narration-first mix: quiet clicks/action cues, quieter typing; an additional 6 dB SFX duck over narration clips with 30 ms fade-down and 250 ms recovery. Preserve the existing voiced-delivery target of -16 LUFS and -1.5 dBTP peak ceiling. Silent-narration demos retain quiet fixed-level effects instead of being amplified to speech loudness.
+- Effects never pause the script or extend video duration; tails at the delivery end are trimmed. Original speech WAVs, their hashes, the clean master, narration holds and captions retain their existing contracts.
 
 ## Out of scope
 
-Background music.
+Background music; automatic inference of success/error/navigation; custom sound filenames, gain controls or sound themes; additional automatic hover/scroll sounds; cloud TTS; unrelated recorder/CI fixes.
 
 ## Done when
 
-- The sample demo has a click sound within one frame of every ripple, and typing sounds per character.
-- The voice stays intelligible: the mix keeps SFX at least ~12 dB under the voice, and loudness meets the target
-  the voice ticket set.
+- A narrated fixture demonstrates automatic clicks/typing and every explicit cue; click onset is within one video frame of its ripple unless deliberately replaced by a nearby explicit cue.
+- Cue calls neither wait nor change action/step timing. Old scripts work without modification, and older event logs remain readable by the updated code.
+- Tests prove Unicode typing scheduling, deterministic variant selection, hold remapping, exact overlap boundaries, duck ramps, tail trimming, no-event/SFX-only paths and complete muting with `--no-sfx`.
+- Measured SFX levels and narration intelligibility pass the calibration and decoded-media checks in `impl.md`; voiced delivery meets the inherited loudness target. Listening approval confirms sound selection and typing comfort beneath real narration.
+- Identical timeline/events/assets produce identical decoded audio within the same recording image. Two browser runs retain the inherited transcript/source-audio reproducibility checks; this does not claim identical browser capture or MP4 bytes.
+- Runtime assets and licences work from the packed npm package and recording image with no runtime downloads or access to the planning tree.
 
-## For the ticket pass
+## Evidence and plan
 
-- Sound sources and their licences.
-- Ducking and loudness settings.
+- [Implementation plan](impl.md)
+- [Audition library and source/licence evidence](sfx-library/README.md)
+- [Sound browser](sfx-library/index.html)

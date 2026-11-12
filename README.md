@@ -5,7 +5,7 @@ writes the script, and `flow-reel` replays it in a sandbox on a virtual display 
 script gives the same video, step for step.
 
 This release records narrated video with captions, fitted step timings, a smooth cursor, click ripples and
-automatic zoom. Sound effects come in a later release.
+automatic zoom, click/typing sounds and optional named action cues.
 
 ## Requirements
 
@@ -59,9 +59,9 @@ Next to the script:
 
 | File | What it is |
 |---|---|
-| `settings.mp4` | The polished narrated demo, 1920×1080, 30 fps, with AAC speech audio. |
+| `settings.mp4` | The polished narrated demo, 1920×1080, 30 fps, with AAC narration and interaction sounds. |
 | `settings.transcript.json` | Each step's original narration and `startMs`, `actionEndMs` and `endMs` on the video's timeline (schema version 1). |
-| `settings.events.json` | Every move, click, keystroke run and scroll the runner made, timed the same way (schema version 1). |
+| `settings.events.json` | Every move, click, keystroke run, scroll and explicit sound cue, timed the same way (schema version 2). |
 | `settings.srt` | Captions for a subtitle-capable video player. |
 | `settings.vtt` | WebVTT captions for a browser's `<video>` / `<track>`. |
 | `settings.audio/000.wav` | Local speech clips, named by zero-based step index. |
@@ -87,7 +87,8 @@ prove that an operation succeeded. A timeout prints a warning and continues.
 After capture and synthesis finish, the renderer adds only the whole frames needed to fit speech plus its tail,
 freezing the last frame of that settled window. Narration starts alongside its action at `startMs`. Longer actions
 continue normally after speech finishes. Transcript windows, captions, events and the master all use this final
-timeline. Blank narration gets no speech padding; an all-blank demo has no audio stream.
+timeline. Blank narration gets no speech padding; an all-blank demo can still have interaction sounds.
+If it has no effects, or `--no-sfx` is set, it has no audio stream.
 
 Visual polish is automatic: a white arrow with a dark outline follows logged pointer motion, and a blue ring
 expands and fades for 400 ms at each click. The cursor and rings keep their screen size while the page zooms.
@@ -101,7 +102,7 @@ bounds use click points instead, without a whole-element framing guarantee. Poli
 all narration, transcript and caption times. Zoom animations end with the video and do not lengthen it.
 Polish runs after capture, without replaying actions or changing speed.
 
-The assembled voice is normalized to -16 LUFS with a -1.5 dBTP peak ceiling, then encoded as 48 kHz stereo AAC-LC
+The assembled voice and final voiced mix are normalized to -16 LUFS with a -1.5 dBTP peak ceiling, then encoded as 48 kHz stereo AAC-LC
 at 192 kb/s. Decoded output is checked within 1 LU of the loudness target and 0.1 dB of the peak ceiling. Original
 WAVs, durations and hashes remain unchanged. Synthesis, rendering or sync failures fail the command before a new
 success transcript is written.
@@ -118,13 +119,58 @@ SRT players display escape sequences such as `&lt;` instead. Use WebVTT in a bro
 In `.flow-reel/settings/`: `capture.mp4` is the original 2560×1440 recording; `master.mp4` is the clean recording
 with added holds, preserved before cursor/zoom rendering; `master.json.startMs` gives delivery time zero within
 the master, preserving its calibration pre-roll. Events use CSS pixels and final delivery times; click and typing
-events may include `bounds: { x, y, width, height }` in CSS pixels (schema version 1).
-`voice.wav` is the normalized voice bus on the delivery timeline. The `.flow-reel/` folder ignores itself in git;
+events may include `bounds: { x, y, width, height }` in CSS pixels.
+`voice.wav` is the normalized voice-only bus on the delivery timeline; `sfx.wav` is the ducked effects
+bus and `mix.wav` is the final normalized voiced mix when effects exist. The `.flow-reel/` folder ignores itself in git;
 the files next to the script are yours to commit or not.
 
 To keep runs the same, the runner fixes the viewport, device scale, `prefers-reduced-motion`, the page's clock
 (`2026-01-05T09:00:00Z`) and `Math.random`'s seed, and waits for the network to go idle before each step. Two runs of
 a script have the same steps, each starting within ±150 ms.
+
+## Sound effects
+
+Clicks and per-character typing taps are automatic. To mark a meaningful action, use `sfx` from the demo context:
+
+```ts
+export default demo({ url: "http://localhost:4173" }, async ({ page, step, sfx }) => {
+  await step("Save your settings.", async () => {
+    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByText("Settings saved").waitFor();
+    sfx("success");
+  });
+});
+```
+
+The names are `success`, `error`, `notification`, `open`, `close`, `toggle`, `back` and `select`.
+`sfx(name)` marks the current time and returns immediately. It adds no pause, performs no browser action and does
+not infer whether the operation succeeded; call it after the state or assertion it describes. Unknown names fail
+clearly, including when effects are muted. Existing scripts need no changes.
+
+```sh
+npx flow-reel record demos/settings.ts --no-sfx
+```
+
+`--no-sfx` also works before the script. It mutes all effects while retaining cue events, narration, captions and
+visuals. Sound effects never add frames, change narration holds or extend the recording; tails reaching the video
+end fade out and are trimmed. An explicit cue within ±150 ms inclusive replaces automatic click audio, while the
+visual ripple and logged click remain. Other explicit cues may overlap. Hover/scroll have no automatic sounds.
+
+The palette uses short, related DAEDAL CC0 UI sounds, with three quieter typing taps cycling deterministically.
+Effects sit beneath narration and duck another 6 dB over each speech clip, with a 30 ms lead-in and 250 ms recovery.
+They remain ducked through pauses inside a clip. The combined effects bus has a -18 dBFS sample-peak ceiling before
+final mix processing. SFX-only demos retain quiet fixed levels instead of being normalized to speech loudness.
+Final AAC peak checks also apply. See [asset sources, licences and calibration](docker/sfx/README.md).
+
+Typing timestamps follow the logged fixed-delay intent, not measured browser keystrokes. Unicode code points are
+kept intact; non-US characters follow Playwright's delayed text insertion. Repeat renders of identical inputs in
+the same recording image produce identical decoded effect audio. The transcript comparison below still compares
+speech source hashes and step timing; it does not compare effects or prove final mixed-audio equality.
+
+New recordings write event schema version 2, adding `{ t, type: "sfx", name }`; updated readers also accept version 1
+action logs. Older tools that only understand v1 need upgrading for new logs. Transcript schema remains version 1.
+The selected sounds are bundled in the npm package/image and work offline. The full planning audition library is
+not included in the runtime package.
 
 ## Compare recordings
 
