@@ -6,6 +6,14 @@ const options = { viewport: [1920, 1080] as [number, number], source: [2560, 144
 const click = (t: number, at: [number, number] = [960, 540]): Extract<RunnerEvent, { type: "click" }> =>
   ({ t, type: "click", at, button: "left", target: "button" });
 
+it("keeps camera lookahead and ripples unchanged when sound cues are interleaved", () => {
+  const move: RunnerEvent = { t: 1200, type: "move", from: [960, 540], to: [1700, 900], durationMs: 450, easing: "easeInOutCubic" };
+  const events: RunnerEvent[] = [click(1000), move, { ...click(1650, [1700, 900]), bounds: { x: 0, y: 0, width: 1900, height: 1000 } }];
+  const base = planPolish(events, options);
+  const cues = planPolish([events[0], move, { t: 1400, type: "sfx", name: "open" }, events[2]], options);
+  for (let n = 0; n < options.frames; n++) expect(cues.frame(n)).toEqual(base.frame(n));
+});
+
 it("zooms on click, holds for two seconds, then eases back without extending the video", () => {
   const plan = planPolish([click(1000)], { ...options, fps: 40, frames: 240 });
   expect(plan.frame(39).crop).toEqual([0, 0, 1]);

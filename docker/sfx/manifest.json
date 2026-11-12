@@ -1,0 +1,154 @@
+{
+  "creator": "DAEDAL",
+  "license": "CC0-1.0",
+  "source": "https://daedal.art/resources/ui-sounds/",
+  "download": "https://github.com/luciansofronie/daedal-downloads/releases/download/packs-v1/DAEDAL_UI_Sounds.zip",
+  "archiveSha256": "4eb5311a9f99e09ffcf7fa369b3b61dc04a183eaf8537de4a40d94bee01d3431",
+  "retrieved": "2026-11-11",
+  "files": {
+    "click": {
+      "file": "click.wav",
+      "sourceFile": "DAEDAL_UI_011_Click.wav",
+      "sourceSha256": "0f12440357d47ee5945c08f843a01e6d4fd9f2284c7159e758dea77804dcc5a9",
+      "sha256": "1a3847a7df9c22eb20a019e23f40b8f20966d98ffde24ce18f669a7096753a84",
+      "processing": {
+        "ffmpegAf": "highpass=f=120,lowpass=f=4500,afade=t=in:d=0.0015",
+        "sampleRate": 48000,
+        "codec": "pcm_s24le",
+        "runtime": "Normalized mono averaging, near-silence trim, 1ms attack/3ms tail fade, RMS calibration and narration ducking (README.md)."
+      }
+    },
+    "typing0": {
+      "file": "typing0.wav",
+      "sourceFile": "DAEDAL_UI_009_Click.wav",
+      "sourceSha256": "5306bf7940f1d862731114027bc11385f2b5bd58c43b44e21d750aaeacfcee33",
+      "sha256": "ba37db62800b46aa440bddefb4b21c9e753a1bfd3a3d35506896777ea6aa9af1",
+      "processing": {
+        "ffmpegAf": "highpass=f=180,lowpass=f=3200,afade=t=in:d=0.0015",
+        "sampleRate": 48000,
+        "codec": "pcm_s24le",
+        "runtime": "Normalized mono averaging, near-silence trim, 1ms attack/3ms tail fade, RMS calibration and narration ducking (README.md)."
+      }
+    },
+    "typing1": {
+      "file": "typing1.wav",
+      "sourceFile": "DAEDAL_UI_010_Click.wav",
+      "sourceSha256": "6122ff7288b3837e649505237fe6966786c36aff509a8d344de1b7226795fbd5",
+      "sha256": "999fb551a99ee7ae5c0c5586921037c0479a7d1862ddae947d01871cf3a7b1ea",
+      "processing": {
+        "ffmpegAf": "highpass=f=180,lowpass=f=3200,afade=t=in:d=0.0015",
+        "sampleRate": 48000,
+        "codec": "pcm_s24le",
+        "runtime": "Normalized mono averaging, near-silence trim, 1ms attack/3ms tail fade, RMS calibration and narration ducking (README.md)."
+      }
+    },
+    "typing2": {
+      "file": "typing2.wav",
+      "sourceFile": "DAEDAL_UI_012_Click.wav",
+      "sourceSha256": "04e47fd9b463f46623fce13c6a8b3f5d976f33574a6c9f23176e59617516b09c",
+      "sha256": "17fcbe9fafd4f19f06ba912f83467a6a33de3feecf79bd86aee656b094bf9626",
+      "processing": {
+        "ffmpegAf": "highpass=f=180,lowpass=f=3200,afade=t=in:d=0.0015",
+        "sampleRate": 48000,
+        "codec": "pcm_s24le",
+        "runtime": "Normalized mono averaging, near-silence trim, 1ms attack/3ms tail fade, RMS calibration and narration ducking (README.md)."
+      }
+    },
+    "success": {
+      "file": "success.wav",
+      "sourceFile": "DAEDAL_UI_023_Notification.wav",
+      "sourceSha256": "e2d7cce9e90abd911df52f9354c8636c632a87ec0ad4cb9bdf4d96fe9275f907",
+      "sha256": "6dd99a85cdbcba6b2721b3af3488c361fc7298e277b9ce32ce5575e0ae3f587c",
+      "processing": {
+        "ffmpegAf": "highpass=f=120,lowpass=f=5200,atrim=duration=0.6,afade=t=out:st=0.42:d=0.18",
+        "sampleRate": 48000,
+        "codec": "pcm_s24le",
+        "runtime": "Normalized mono averaging, near-silence trim, 1ms attack/3ms tail fade, RMS calibration and narration ducking (README.md)."
+      }
+    },
+    "error": {
+      "file": "error.wav",
+      "sourceFile": "DAEDAL_UI_031_Notification.wav",
+      "sourceSha256": "2d5ee9ea4c7ee8eeac296f974cbfe89918c537a05cd9f8167259d7c9541c3eb9",
+      "sha256": "eca702dea72f4bc5449e158ab16ea6041983974046d36f6c60ab039013e17fde",
+      "processing": {
+        "ffmpegAf": "asetrate=38400,aresample=48000,highpass=f=120,lowpass=f=3000,atrim=duration=0.48,afade=t=out:st=0.36:d=0.12",
+        "sampleRate": 48000,
+        "codec": "pcm_s24le",
+        "runtime": "Normalized mono averaging, near-silence trim, 1ms attack/3ms tail fade, RMS calibration and narration ducking (README.md)."
+      }
+    },
+    "notification": {
+      "file": "notification.wav",
+      "sourceFile": "DAEDAL_UI_027_Notification.wav",
+      "sourceSha256": "8b33eff588b6a9973a87a3fa0856ef1ee3e4a185974658a068734bb7b2c0135e",
+      "sha256": "f546b0752ba101c9d27bfe98c7d4daae5c4df51f89dad5242549be733f11b15a",
+      "processing": {
+        "ffmpegAf": "highpass=f=120,lowpass=f=4500,atrim=duration=0.45,afade=t=out:st=0.33:d=0.12",
+        "sampleRate": 48000,
+        "codec": "pcm_s24le",
+        "runtime": "Normalized mono averaging, near-silence trim, 1ms attack/3ms tail fade, RMS calibration and narration ducking (README.md)."
+      }
+    },
+    "open": {
+      "file": "open.wav",
+      "sourceFile": "DAEDAL_UI_017_Swipe_Up.wav",
+      "sourceSha256": "644f3276e09747c1aae016bd552b29451d8f95ca77f945b6c65e9e6d4d9e0ad9",
+      "sha256": "0fb7a891c369b30aa45d7e3cdc8d21d12958c88d258c0c8e82bae537ab8e2a62",
+      "processing": {
+        "ffmpegAf": "highpass=f=180,lowpass=f=5500,atrim=duration=0.3,afade=t=out:st=0.23:d=0.07",
+        "sampleRate": 48000,
+        "codec": "pcm_s24le",
+        "runtime": "Normalized mono averaging, near-silence trim, 1ms attack/3ms tail fade, RMS calibration and narration ducking (README.md)."
+      }
+    },
+    "close": {
+      "file": "close.wav",
+      "sourceFile": "DAEDAL_UI_018_Swipe_Down.wav",
+      "sourceSha256": "7ae4034a3e1ef0ffc3a4848b29df8a907663b2ed68bc5db5676b5ade3e66ca2a",
+      "sha256": "531a0b75809e52f137405dd343b6781e56dd76528eeb1164390e433b41900a05",
+      "processing": {
+        "ffmpegAf": "highpass=f=180,lowpass=f=5500,atrim=duration=0.3,afade=t=out:st=0.23:d=0.07",
+        "sampleRate": 48000,
+        "codec": "pcm_s24le",
+        "runtime": "Normalized mono averaging, near-silence trim, 1ms attack/3ms tail fade, RMS calibration and narration ducking (README.md)."
+      }
+    },
+    "toggle": {
+      "file": "toggle.wav",
+      "sourceFile": "DAEDAL_UI_033_Toggle_On.wav",
+      "sourceSha256": "ea96d7fb4217a2e3b0286c0d8c5fb6c674d90499410ca55f4102303f3a3a0a6f",
+      "sha256": "3512d54105b4992fc202947cad6531f0872cc246b802081710e67ff89db2a578",
+      "processing": {
+        "ffmpegAf": "highpass=f=120,lowpass=f=4000",
+        "sampleRate": 48000,
+        "codec": "pcm_s24le",
+        "runtime": "Normalized mono averaging, near-silence trim, 1ms attack/3ms tail fade, RMS calibration and narration ducking (README.md)."
+      }
+    },
+    "back": {
+      "file": "back.wav",
+      "sourceFile": "DAEDAL_UI_022_Swipe_Down.wav",
+      "sourceSha256": "8c6e52e6a014ec6ed3031085e957735668ce8be951e4641dbd8527401c415955",
+      "sha256": "02c6214bb483bc9e962c2950b7dfb37ba3ff52fe76f2853cc0b2ce9a6878f3f7",
+      "processing": {
+        "ffmpegAf": "asetrate=43200,aresample=48000,highpass=f=180,lowpass=f=4500,atrim=duration=0.22,afade=t=out:st=0.17:d=0.05",
+        "sampleRate": 48000,
+        "codec": "pcm_s24le",
+        "runtime": "Normalized mono averaging, near-silence trim, 1ms attack/3ms tail fade, RMS calibration and narration ducking (README.md)."
+      }
+    },
+    "select": {
+      "file": "select.wav",
+      "sourceFile": "DAEDAL_UI_004_Pop.wav",
+      "sourceSha256": "cff5aa2274f0999044b8d23b488b5c6f4fcfbbeff64850646a1e940fc9e307cf",
+      "sha256": "e8777e674177178ad0124c6410f87ff124640cb3256c2d2dd0a55dd7bd28424d",
+      "processing": {
+        "ffmpegAf": "highpass=f=120,lowpass=f=4000,atrim=duration=0.09,afade=t=out:st=0.055:d=0.035",
+        "sampleRate": 48000,
+        "codec": "pcm_s24le",
+        "runtime": "Normalized mono averaging, near-silence trim, 1ms attack/3ms tail fade, RMS calibration and narration ducking (README.md)."
+      }
+    }
+  }
+}

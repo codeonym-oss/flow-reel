@@ -18,7 +18,7 @@ it("draws the stationary outlined cursor after trimming pre-roll and keeps the c
     voice: join(dir, "voice.wav"), audioDir: dir, viewport: [320, 180] as [number, number],
     timeline: planTimeline([], { fps: 30, frames: 30, cutMs: 100 }) };
   renderTimeline(out);
-  const pixels = media(["-i", out.video, "-frames:v", "1", "-pix_fmt", "rgb24", "-f", "rawvideo", "-"]);
+  const pixels = media(["-i", out.video, "-frames:v", "1", "-pix_fmt", "rgb24", "-an", "-fps_mode", "passthrough", "-f", "rawvideo", "-"]);
   const at = ((90 + 7) * 320 + 160 + 3) * 3;
   expect([...pixels.subarray(at, at + 3)].every((v) => v > 180)).toBe(true);
   expect(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-count_frames", "-show_entries",
@@ -38,7 +38,7 @@ it("zooms a known grid, follows movement, draws a timely fading ripple and repea
   renderTimeline(out);
   const before = createHash("sha256").update(readFileSync(out.master)).digest("hex");
   renderTimeline({ ...out, video: join(dir, "grid-b.mp4") });
-  const decode = (file: string) => media(["-i", file, "-pix_fmt", "rgb24", "-f", "rawvideo", "-"]);
+  const decode = (file: string) => media(["-i", file, "-pix_fmt", "rgb24", "-an", "-fps_mode", "passthrough", "-f", "rawvideo", "-"]);
   const raw = decode(out.video);
   expect(createHash("sha256").update(raw).digest("hex")).toBe(createHash("sha256").update(decode(join(dir, "grid-b.mp4"))).digest("hex"));
   expect(createHash("sha256").update(readFileSync(out.master)).digest("hex")).toBe(before);
@@ -87,7 +87,7 @@ it("keeps the arrow sprite visible during a fast cross-screen move in zoom-out",
       { t: 0, type: "click", at: [50, 540], button: "left", target: "left" },
       { t: 2010, type: "move", from: [50, 540], to: [1900, 540], durationMs: 300, easing: "easeInOutCubic" },
     ] });
-  const raw = media(["-i", video, "-vf", "select=between(n\\,67\\,69)", "-pix_fmt", "rgb24", "-f", "rawvideo", "-"]);
+  const raw = media(["-i", video, "-vf", "select=between(n\\,67\\,69)", "-pix_fmt", "rgb24", "-an", "-fps_mode", "passthrough", "-f", "rawvideo", "-"]);
   const bytes = 1920 * 1080 * 3;
   expect(raw.length).toBe(bytes * 3);
   for (let frame = 0; frame < 3; frame++) {

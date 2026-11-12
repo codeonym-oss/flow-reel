@@ -16,6 +16,7 @@ import { FPS, durationMs, firstFrameOfColour, startRecording } from "./recorder.
 import { renderTimeline, videoFrames } from "./render.ts";
 import { planTimeline, retimeEvents } from "./timeline.ts";
 import { voiceSteps } from "./tts.ts";
+import { cueLogger } from "./sfx.ts";
 import { wrapPage } from "./wrap.ts";
 
 // A still moment before the first step and after the last; a short settle before each step, so its start doesn't
@@ -33,7 +34,7 @@ const MARK_HOLD_MS = 200;
 const CUT_MS = 1000;
 const MARK_RGB: [number, number, number] = [0, 255, 0];
 
-export async function record(scriptPath: string): Promise<void> {
+export async function record(scriptPath: string, options: { sfx?: boolean } = {}): Promise<void> {
   const demo = await loadDemo(scriptPath);
   const dir = dirname(scriptPath);
   const name = basename(scriptPath).replace(/\.[cm]?ts$/, "");
@@ -95,7 +96,7 @@ export async function record(scriptPath: string): Promise<void> {
       };
       let ranMs = 0;
       try {
-        await demo.body({ page: wrapPage(page, { clock: recording, events, fps: FPS, viewport }), step });
+        await demo.body({ page: wrapPage(page, { clock: recording, events, fps: FPS, viewport }), step, sfx: cueLogger(recording, events) });
         await sleep(TAIL_MS);
       } finally {
         ranMs = await recording.stop();
@@ -134,11 +135,11 @@ export async function record(scriptPath: string): Promise<void> {
   // CPU synthesis starts only after capture, browser and display have finished.
   const narration = await voiceSteps(steps, join(dir, `${name}.audio`));
   const timeline = planTimeline(narration.steps, { fps: FPS, frames: videoFrames(out.capture), cutMs: deliveryCutMs });
-  const log = { version: 1 as const, events: retimeEvents(events, timeline) };
+  const log = { version: 2 as const, events: retimeEvents(events, timeline) };
   const eventErrors = validateEvents(log);
   if (eventErrors.length) throw new Error(`recording events are invalid:\n  ${eventErrors.join("\n  ")}`);
   renderTimeline({ capture: out.capture, master: out.master, video: out.stagedVideo,
-    voice: join(work, name, "voice.wav"), audioDir: dir, viewport, timeline, events: log.events });
+    voice: join(work, name, "voice.wav"), audioDir: dir, viewport, timeline, events: log.events, sfx: options.sfx });
   const transcript: Transcript = {
     version: 1,
     script: basename(scriptPath),

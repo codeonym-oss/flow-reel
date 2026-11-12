@@ -14,6 +14,7 @@ RUN /opt/flow-reel/tts-venv/bin/python docker/tts/download.py
 COPY package.json ./
 RUN npm install --omit=dev --no-fund --no-audit
 COPY dist ./dist
+COPY docker/sfx ./docker/sfx
 
 ENV FLOW_REEL_IN_CONTAINER=1 HOME=/tmp HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 TOKENIZERS_PARALLELISM=false
 USER pwuser

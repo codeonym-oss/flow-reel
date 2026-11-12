@@ -10,6 +10,10 @@ describe("imageFor", () => {
 });
 
 describe("buildRunArgs", () => {
+  it("passes muting into the container after the script", () => {
+    expect(buildRunArgs({ ...base, engine: "docker", desktop: false, sfx: false }).slice(-3))
+      .toEqual(["record", "/work/demo.ts", "--no-sfx"]);
+  });
   it("Linux Docker: host network, the host's uid, the script's folder at /work", () => {
     expect(buildRunArgs({ ...base, engine: "docker", desktop: false })).toEqual([
       "run", "--rm", "--init", "--shm-size=1g",

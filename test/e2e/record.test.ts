@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type EventLog, validateEvents } from "../../src/schema/events.ts";
+import { SFX_NAMES, type EventLog, validateEvents } from "../../src/schema/events.ts";
 import { compareTranscripts } from "../../src/compare.ts";
 import { validateSync } from "../../src/schema/sync.ts";
 import { type Transcript, validateTranscript } from "../../src/schema/transcript.ts";
@@ -22,10 +22,10 @@ const NARRATIONS = ["  Type <b>Ada</b> & &lt; --> 保存.\r\n  ", "Scroll down a
 
 const script = (p: number, viewport?: [number, number]) => `import { demo } from "flow-reel";
 
-export default demo(${JSON.stringify({ url: `http://localhost:${p}/`, viewport })}, async ({ page, step }) => {
+export default demo(${JSON.stringify({ url: `http://localhost:${p}/`, viewport })}, async ({ page, step, sfx }) => {
   await step(${JSON.stringify(NARRATIONS[0])}, () => page.getByRole("textbox", { name: "Name" }).fill("Ada"));
-  await step(${JSON.stringify(NARRATIONS[1])}, () => page.getByRole("button", { name: "Save" }).click());
-  await step(${JSON.stringify(NARRATIONS[2])}, () => page.getByRole("link", { name: "Settings" }).click());
+  await step(${JSON.stringify(NARRATIONS[1])}, async () => { await page.getByRole("button", { name: "Save" }).click(); sfx("success"); });
+  await step(${JSON.stringify(NARRATIONS[2])}, async () => { await page.getByRole("link", { name: "Settings" }).click(); sfx("open"); });
 });
 `;
 
@@ -85,6 +85,35 @@ beforeAll(async () => {
 }, 900_000);
 
 afterAll(() => server?.close());
+
+it("records all eight explicit cues without narration and retains their logs when muted", async () => {
+  const dir = join(OUT, "muted-cues");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "demo.ts"), `import { demo } from "flow-reel";
+export default demo({ url: "http://localhost:${port}/", viewport: [960, 540] }, async ({ step, sfx }) => {
+  await step(" ", async () => {
+    for (const name of ${JSON.stringify(SFX_NAMES)} as const) {
+      sfx(name);
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+  });
+});`);
+  const container = `flow-reel-muted-cues-${randomUUID()}`;
+  try {
+    await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g", "--network", "host",
+      "--user", `${process.getuid!()}:${process.getgid!()}`, "-v", `${dir}:/work`, image,
+      "record", "/work/demo.ts", "--no-sfx"], { timeout: 90_000 });
+  } finally {
+    spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
+  }
+  const log = JSON.parse(readFileSync(join(dir, "demo.events.json"), "utf8"));
+  expect(validateEvents(log)).toEqual([]);
+  expect(log.events.map((e: { name: string }) => e.name)).toEqual(SFX_NAMES);
+  expect(log.events.every((e: { t: number }, i: number) => i === 0 || e.t > log.events[i - 1].t)).toBe(true);
+  const { streams } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_streams", "-of", "json", join(dir, "demo.mp4")], { encoding: "utf8" }));
+  expect(streams.map((s: { codec_type: string }) => s.codec_type)).toEqual(["video"]);
+  expect(existsSync(join(dir, ".flow-reel/demo/sfx.wav"))).toBe(false);
+}, 120_000);
 
 it("captures the settled response while keeping the callback finish time", async () => {
   const dir = join(OUT, "settled");
@@ -203,8 +232,9 @@ describe("flow-reel record", () => {
     expect(validateSync(a.transcript)).toEqual([]);
     for (const s of a.transcript.steps) expect(s.endMs - s.startMs).toBeGreaterThanOrEqual(s.audio!.durationMs + 200 - 1e-6);
     expect(validateEvents(a.events)).toEqual([]);
+    expect(a.events.version).toBe(2);
     expect(a.transcript.steps).toHaveLength(3);
-    expect(a.events.events.map((e) => e.type)).toEqual(["move", "click", "type", "scroll", "move", "click", "scroll", "move", "click"]);
+    expect(a.events.events.map((e) => e.type)).toEqual(["move", "click", "type", "scroll", "move", "click", "sfx", "scroll", "move", "click", "sfx"]);
     for (const e of a.events.events) if (e.type === "click" || e.type === "type") {
       expect(e.bounds?.width).toBeGreaterThan(0);
       expect(e.bounds?.height).toBeGreaterThan(0);

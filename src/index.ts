@@ -1,5 +1,8 @@
 // The public API a demo script imports (story decision 010).
 import type { Page } from "playwright";
+import type { SfxName } from "./schema/events.ts";
+export type { SfxName } from "./schema/events.ts";
+export type Sfx = (name: SfxName) => void;
 
 export interface DemoOptions {
   /** Where the demo starts: the URL the agent used while exploring. */
@@ -11,7 +14,7 @@ export interface DemoOptions {
 /** One unit the runner times, voices and holds: the narration, and the action it describes. */
 export type Step = (narration: string, action: () => Promise<unknown>) => Promise<void>;
 
-export type DemoBody = (context: { page: Page; step: Step }) => Promise<void>;
+export type DemoBody = (context: { page: Page; step: Step; sfx: Sfx }) => Promise<void>;
 
 export interface Demo {
   options: Required<DemoOptions>;
