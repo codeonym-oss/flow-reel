@@ -11,6 +11,7 @@ import { compareTranscripts } from "../../src/compare.ts";
 import { validateSync } from "../../src/schema/sync.ts";
 import { type Transcript, validateTranscript } from "../../src/schema/transcript.ts";
 import { planPolish } from "../../src/runner/polish.ts";
+import { prepareImage } from "./image.ts";
 
 // The whole recorder, in Docker, against a fixture app served from the host's 127.0.0.1 (GH-2 impl.md step 12).
 const OUT = resolve("test/e2e/out/record");
@@ -73,9 +74,7 @@ let b: Run;
 
 beforeAll(async () => {
   mkdirSync(OUT, { recursive: true });
-  const { version } = JSON.parse(readFileSync("package.json", "utf8"));
-  image = `ghcr.io/codeonym-oss/flow-reel:${version}`;
-  execFileSync("docker", ["build", "-q", "-t", image, "-f", "docker/Dockerfile", "."], { stdio: "inherit" });
+  image = prepareImage();
   server = createServer((req, res) => {
     if (req.url === "/delayed") return void setTimeout(() => res.writeHead(200).end("ready"), 350);
     res.writeHead(200, { "content-type": "text/html" }).end(html);

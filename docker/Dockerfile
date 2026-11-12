@@ -11,8 +11,10 @@ RUN python3 -m venv /opt/flow-reel/tts-venv \
  && /opt/flow-reel/tts-venv/bin/pip install --no-cache-dir -r docker/tts/requirements.txt
 COPY docker/tts ./docker/tts
 RUN /opt/flow-reel/tts-venv/bin/python docker/tts/download.py
-COPY package.json ./
-RUN npm install --omit=dev --no-fund --no-audit
+COPY package*.json ./
+# npm omits package-lock.json from published tarballs; source builds use the committed lock.
+RUN if [ -f package-lock.json ]; then npm ci --omit=dev --no-fund --no-audit; \
+    else npm install --omit=dev --no-fund --no-audit; fi
 COPY dist ./dist
 COPY docker/sfx ./docker/sfx
 

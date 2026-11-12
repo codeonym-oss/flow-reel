@@ -2,25 +2,31 @@
 
 ## Problem
 
-Until images are published, every first run builds the image locally, and Apple Silicon runs it emulated (GH-2
-decision 004).
+The host CLI already requests `ghcr.io/codeonym-oss/flow-reel:<package-version>`, but no release pipeline publishes that image or npm package. Users fall back to a large local build; native arm64 recording has not been established by the existing amd64 CI. The end-to-end fixtures currently build locally, so they cannot prove registry artifacts work.
 
 ## Change
 
-- A release pipeline: on a release, build amd64 and arm64 images, push `ghcr.io/codeonym-oss/flow-reel:<version>`,
-  and publish the npm package with the same version.
-- CI runs the e2e record on the published image.
+- Use release-please version/changelog PRs on `main`, following the organization's projects (decision 001). Start public releases at **0.1.0** (decision 005); keep the npm version, release tag and image version aligned.
+- Build Linux amd64 and arm64 images on native GitHub-hosted runners (decision 002), retaining bundled offline Qwen and the selected SFX.
+- Push candidate images by digest, pull and verify the exact artifacts on both native architectures, then assemble the versioned multi-architecture image. Publish npm last (decision 004).
+- Use npm trusted publishing after one-time setup, with publishing disabled until setup is ready (decision 003). Document package bootstrap, GHCR public visibility, release-PR CI credentials and failed-release recovery.
+- Verify a clean consumer can install the released package and record through the matching public image without a local build. Keep the existing local-build fallback for development and pull failures.
 
 ## Out of scope
 
-Agent plugins (GH-6).
+Agent plugins (GH-6), cloud speech, new recording features, GPU images, additional operating-system image variants, nightly/edge publishing, and broad dependency upgrades. No unrelated follow-ups are taken up.
 
 ## Done when
 
-- After a release, `npx flow-reel@<version> record demo.ts` pulls the matching image on amd64 and arm64 without
-  building.
+- Release-please prepares a reviewable initial 0.1.0 release, and subsequent version updates keep package metadata/lockfile, changelog and tag aligned.
+- PR validation builds/tests both architectures without registry writes or publishing credentials. Existing type checking and unit/media checks remain green.
+- Each release's exact pulled candidate image passes the narrated recording pair, sync/caption/event checks, same-architecture reproducibility comparison and offline synthesis checks on its native architecture. Capture overload limits remain enforced.
+- The final image manifest contains native `linux/amd64` and `linux/arm64` images whose digests match the verified candidates; anonymous pulls work on both.
+- npm publication uses OIDC after setup and occurs only after both image checks succeed. The published tarball matches the tested package artifact and includes the runtime Docker/TTS/SFX files without planning assets or model weights.
+- `npx flow-reel@0.1.0 record demo.ts` is exercised from a clean consumer on both architectures using the matching published image, without local building, and produces a narrated MP4, captions and valid transcript/events.
+- Setup instructions cover first publication and trusted-publisher configuration. Recovery can resume the same version from recorded immutable artifacts, refuses conflicting existing publications and never silently overwrites a release image.
+- The first public release and its consumer checks are verified; unavailable account setup is reported explicitly rather than treated as completed publishing.
 
-## For the ticket pass
+## Plan and decisions
 
-- Release tooling (release-please, as the org's other repos use).
-- arm64 runners or emulated builds; image size budget.
+See `impl.md` and decisions 001–005. Baseline on 2026-11-12: 80 unit tests and type checking pass; two sandbox-only subprocess failures disappear outside the sandbox. Existing full media baseline passed during GH-8; GH-9 must run its own checks against its changed release path.

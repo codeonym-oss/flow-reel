@@ -4,26 +4,54 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    name: test (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 26
           cache: npm
-      # The e2e test checks the recorded videos with ffprobe on the host.
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      # Builds the image, then records the fixture demo twice in it.
-      - run: npm run test:e2e
-      - if: failure()
-        uses: actions/upload-artifact@v4
+      - run: npm run pack:check
+      - name: Reserve space for the model and image layers
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      - id: package
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
-          name: e2e-out
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          tags: ghcr.io/codeonym-oss/flow-reel:${{ steps.package.outputs.version }}
+          cache-from: type=gha,scope=flow-reel-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=flow-reel-${{ matrix.arch }}
+      - run: npm run test:e2e
+        env:
+          FLOW_REEL_TEST_IMAGE: ghcr.io/codeonym-oss/flow-reel:${{ steps.package.outputs.version }}
+      - run: node scripts/consumer.ts release/flow-reel-${{ steps.package.outputs.version }}.tgz
+      - run: docker image inspect ghcr.io/codeonym-oss/flow-reel:${{ steps.package.outputs.version }} --format '{{.Id}} {{.Architecture}} {{.Size}}'
+      - run: df -h /
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: e2e-${{ matrix.arch }}
           path: test/e2e/out/
+          retention-days: 7

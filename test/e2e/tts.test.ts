@@ -4,14 +4,14 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { beforeAll, expect, it } from "vitest";
+import { prepareImage } from "./image.ts";
 
 const OUT = resolve("test/e2e/out/tts");
-const { version } = JSON.parse(readFileSync("package.json", "utf8"));
-const image = `ghcr.io/codeonym-oss/flow-reel:${version}`;
+let image: string;
 
 beforeAll(() => {
   mkdirSync(OUT, { recursive: true });
-  execFileSync("docker", ["build", "-q", "-t", image, "-f", "docker/Dockerfile", "."], { stdio: "inherit" });
+  image = prepareImage();
 }, 900_000);
 
 it("synthesizes identical playable WAVs in fresh offline processes with a reset seed per clip", async () => {
