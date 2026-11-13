@@ -46,6 +46,10 @@ prove public availability. If visibility setup interrupts the first run, resume 
 
 ### npm package and trusted publishers
 
+The initial `flow-reel@0.1.0` package was published from the exact verified tarball on 2026-11-13. Both trusted
+publisher identities below are configured, and `PUBLISH_TO_NPM=true` is enabled. This initial authenticated
+bootstrap does not establish OIDC provenance; verify it on the next new version published by Actions.
+
 Confirm ownership/availability of the unscoped `flow-reel` name before the first release. The public registry
 returned 404 during planning; the name is not reserved by this repository. Keep `PUBLISH_TO_NPM` unset until setup
 is complete; the npm job explicitly fails with an awaiting-setup summary while disabled.
