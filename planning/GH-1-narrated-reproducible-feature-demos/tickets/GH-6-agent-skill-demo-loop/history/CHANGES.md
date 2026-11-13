@@ -1,1 +1,2 @@
 - 2026-11-02: tracked as GH-6 (https://github.com/codeonym-oss/flow-reel/issues/6).
+- 2026-11-13: user expanded GH-6 to a rich demo-making skill suite and requested groundwork publishing research. Archived draft/meta; recorded decisions 001–004, eight skill/resource contracts, seven implementation slices and two-client marketplace publication plan. Baseline 86 unit tests and type checking pass outside sandbox; marked planned. No plugin implementation or marketplace mutation performed.
