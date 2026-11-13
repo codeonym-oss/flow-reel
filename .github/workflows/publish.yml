@@ -279,7 +279,7 @@ jobs:
       - id: status
         run: echo "action=$(node scripts/release-cli.ts npm-status)" >> "$GITHUB_OUTPUT"
       - if: steps.status.outputs.action == 'publish'
-        run: npm publish "release/flow-reel-$VERSION.tgz" --access public
+        run: npm publish "./release/flow-reel-$VERSION.tgz" --access public
         env:
           VERSION: ${{ needs.package.outputs.version }}
       - if: steps.status.outputs.action != 'disabled'
