@@ -24,8 +24,8 @@ automatic zoom, click/typing sounds and optional named action cues.
 npm install --save-dev flow-reel
 ```
 
-The package and recording image use the same version. Version 0.1.0 is available on npm with a public recording
-image for Linux amd64 and arm64.
+The package and recording image use the same version. Each npm release has a matching public recording image for
+Linux amd64 and arm64.
 See [release setup and verification](docs/releasing.md) for publication status requirements and contributor steps.
 
 ## Write a demo
@@ -44,10 +44,19 @@ export default demo({ url: "http://localhost:4173" }, async ({ page, step }) => 
 ```
 
 - `url`: where the demo starts. `localhost` reaches the app running on your machine.
-- `viewport`: CSS pixels, `[1920, 1080]` by default.
-- `page` is a Playwright `Page`. Clicks, hovers, `check`, `fill`, `type`, `selectOption` and `page.mouse.wheel` move
-  the mouse visibly to their target and type at a readable speed. Other calls that act on the page, such as
-  `page.evaluate` or `locator.dispatchEvent`, run as they are, without any mouse motion, and print a warning once.
+- `viewport`: whole CSS pixels, `[1920, 1080]` by default.
+- `page` is a Playwright `Page`. Clicks (including their `button` and `position` options), double-clicks, hovers,
+  `check`, `fill`, `type`, `pressSequentially` and `selectOption` move the mouse visibly to their target, scrolling
+  it into view first when needed; typing, including `page.keyboard.type`, runs at a fixed readable 60 ms per
+  character. `page.mouse.wheel` scrolls smoothly. Locators from `locator.all()`, `getBy*`, chaining and frame
+  locators behave the same way.
+- `fill(value)` clicks the field, clears it and types the value visibly, so long values take time on screen, and
+  the click can trigger the field's own click behaviour. Date, time, month, week, color and range inputs can't be
+  typed into: they are filled directly after the mouse moves to them. A `delay` passed to typing calls is replaced
+  by the readable speed; `timeout`/`force` are kept.
+- Other calls that act on the page, such as `page.evaluate`, `locator.dispatchEvent`, `press`, `page.keyboard.press`
+  or `page.frame()` (whose frames aren't animated), run as they are, without any mouse motion, and print a warning
+  once per method.
 - Write erasable TypeScript only: no `enum`, `namespace` or parameter properties. Import only from `flow-reel` and
   from files in the same folder as the script.
 
@@ -118,7 +127,8 @@ individual steps also fail if generation reaches its limit, rather than returnin
 Captions escape `&`, `<` and `>` so narration is emitted without raw tags. WebVTT displays the literal text; some
 SRT players display escape sequences such as `&lt;` instead. Use WebVTT in a browser when literal symbols matter.
 
-In `.flow-reel/settings/`: `capture.mp4` is the original 2560×1440 recording; `master.mp4` is the clean recording
+In `.flow-reel/settings/`: `capture.mp4` is the original 2560×1440 recording (the viewport × 4/3, padded by one
+black pixel when that is odd, as for 1280×720); `master.mp4` is the clean recording
 with added holds, preserved before cursor/zoom rendering; `master.json.startMs` gives delivery time zero within
 the master, preserving its calibration pre-roll. Events use CSS pixels and final delivery times; click and typing
 events may include `bounds: { x, y, width, height }` in CSS pixels.
@@ -210,6 +220,12 @@ npm run typecheck
 npm test            # unit tests
 npm run test:e2e    # builds the image, tests offline synthesis, and records twice (needs Docker and ffmpeg)
 ```
+
+`flow-reel record` always runs the runner inside the image for its package version. From a source checkout it
+uses the released image of that version, not your local `src/`, and says so. To record with local changes, build
+the image under that tag first: `npm run build && docker build -t ghcr.io/codeonym-oss/flow-reel:$(node -p
+"require('./package.json').version") -f docker/Dockerfile .` (remove it afterwards with `docker rmi` to go back to
+the released one).
 
 Planning lives in `planning/` (see `groundwork.md`).
 

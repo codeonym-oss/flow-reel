@@ -54,3 +54,9 @@ it("places fractional clicks and Unicode typing with deterministic tap variation
   ]);
   expect(events).toEqual(original);
 });
+
+it("plays one click sound for a double-click's two presses, but separate sounds for separate clicks", () => {
+  const click = (t: number): RunnerEvent => ({ t, type: "click", at: [0, 0], button: "left", target: "button" });
+  const clicks = planSfx([click(1000), click(1000.2), click(1500)], 2000).filter((p) => p.asset === "click");
+  expect(clicks.map((p) => p.sample)).toEqual([48000, 72000]);
+});

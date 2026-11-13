@@ -79,7 +79,16 @@ export async function record(scriptPath: string, options: { sfx?: boolean } = {}
       await until(markMs + MARK_HOLD_MS);
       await page.evaluate(() => document.getElementById("__flow_reel_mark")?.remove());
       await until(CUT_MS + LEAD_IN_MS);
+      let inStep: string | undefined;
       const step: Step = async (narration, action) => {
+        // Steps are sequential windows on one timeline: a nested or concurrent step would overlap another.
+        if (inStep !== undefined) {
+          throw new Error(`step("${narration}") started inside step("${inStep}"); await each step before the next`);
+        }
+        inStep = narration;
+        try { await runStep(narration, action); } finally { inStep = undefined; }
+      };
+      const runStep: Step = async (narration, action) => {
         const settle = recording.now() + STEP_SETTLE_MS;
         if (!(await network.idle())) console.warn(`step ${steps.length}: the page was still loading after 10 s; going on`);
         await until(settle);

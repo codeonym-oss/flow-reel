@@ -19,5 +19,9 @@ export async function loadDemo(path: string): Promise<Demo> {
   if (!d || typeof d.body !== "function" || typeof d.options?.url !== "string") {
     throw new Error(`${path} must have a default export of demo(options, body), from "flow-reel"`);
   }
+  const viewport = d.options.viewport;
+  if (!Array.isArray(viewport) || viewport.length !== 2 || !viewport.every((n) => Number.isInteger(n) && n > 0)) {
+    throw new Error(`${path}: viewport must be [width, height] in whole CSS pixels, got ${JSON.stringify(viewport)}`);
+  }
   return d as Demo;
 }

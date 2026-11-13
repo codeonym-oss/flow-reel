@@ -1,5 +1,6 @@
 import type { Bounds, Point, RunnerEvent } from "../schema/events.ts";
 import { easeInOutCubic } from "./easing.ts";
+import { SAME_CLICK_MS } from "./sfx.ts";
 
 export interface CurveSpan { start: number; end: number; from: number; to: number }
 export type Curve = CurveSpan[];
@@ -80,7 +81,9 @@ export function planPolish(events: readonly RunnerEvent[], options: PolishOption
     const from = value(camera, deadline, initial);
     camera.forEach((c, axis) => c.push({ start: deadline, end: deadline + ZOOM_OUT_MS, from: from[axis], to: initial[axis] }));
   });
-  const clicks = sorted.filter((e) => e.type === "click");
+  // A double-click's two presses share one ripple rather than doubling its opacity.
+  const clicks = sorted.filter((e) => e.type === "click")
+    .filter((e, i, all) => i === 0 || e.t - all[i - 1].t > SAME_CLICK_MS);
   return { frames, fps, camera, pointer, clicks, frame(n: number) {
     const t = n * 1000 / fps;
     const crop = value(camera, t, initial);

@@ -112,3 +112,9 @@ it("keeps a fast pointer visible across the viewport during ease-out without ext
   expect(p.frame(68).cursor[0]).toBeLessThanOrEqual(1896 + 1e-6);
   expect(p.frame(84).zoom).toBe(1);
 });
+
+it("draws one ripple for a double-click's two presses", () => {
+  const plan = planPolish([click(1000), click(1000.2)], options);
+  expect(plan.clicks).toHaveLength(1);
+  expect(plan.frame(31).ripples).toHaveLength(1);
+});

@@ -1,5 +1,8 @@
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildRunArgs, imageFor } from "../../src/host/launch.ts";
+import { buildRunArgs, detectEngine, imageFor, sourceCheckoutWarning } from "../../src/host/launch.ts";
 
 const base = { image: "ghcr.io/codeonym-oss/flow-reel:0.1.0", workDir: "/home/me/app", script: "demo.ts", uid: 1000, gid: 1000 };
 
@@ -35,5 +38,38 @@ describe("buildRunArgs", () => {
     expect(args).toContain("--userns=keep-id");
     expect(args).not.toContain("--user");
     expect(args).toEqual(expect.arrayContaining(["--network", "host"]));
+  });
+});
+
+describe("detectEngine", () => {
+  const probe = (answers: Record<string, { status: number; stdout?: string }>) =>
+    (cmd: string, args: string[]) => ({ stdout: "", ...(answers[`${cmd} ${args[0]}`] ?? { status: 1 }) });
+
+  it("uses the first engine whose daemon answers", () => {
+    expect(detectEngine(probe({ "docker --version": { status: 0, stdout: "Docker version 28" }, "docker info": { status: 0 } })))
+      .toEqual({ command: "docker", engine: "docker" });
+  });
+
+  it("skips an installed engine that isn't running when another one answers", () => {
+    expect(detectEngine(probe({ "docker --version": { status: 0 }, "podman --version": { status: 0 }, "podman info": { status: 0 } })))
+      .toEqual({ command: "podman", engine: "podman" });
+  });
+
+  it("treats a podman-docker `docker` command as Podman, for its user namespace", () => {
+    expect(detectEngine(probe({ "docker --version": { status: 0, stdout: "podman version 5.6.0" }, "docker info": { status: 0 } })))
+      .toEqual({ command: "docker", engine: "podman" });
+  });
+
+  it("says the engine isn't running rather than failing later", () => {
+    expect(() => detectEngine(probe({ "docker --version": { status: 0 } }))).toThrow(/docker is installed but not responding/);
+    expect(() => detectEngine(probe({}))).toThrow(/neither was found on PATH/);
+  });
+});
+
+describe("sourceCheckoutWarning", () => {
+  it("warns only in a git checkout with runner sources", () => {
+    const image = "ghcr.io/codeonym-oss/flow-reel:0.1.1";
+    expect(sourceCheckoutWarning(resolve("."), image)).toMatch(/source checkout.*0\.1\.1.*docker build/s);
+    expect(sourceCheckoutWarning(mkdtempSync(join(tmpdir(), "flow-reel-installed-")), image)).toBeUndefined();
   });
 });
