@@ -25,15 +25,17 @@ a separate repository PR. If implementation finds a separately useful product fe
 
 ### 1. Package a minimal usable demo workflow
 
-Add the two plugin manifests, a concise `demo` entry point, the shared workflow/API references and the local sample
-app/script. Keep the runtime implementation untouched. Add the two JSON version fields to the existing Node
-release-please package configuration; do not manually advance a published package version.
+Under `plugin/`, add the two plugin manifests, a concise `demo` entry point, the shared workflow/API references and
+the local sample app/script. Keep the runtime implementation untouched. Add a second release-please package for
+`plugin/` (decision 005: component `flow-reel-plugin`, its own changelog, `extra-files` for both manifests' `$.version`),
+keep `.` tagged `vX.Y.Z`, and make `release-please.yml` call `publish.yml` only when the `.` package was released.
 
 → Check: first add failing repository-consistency tests for mismatched versions, missing declared skills, broken
 resource links and invalid portable onboarding paths. Make them pass with actual files. Copy only plugin runtime
-resources into a temporary installation and resolve its references there, without a checkout or `planning/`.
-Check the npm package allowlist still excludes plugin assets and model weights. Check release-please updates both
-plugin versions with package/lock metadata in the same release PR.
+`plugin/` into a temporary installation (what a `git-subdir` install contains) and resolve its references there.
+Check the npm package allowlist still excludes plugin assets and model weights. In a release-please dry run, check
+that a `plugin/`-only `feat:` proposes only a plugin release (both manifests updated, no package/lock change), a
+runtime `fix:` proposes only a runtime release, and a plugin release does not start `publish.yml`.
 
 ### 2. Teach planning, exploration and scripting
 
@@ -59,7 +61,7 @@ performed, record that gap and request focused human review instead of claiming 
 
 ### 4. Add and test the three deterministic helpers
 
-Implement `scripts/agent/preflight.mjs`, `inspect-recording.mjs` and `snapshot-take.mjs` to the contracts in
+Implement `plugin/scripts/preflight.mjs`, `inspect-recording.mjs` and `snapshot-take.mjs` to the contracts in
 `skill-suite.md`. Keep each helper independent of dev dependencies; share code only for substantial duplicated
 mechanics. Use the public compare CLI for transcript semantics rather than exposing or copying private validators.
 Resolve bundle-relative references safely and reject references that escape the bundle when preserving a take.
@@ -99,11 +101,12 @@ the agent's answer for execution. Scope any such trial to the local example and 
 
 ### 7. Publish the verified suite through the existing marketplace
 
-Follow `publishing.md`: reviewed flow-reel PR(s), normal feature release with synchronized plugin/runtime versions,
-then a separate PR adding flow-reel to both organization catalogs. Document install/update paths and a complete
+Follow `publishing.md`: reviewed flow-reel PR(s), a plugin release from the `flow-reel-plugin` component (no runtime
+release needed), then a separate PR adding flow-reel to both organization catalogs with `git-subdir` sources. Document install/update paths and a complete
 example invocation. Preserve the existing catalogs and plugin entries.
 
-→ Check: released manifests agree with npm/package version and all resource paths exist in the installable source.
+→ Check: released manifests agree with the plugin tag, the supported runtime range covers the published npm version,
+and all resource paths exist under `plugin/`.
 Both catalogs validate and point to flow-reel. Perform actual clean-client installs where available; in each
 verified client, discover all eight skills and run the main workflow against the sample. Report any unavailable
 client/platform check explicitly. Close GH-6 only after the agreed deliverables and publication evidence exist;

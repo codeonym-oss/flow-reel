@@ -61,43 +61,48 @@ with a sharp 1080p delivery; old story examples referring to a 4K master are not
 
 ## Planned repository layout
 
+Everything a client installs lives under `plugin/` (decision 005); tests stay in the repository's `test/`.
+
 ```text
-.claude-plugin/plugin.json
-plugin.json
-skills/
-  demo/SKILL.md
-  plan-demo/SKILL.md
-  explore-app/SKILL.md
-  write-demo/SKILL.md
-  polish-demo/SKILL.md
-  record-demo/SKILL.md
-  review-demo/SKILL.md
-  repair-demo/SKILL.md
-references/
-  workflow.md
-  demo-api.md
-  app-exploration.md
-  storytelling.md
-  narration.md
-  visual-direction.md
-  sound-direction.md
-  quality-review.md
-  troubleshooting.md
-  publishing-and-installation.md
-scripts/agent/
-  preflight.mjs
-  inspect-recording.mjs
-  snapshot-take.mjs
-assets/demo/
-  brief.md
-  demo.ts
-  review.md
-  handoff.md
-examples/agent-demo/
-  index.html
-  demo.ts
-  brief.md
-  README.md
+plugin/
+  .claude-plugin/plugin.json
+  plugin.json
+  CHANGELOG.md
+  skills/
+    demo/SKILL.md
+    plan-demo/SKILL.md
+    explore-app/SKILL.md
+    write-demo/SKILL.md
+    polish-demo/SKILL.md
+    record-demo/SKILL.md
+    review-demo/SKILL.md
+    repair-demo/SKILL.md
+  references/
+    workflow.md
+    demo-api.md
+    app-exploration.md
+    storytelling.md
+    narration.md
+    visual-direction.md
+    sound-direction.md
+    quality-review.md
+    troubleshooting.md
+    publishing-and-installation.md
+  scripts/
+    preflight.mjs
+    inspect-recording.mjs
+    snapshot-take.mjs
+  assets/demo/
+    brief.md
+    demo.ts
+    review.md
+    handoff.md
+  examples/agent-demo/
+    index.html
+    demo.ts
+    brief.md
+    README.md
+# repository root, not installed:
 test/unit/agent-plugin.test.ts
 test/unit/agent-helpers.test.ts
 test/e2e/agent-plugin.test.ts
@@ -140,7 +145,7 @@ is unavailable. Report optional/unperformed checks explicitly; never turn an omi
 
 ### `preflight.mjs`
 
-Proposed invocation: `node <plugin>/scripts/agent/preflight.mjs --url URL --version VERSION [--script FILE] [--json]`.
+Proposed invocation: `node <plugin>/scripts/preflight.mjs --url URL --version VERSION [--script FILE] [--json]`.
 
 - Check Node >=22.18, availability of npm, an installed Docker/Podman engine and a reachable engine daemon.
 - Validate the supplied script exists when provided, the selected version is explicit and the app URL is reachable
@@ -153,11 +158,13 @@ Proposed invocation: `node <plugin>/scripts/agent/preflight.mjs --url URL --vers
 
 ### `inspect-recording.mjs`
 
-Proposed invocation: `node <plugin>/scripts/agent/inspect-recording.mjs FILE.transcript.json --version VERSION [--json]`.
+Proposed invocation: `node <plugin>/scripts/inspect-recording.mjs FILE.transcript.json --version VERSION [--json]`.
 
-- Invoke version-selected `flow-reel compare FILE FILE` to reuse public transcript/schema/sync checks. Use explicit
-  `npx --yes --package flow-reel@VERSION flow-reel ...` or a verified matching local executable so a same-named
-  enclosing checkout cannot masquerade as the registry package.
+- Invoke version-selected `flow-reel compare FILE FILE` to reuse public transcript/schema/sync checks, using an
+  already-installed executable whose `package.json` version matches `--version` (a project dependency, or one given
+  with `--flow-reel PATH`). Helpers never install packages (decision 004): when none matches, report the unmet
+  prerequisite with the exact `npm install --save-dev flow-reel@VERSION` command and skip the sync category. An
+  executable resolved from a same-named enclosing source checkout does not count as a match.
 - Open the referenced video, expected caption/event sidecars and narrated audio files. Resolve them relative to
   the transcript directory. Recompute each WAV SHA-256 and compare it to the transcript; report missing, changed
   or empty artifacts. Handle blank narration and schema-v1/v2 event compatibility according to shipped contracts.
@@ -170,7 +177,7 @@ Proposed invocation: `node <plugin>/scripts/agent/inspect-recording.mjs FILE.tra
 
 ### `snapshot-take.mjs`
 
-Proposed invocation: `node <plugin>/scripts/agent/snapshot-take.mjs FILE.transcript.json --to NEW_DIRECTORY`.
+Proposed invocation: `node <plugin>/scripts/snapshot-take.mjs FILE.transcript.json --to NEW_DIRECTORY`.
 
 - Preserve a complete take before recording over the script's generated outputs: transcript, MP4, SRT/VTT, events
   and referenced audio, keeping their relative paths and bytes intact. Exclude caches and multi-GB intermediates.

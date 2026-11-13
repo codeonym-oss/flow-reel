@@ -23,9 +23,10 @@ Support the skills with shared workflow/API/editorial/quality/troubleshooting re
 handoff templates, three deterministic Node helpers and a runnable local sample. Helpers cover preflight,
 artifact inspection and preserving a take; they do not implement a second renderer or browser framework.
 
-Follow groundwork's inspected packaging: `.claude-plugin/plugin.json` and root portable `plugin.json`, kept in
-sync with the existing Node package release. Publish through both Claude and Codex catalogs in
-`codeonym-oss/claude-plugins`. Keep the runtime in npm/image and agent guidance in the plugin repository tree.
+Follow groundwork's inspected manifests (`.claude-plugin/plugin.json` and portable `plugin.json`) inside a
+`plugin/` folder, released as its own release-please component so skill changes never cut a runtime release
+(decision 005). Publish through both Claude and Codex catalogs in `codeonym-oss/claude-plugins` with `git-subdir`
+sources, so clients install only `plugin/`. Keep the runtime in npm/image and agent guidance in `plugin/`.
 
 ## Out of scope
 
@@ -48,7 +49,8 @@ portable, but unsupported clients are not claimed as tested.
   through an existing matching image; playback/agent-evaluation evidence is recorded separately from file checks.
 - Same-platform two-take comparison is demonstrated when making a repeatability claim. Self-comparison, valid
   metadata or matching source WAVs are not described as proof of perceptual quality or encoded MP4 identity.
-- Both manifests track the package version through release-please. The suite release and both marketplace entries
+- Both manifests track the plugin component's version through release-please; a plugin release triggers no image
+  or npm publication, and runtime releases leave the plugin version alone. The suite release and both marketplace entries
   are verified, with real clean-client installation checks where clients are available and explicit gaps otherwise.
 - Existing unit/type/package/media checks remain green; no unrelated runtime feature is added.
 

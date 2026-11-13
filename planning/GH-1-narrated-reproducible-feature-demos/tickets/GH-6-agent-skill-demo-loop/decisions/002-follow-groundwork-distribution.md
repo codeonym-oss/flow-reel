@@ -1,5 +1,7 @@
 # 002: Follow groundwork's Claude Code and portable plugin distribution
 
+**Superseded in part by 005** (version authority and repository-root layout).
+
 **Date:** 2026-11-13 (requested: "for publishing it, check the groundwork config repo!"; implementation choice within the user's delegated approval)
 
 **Question:** where does the suite live and how is it discovered?
