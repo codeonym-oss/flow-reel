@@ -23,9 +23,9 @@ Started 2026-11-12 from `919f326` on `feat/9-release-multiarch-images`. User aut
 - Packed consumer recording passed from a clean directory with local builds forbidden. Outputs: `test/e2e/out/gh9-consumer`; Docker command log contains no build.
 - Independent reviews: Standards 0 findings; Spec initially found missing immutable image/consumer evidence, fixed and re-reviewed to 0 remaining findings. Final manifest reference is retained and validated by digest; both consumer jobs always upload logs/outputs. Release command regression check exercises exact-reference retention and conflicting-tag refusal through a fake external registry boundary.
 
-## Remaining work
+## Completion
 
-- Account setup and exact-artifact bootstrap completed on 2026-11-13; both trusted publishers are configured and PUBLISH_TO_NPM=true. Recovery 43338511618 passed image/package checks but exposed an npm consumer directory bug; correction verification is in progress.
+- Account setup, exact-artifact bootstrap, both trusted publisher identities and PUBLISH_TO_NPM=true are complete. Corrected recovery 43341164281 passed every job, including native npm consumers.
 - Initial manual bootstrap does not establish successful OIDC publication; verify provenance on the next new version published by Actions. GH-1 still has GH-6 outstanding.
 
 Logs/tools under `/tmp/flow-reel-gh9-*` are development evidence, not release artifacts.
@@ -65,4 +65,8 @@ Logs/tools under `/tmp/flow-reel-gh9-*` are development evidence, not release ar
 - Dispatched recovery [43338511618](https://github.com/codeonym-oss/flow-reel/actions/runs/43338511618) using tag v0.1.0 and source_run 43306468361. Both native media jobs passed against reused image candidates. Both packed consumers and npm integrity verification passed. Both registry-installed consumers failed before recording with `flow-reel: not found`.
 
 - Minimal reproduction: `npx --yes flow-reel@0.1.0` in a fresh directory under this same-named package checkout fails with exit 127; the same command and fresh cache in `/tmp` reaches the real CLI and prints usage (exit 2). npm treats the enclosing checkout as the requested package instead of installing the registry executable.
-- Workflow correction moves the installed consumer output/working directory and matching upload path to `runner.temp`; source, tag, package and image remain immutable. Actionlint and diff whitespace checks pass. Independent Standards and Spec reviews report zero findings. The full local npm consumer resolves the executable and starts the public container; recording verification is running.
+- Workflow correction moves the installed consumer output/working directory and matching upload path to `runner.temp`; source, tag, package and image remain immutable. Actionlint and diff whitespace checks pass. Independent Standards and Spec reviews report zero findings. The full local npm consumer passes both narrated steps, transcript/events/sync, audio/video streams and captions with local builds forbidden; outputs are in `/tmp/flow-reel-gh9-npm-consumer`.
+
+- Correction PR #18 merged as aba28ffed308826ebed9edf2e47698fd53d8beb0 after native CI 43341136606 passed both architectures (AMD 17m33s / ARM 14m24s).
+- Corrected recovery 43341164281, executed from the reviewed correction branch at 7303c4a, passed all nine jobs: retained package, both 31-test native media suites, unchanged image manifest, both anonymous packed consumers, exact npm integrity, and both narrated npm-installed consumers. The latter ran successfully from runner.temp, proving the minimized directory fix on both architectures. Log saved at `/tmp/flow-reel-gh9-recovery-final.log`.
+- npm latest is 0.1.0 and registry integrity matches the canonical artifact. Release notes and installation/setup docs reflect publication. Both trusted publishers were read back successfully; this authenticated bootstrap does not claim OIDC provenance. GH-9 is done; GH-1 remains open for GH-6.

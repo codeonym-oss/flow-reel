@@ -31,10 +31,12 @@ Agent plugins (GH-6), cloud speech, new recording features, GPU images, addition
 
 See `impl.md` and decisions 001–005. Baseline on 2026-11-12: 80 unit tests and type checking pass; two sandbox-only subprocess failures disappear outside the sandbox. Existing full media baseline passed during GH-8; GH-9 must run its own checks against its changed release path.
 
-## Current status — 2026-11-12
+## Current status — 2026-11-13
 
-Implementation [PR #16](https://github.com/codeonym-oss/flow-reel/pull/16) and initial release [PR #17](https://github.com/codeonym-oss/flow-reel/pull/17) are merged. [v0.1.0](https://github.com/codeonym-oss/flow-reel/releases/tag/v0.1.0) publishes the public image `ghcr.io/codeonym-oss/flow-reel:0.1.0` for Linux amd64/arm64. Both exact registry candidates passed all 31 media tests, and anonymous pulls plus packed-consumer recordings passed on both architectures. Native PR CI passed 86 unit tests and all media/package checks on each architecture.
+Implementation [PR #16](https://github.com/codeonym-oss/flow-reel/pull/16), initial release [PR #17](https://github.com/codeonym-oss/flow-reel/pull/17), and consumer correction [PR #18](https://github.com/codeonym-oss/flow-reel/pull/18) are merged. [flow-reel@0.1.0](https://www.npmjs.com/package/flow-reel/v/0.1.0) and the public image `ghcr.io/codeonym-oss/flow-reel:0.1.0` are available for Linux amd64/arm64.
 
-**npm publication remains disabled:** owner signup is temporarily restricted by npm. GH-9 remains open/in progress until account/ownership setup, trusted publishers and npm publication/registry consumers are verified. The [release run](https://github.com/codeonym-oss/flow-reel/actions/runs/43306468361) deliberately fails only at its awaiting-npm-setup gate; image publication and both consumer jobs succeeded.
+[Recovery 43341164281](https://github.com/codeonym-oss/flow-reel/actions/runs/43341164281) passed all nine jobs, including 31 media tests per native candidate, immutable image verification, anonymous packed consumers, npm integrity and narrated registry-installed consumers on both architectures. [Correction CI 43341136606](https://github.com/codeonym-oss/flow-reel/actions/runs/43341136606) passed both architectures. The exact verified tarball was published; no tag, image or package was replaced.
 
-When account setup is available, use `docs/releasing.md` and recover tag `v0.1.0` from source run `43306468361`; preserve the verified artifact integrity and image digests.
+The initial npm publication used authenticated bootstrap. Both trusted publisher identities are configured and `PUBLISH_TO_NPM=true` is enabled. Successful OIDC publication/provenance must be verified on the next new version; bootstrap is not evidence of it. See `docs/releasing.md`.
+
+GH-9 is complete. GH-1 remains open for GH-6.
