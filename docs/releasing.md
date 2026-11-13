@@ -5,6 +5,11 @@ It updates `package.json`, `package-lock.json`, `CHANGELOG.md` and the release m
 the GitHub release. The initial version is explicitly **0.1.0**; subsequent feature releases advance the minor
 version, fixes advance the patch, and breaking changes before 1.0 advance the minor version.
 
+Every release rebuilds and publishes two ~7 GB images and an npm version, so only changes that reach the published
+package or image may use `feat:`/`fix:`. Workflow, release-script, test and planning changes use `ci:`, `test:`,
+`docs:` or `chore:`. To drop a mis-typed merged commit from a pending release PR, edit that merged PR's body to add
+a `BEGIN_COMMIT_OVERRIDE` … `END_COMMIT_OVERRIDE` block with the corrected message and rerun release-please.
+
 The release-please workflow calls `publish.yml` directly. Releases/tags created with `GITHUB_TOKEN` do not trigger
 another workflow. Publication runs in this order:
 
@@ -47,8 +52,15 @@ prove public availability. If visibility setup interrupts the first run, resume 
 ### npm package and trusted publishers
 
 The initial `flow-reel@0.1.0` package was published from the exact verified tarball on 2026-11-13. Both trusted
-publisher identities below are configured, and `PUBLISH_TO_NPM=true` is enabled. This initial authenticated
-bootstrap does not establish OIDC provenance; verify it on the next new version published by Actions.
+publisher identities below are configured, and `PUBLISH_TO_NPM=true` is enabled. Version 0.1.1 subsequently
+published through OIDC in manual recovery run 43350829348; its public SLSA provenance subject matches the exact
+retained tarball. Both native registry-installed consumers passed. The regular release-please caller is configured;
+the successful recovery proves the `publish.yml` identity, not a separate successful normal-caller publication.
+
+That recovery was dispatched from the unmerged branch `fix/9-explicit-publish-tarball` before its PR was reviewed,
+so the 0.1.1 provenance names that branch (commit `1101428`) instead of `v0.1.1`/`main`. The tarball bytes are the
+ones built from the tag. Keep that branch: it is the only ref that reaches the provenance's source commit. Recovery
+must be dispatched from `main` (see below); the `npm-publish` environment enforces this once configured.
 
 Confirm ownership/availability of the unscoped `flow-reel` name before the first release. The public registry
 returned 404 during planning; the name is not reserved by this repository. Keep `PUBLISH_TO_NPM` unset until setup
@@ -70,7 +82,7 @@ never paste credentials into issue text or logs. Manual bootstrap does not estab
 publishing on the next new version if npm cannot configure a publisher before initial creation.
 
 In npm's package Settings → Trusted publishing, configure GitHub Actions with owner `codeonym-oss`, repository
-`flow-reel`, no environment, and **Allow npm publish**. Configure two publisher identities:
+`flow-reel`, environment `npm-publish`, and **Allow npm publish**. Configure two publisher identities:
 
 - `release-please.yml` for normal releases. npm validates the calling workflow's name for reusable workflows.
 - `publish.yml` for manually dispatched recovery.
@@ -79,9 +91,26 @@ Both parent and child workflows grant `id-token: write`; the publishing job uses
 version (trusted publishing requires npm >=11.5.1 and Node >=22.14). Newly configured publishers must complete their
 first successful publish within npm's activation window; recreate an expired connection when necessary.
 
+### Protected npm environment
+
+The `npm` job runs in the GitHub environment `npm-publish`. Without protection rules, any branch can dispatch
+`publish.yml` with an edited workflow and obtain a publishing OIDC token, because the integrity and tag checks live
+in the file that branch controls. In the repository's Settings → Environments → `npm-publish`, set **Deployment
+branches and tags** to selected branches with the rule `main` only (release-please calls `publish.yml` from `main`,
+and recovery dispatches must also start from `main`). Then set the same environment name on both npm trusted
+publisher identities above, so a token from any other environment is refused by npm too.
+
+```sh
+gh api -X PUT repos/codeonym-oss/flow-reel/environments/npm-publish \
+  -F 'deployment_branch_policy[protected_branches]=false' -F 'deployment_branch_policy[custom_branch_policies]=true'
+gh api -X POST repos/codeonym-oss/flow-reel/environments/npm-publish/deployment-branch-policies -f name=main -f type=branch
+```
+
 Enable the repository variable `PUBLISH_TO_NPM=true` only once setup is ready. Recover the initial release; if its
 version is already present with identical integrity, the workflow skips republishing and runs registry consumer
-checks. An integrity conflict stops the run. OIDC publishes automatically include npm provenance for this public
+checks. An integrity conflict stops the run. npm can acknowledge publication before the version is publicly visible;
+the workflow checks visibility up to 30 times, ten seconds apart, before failing with recovery guidance. Integrity
+and transport errors still stop immediately. OIDC publishes automatically include npm provenance for this public
 repository/package.
 
 ## Recovery
@@ -93,9 +122,12 @@ If a build failed before producing a candidate, re-run the failed jobs of the or
 both candidate artifacts exist, recover without rebuilding them:
 
 ```sh
-gh workflow run publish.yml -R codeonym-oss/flow-reel \
-  -f tag=v0.1.0 -f source_run=ORIGINAL_RUN_ID
+gh workflow run publish.yml -R codeonym-oss/flow-reel --ref main \
+  -f tag=vX.Y.Z -f source_run=ORIGINAL_RUN_ID
 ```
+
+Always dispatch recovery from `main`. If the recovery needs a workflow fix, merge that fix first; never dispatch a
+publishing run from an unreviewed branch (its provenance names that branch permanently).
 
 `source_run` must be a run in this repository containing `release-package`, `candidate-amd64` and `candidate-arm64`.
 The workflow checks the package's source commit and both candidates' version/commit/integrity, pulls the same
@@ -113,8 +145,8 @@ Inspect status and artifacts with:
 gh run list -R codeonym-oss/flow-reel --workflow release-please.yml
 gh run view RUN_ID -R codeonym-oss/flow-reel
 gh run download RUN_ID -R codeonym-oss/flow-reel -n release-package -D ./release-package
-docker buildx imagetools inspect ghcr.io/codeonym-oss/flow-reel:0.1.0
-npm view flow-reel@0.1.0 dist.integrity dist.attestations
+docker buildx imagetools inspect ghcr.io/codeonym-oss/flow-reel:X.Y.Z
+npm view flow-reel@X.Y.Z dist.integrity dist.attestations
 ```
 
 ## Local validation
@@ -126,7 +158,7 @@ npm test
 npm run pack:check
 npm run test:e2e
 # Test an already built image without rebuilding:
-FLOW_REEL_TEST_IMAGE=ghcr.io/codeonym-oss/flow-reel:0.1.0 npm run test:e2e
+FLOW_REEL_TEST_IMAGE=ghcr.io/codeonym-oss/flow-reel:X.Y.Z npm run test:e2e
 # Registry candidate mode pulls the supplied digest and fails instead of building on error:
 FLOW_REEL_TEST_IMAGE=ghcr.io/codeonym-oss/flow-reel@sha256:DIGEST npm run test:e2e
 ```

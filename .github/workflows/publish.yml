@@ -258,12 +258,19 @@ jobs:
   npm:
     needs: [package, consumer]
     runs-on: ubuntu-24.04
+    # Deployment rules on this environment allow only main; npm's trusted publisher names it too (docs/releasing.md).
+    environment: npm-publish
     permissions:
       contents: read
       id-token: write
     env:
       PUBLISH_TO_NPM: ${{ vars.PUBLISH_TO_NPM }}
     steps:
+      - name: Publish only from main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::npm publication must run from main, not $GITHUB_REF; its provenance names this ref permanently."
+          exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: refs/tags/${{ inputs.tag }}
