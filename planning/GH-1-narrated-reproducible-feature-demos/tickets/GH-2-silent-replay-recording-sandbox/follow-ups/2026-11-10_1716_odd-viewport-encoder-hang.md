@@ -1,8 +1,8 @@
 ---
-status: open
+status: done
 from: agent
 found-while: GH-4
-resolved-by:
+resolved-by: https://github.com/codeonym-oss/flow-reel/pull/23
 ---
 
 # Odd scaled viewports can hang recording after encoder failure
