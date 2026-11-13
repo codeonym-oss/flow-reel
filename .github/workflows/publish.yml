@@ -316,11 +316,12 @@ jobs:
         env:
           VERSION: ${{ needs.package.outputs.version }}
           DOCKER_CONFIG: /tmp/flow-reel-anonymous
-          FLOW_REEL_CONSUMER_OUT: test/e2e/out/installed
+          # npx must run outside the same-named package checkout to resolve the registry package.
+          FLOW_REEL_CONSUMER_OUT: ${{ runner.temp }}/flow-reel-installed
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: npm-consumer-${{ matrix.arch }}
-          path: test/e2e/out/installed/
+          path: ${{ runner.temp }}/flow-reel-installed/
           retention-days: 7
           overwrite: true

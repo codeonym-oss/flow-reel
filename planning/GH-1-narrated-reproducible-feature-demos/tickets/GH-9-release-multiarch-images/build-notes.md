@@ -25,9 +25,8 @@ Started 2026-11-12 from `919f326` on `feat/9-release-multiarch-images`. User aut
 
 ## Remaining work
 
-- npm account/ownership setup is unavailable: user supplied a signup page showing access temporarily restricted. Keep PUBLISH_TO_NPM unset/disabled.
-- Once available, bootstrap the exact verified package if required, configure the two trusted publisher identities (release-please.yml and publish.yml), enable routine OIDC publication, and verify registry-installed consumers. Initial manual bootstrap alone does not establish successful OIDC publication.
-- Recover v0.1.0 using source_run 43306468361 as documented. Keep GH-9 open/building until npm checks are complete; GH-1 still has GH-6 outstanding.
+- Account setup and exact-artifact bootstrap completed on 2026-11-13; both trusted publishers are configured and PUBLISH_TO_NPM=true. Recovery 43338511618 passed image/package checks but exposed an npm consumer directory bug; correction verification is in progress.
+- Initial manual bootstrap does not establish successful OIDC publication; verify provenance on the next new version published by Actions. GH-1 still has GH-6 outstanding.
 
 Logs/tools under `/tmp/flow-reel-gh9-*` are development evidence, not release artifacts.
 
@@ -57,3 +56,13 @@ Logs/tools under `/tmp/flow-reel-gh9-*` are development evidence, not release ar
 - Local public CLI consumer passed after preserving the development image as gh9-local-before-release and removing its 0.1.0 tag. Tagged tarball's own CLI pulled 0.1.0 anonymously, built no image, and recorded two voiced steps. Outputs test/e2e/out/gh9-public-consumer. Public local image sha256:53983c76883480ea70ef906069b7a84b222a87de1e5cf3888956c964101deb16 is amd64, 7,002,251,491 bytes; version/revision/RepoDigests match the release.
 - Cross-architecture WAV bytes differ (AMD demo 12,500 ms, ARM 12,567 ms in initial native artifacts); repeated runs match within each architecture. This limitation is documented; no cross-architecture byte-identity claim is made.
 - Main remains on the released source plus documentation/planning bookkeeping only. README clarifies npm availability independently of the completed GitHub/GHCR release. Keep board In Progress and issue #9 open pending npm.
+
+## npm bootstrap and recovery (2026-11-13)
+
+- Authenticated npm account `codeonym`; confirmed owner membership in `codeonym-oss`. User accepted keeping the planned unscoped package name `flow-reel`.
+- Published the exact saved v0.1.0 tarball after the owner completed npm browser authentication. npm initially returned success with processing pending; the public version then became available with the exact SHA-512 integrity recorded above. No tarball was regenerated.
+- Created and read back GitHub trusted publisher configurations for `release-please.yml` and `publish.yml`, repository `codeonym-oss/flow-reel`, with publication permission. Enabled repository variable `PUBLISH_TO_NPM=true`.
+- Dispatched recovery [43338511618](https://github.com/codeonym-oss/flow-reel/actions/runs/43338511618) using tag v0.1.0 and source_run 43306468361. Both native media jobs passed against reused image candidates. Both packed consumers and npm integrity verification passed. Both registry-installed consumers failed before recording with `flow-reel: not found`.
+
+- Minimal reproduction: `npx --yes flow-reel@0.1.0` in a fresh directory under this same-named package checkout fails with exit 127; the same command and fresh cache in `/tmp` reaches the real CLI and prints usage (exit 2). npm treats the enclosing checkout as the requested package instead of installing the registry executable.
+- Workflow correction moves the installed consumer output/working directory and matching upload path to `runner.temp`; source, tag, package and image remain immutable. Actionlint and diff whitespace checks pass. Independent Standards and Spec reviews report zero findings. The full local npm consumer resolves the executable and starts the public container; recording verification is running.
