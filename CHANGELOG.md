@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/codeonym-oss/flow-reel/compare/v0.1.0...v0.1.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* isolate npm registry consumer from checkout ([#9](https://github.com/codeonym-oss/flow-reel/issues/9)) ([#18](https://github.com/codeonym-oss/flow-reel/issues/18)) ([aba28ff](https://github.com/codeonym-oss/flow-reel/commit/aba28ffed308826ebed9edf2e47698fd53d8beb0))
+
 ## 0.1.0 (2026-11-12)
 
 
