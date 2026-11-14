@@ -111,3 +111,8 @@ where the schema versions change anyway. This ticket renames files and internal 
 - **The host's source-checkout warning** (`src/host/launch.ts`) tested for `src/runner`; it now tests for
   `src/composer`. Its unit test had kept passing only because git leaves an empty `src/runner/` folder behind.
 - **`RunnerEvent` is now `ComposerEvent`.** It is an internal type, not exported by `src/index.ts` and not serialized.
+- **A third depth-based path was missed:** `src/composer/media/sound-mix.ts` finds `docker/sfx/` relative to itself
+  and moved one level deeper. The plan's risk list named only two such files. CI's recording suite caught it (it
+  looked in `dist/docker/sfx/`). `test/unit/layout.test.ts` now checks every self-relative path in `src/`: a lookup
+  of only `..` segments must reach the package root, and any other must exist. It was confirmed to fail on the
+  broken sound path and on a wrong voice-worker depth.

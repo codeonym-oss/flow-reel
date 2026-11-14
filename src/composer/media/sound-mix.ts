@@ -6,7 +6,7 @@ import type { ComposerEvent } from "../schema/events.ts";
 import type { Timeline } from "../timeline.ts";
 import { planSfx, SAMPLE_RATE, type SoundAsset } from "../sounds.ts";
 
-const assets = fileURLToPath(new URL("../../docker/sfx/", import.meta.url));
+const assets = fileURLToPath(new URL("../../../docker/sfx/", import.meta.url));
 const amplitude = (db: number) => 10 ** (db / 20);
 
 function decode(file: string): Float32Array {
