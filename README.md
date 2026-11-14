@@ -1,8 +1,12 @@
 # flow-reel
 
-Record reproducible feature demos from a short Playwright script. A coding agent (or a person) explores the app,
-writes the script, and `flow-reel` replays it in a sandbox on a virtual display while recording the screen. The same
-script gives the same video, step for step.
+flow-reel turns a **script** into a **reel**. A person or a coding agent writes the script as an ordinary
+Playwright script, plus flow-reel words: **comments** to speak and **sounds** to play, each standalone or chained on
+the element it is about (**effects** for the picture come later in 0.2). The **composer**, a container image,
+replays the script on a virtual display and records the screen. It speaks the comments with a local voice and
+polishes the picture with a smooth cursor, click ripples and zoom. The result is the reel: one folder holding the
+video, the transcript, the captions, the event log, the audio and a manifest. Composing the same script again gives
+a matching reel, which `flow-reel compare` checks.
 
 [`CONTEXT.md`](CONTEXT.md) defines the project's vocabulary.
 
@@ -76,16 +80,24 @@ export default script({ url: "http://localhost:4173" }, async ({ page, comment }
 npx flow-reel compose demos/settings.ts
 ```
 
-Next to the script:
+This writes the reel `demos/settings.reel/`, next to the script. `--out <dir>` writes `<dir>/settings.reel/`
+instead, so one folder can collect the reels of many scripts. Every reel has the same layout:
 
 | File | What it is |
 |---|---|
-| `settings.mp4` | The polished video, 1920×1080, 30 fps, with AAC speech and interaction sounds. |
-| `settings.transcript.json` | Each step's original `comment` and `startMs`, `actionEndMs` and `endMs` on the video's timeline (schema version 2). |
-| `settings.events.json` | Every move, click, keystroke run, scroll and sound, timed the same way (schema version 3). |
-| `settings.srt` | Captions for a subtitle-capable video player. |
-| `settings.vtt` | WebVTT captions for a browser's `<video>` / `<track>`. |
-| `settings.audio/000.wav` | Local speech clips, named by zero-based step index. |
+| `video.mp4` | The polished video, 1920×1080, 30 fps, with AAC speech and interaction sounds. |
+| `transcript.json` | Each step's original `comment` and `startMs`, `actionEndMs` and `endMs` on the video's timeline (schema version 2). |
+| `events.json` | Every move, click, keystroke run, scroll and sound, timed the same way (schema version 3). |
+| `captions.srt` | Captions for a subtitle-capable video player. |
+| `captions.vtt` | WebVTT captions for a browser's `<video>` / `<track>`. |
+| `audio/000.wav` | Local speech clips, named by zero-based step index. |
+| `manifest.json` | Every file above with its size and SHA-256, the script's name and hash, the composer version and platform, the integration and the voice (version 1). |
+| `work/` | Intermediate files, for debugging only; not in the manifest, and ignored by git. |
+
+A compose builds the new reel in `settings.reel.partial/` and replaces the old reel only once it has succeeded. A
+failed compose leaves the previous reel as it was, and the partial folder for debugging; the next compose clears it.
+The manifest proves a reel is whole and unaltered (see [Verify a reel](#verify-a-reel)); it does not prove two reels
+are the same, since the video's bytes differ on every compose.
 
 Each caption shows one step's comment from its `startMs` to its `endMs`. Caption whitespace is normalized and the
 player wraps the text; the transcript keeps the original comment. Blank comments and steps lasting zero
@@ -95,11 +107,10 @@ at least 200 ms afterward.
 The voice is Qwen3-TTS 0.6B CustomVoice, Ryan in English, through the official Python runtime on CPU. Model and
 tokenizer assets are pinned and downloaded when the image is built; synthesis runs offline without a key. Speech
 is generated after capture finishes. The transcript records the voice, seed, and each clip's relative file path,
-duration in milliseconds and complete-file SHA-256 hash. Copy the audio folder with its transcript when sharing it.
+duration in milliseconds and complete-file SHA-256 hash. Share the whole reel folder.
 
 Synthesis normalizes whitespace without interpreting caption escapes; the transcript preserves the original text.
-A blank comment produces no clip. Clip numbers retain step indexes, so skipped steps leave gaps. Rerunning replaces
-the generated numeric WAVs in this script's audio folder; keep personal audio under other filenames or folders.
+A blank comment produces no clip. Clip numbers retain step indexes, so skipped steps leave gaps.
 A comment with no action still produces speech. Each action runs once at normal speed. After a step's last action
 returns (`actionEndMs`), the composer waits for network quiet (500 ms, bounded at 10 seconds), then captures another
 100 ms. Scripts must still await the UI state they intend to show; network quiet does not
@@ -137,14 +148,14 @@ individual steps also fail if generation reaches its limit, rather than returnin
 Captions escape `&`, `<` and `>` so comments are emitted without raw tags. WebVTT displays the literal text; some
 SRT players display escape sequences such as `&lt;` instead. Use WebVTT in a browser when literal symbols matter.
 
-In `.flow-reel/settings/`: `capture.mp4` is the original 2560×1440 recording (the viewport × 4/3, padded by one
+In `settings.reel/work/`: `capture.mp4` is the original 2560×1440 recording (the viewport × 4/3, padded by one
 black pixel when that is odd, as for 1280×720); `master.mp4` is the clean recording
 with added holds, preserved before cursor/zoom rendering; `master.json.startMs` gives delivery time zero within
 the master, preserving its calibration pre-roll. Events use CSS pixels and final delivery times; click and typing
 events may include `bounds: { x, y, width, height }` in CSS pixels.
 `voice.wav` is the normalized voice-only bus on the delivery timeline; `sfx.wav` is the ducked effects
-bus and `mix.wav` is the final normalized voiced mix when effects exist. The `.flow-reel/` folder ignores itself in git;
-the files next to the script are yours to commit or not.
+bus and `mix.wav` is the final normalized voiced mix when effects exist. The `work/` folder ignores itself in git;
+the rest of the reel is yours to commit or not.
 
 To keep runs the same, the runner fixes the viewport, device scale, `prefers-reduced-motion`, the page's clock
 (`2026-01-05T09:00:00Z`) and `Math.random`'s seed, and waits for the network to go idle before each step. Two runs of
@@ -201,13 +212,24 @@ The event log records a sound as `{ t, type: "sound", name }`, `name` being the 
 selected sounds are bundled in the npm package/image and work offline. The full planning audition library is
 not included in the runtime package.
 
-## Compare recordings
+## Verify a reel
 
 ```sh
-npx flow-reel compare demos/a.transcript.json demos/b.transcript.json
+npx flow-reel verify demos/settings.reel
 ```
 
-Comparison runs on the host without Docker or FFmpeg. It validates each transcript's schema and sync, then checks
+Checks the reel against its manifest: every listed file is present with its size and hash, and nothing else is
+there apart from `work/`. Exit status is 0 when the reel is whole, 1 when a file is missing, extra or changed (each
+is named), and 2 when the folder isn't a reel or its manifest is invalid. It runs on the host without Docker.
+
+## Compare reels
+
+```sh
+npx flow-reel compare demos/a.reel demos/b.reel
+```
+
+Comparison runs on the host without Docker or FFmpeg. It verifies both reels first (any problem exits 2), then
+validates each transcript's schema and sync, and checks
 video dimensions/FPS, step order, exact original comments, voice identity, source audio hashes/durations and step
 starts within ±150 ms inclusive. Script and output paths may differ. Legacy silent transcripts and blank-only
 recordings are supported. Exit status is 0 for a match, 1 for valid recordings that differ, and 2 for invalid input,
@@ -231,6 +253,8 @@ step windows, including the speech tail, before publishing its transcript.
 | `npx flow-reel record demo.ts` | `npx flow-reel compose demo.ts` |
 | transcript version 1, step field `narration` | transcript version 2, step field `comment` |
 | event log versions 1 and 2, event `{ type: "sfx" }` | event log version 3, event `{ type: "sound" }` |
+| `demo.mp4`, `demo.transcript.json`, … beside the script, work files in `.flow-reel/` | one folder, `demo.reel/` (delete old `.flow-reel/` folders) |
+| `flow-reel compare a.transcript.json b.transcript.json` | `flow-reel compare a.reel b.reel` |
 
 ## Platforms
 

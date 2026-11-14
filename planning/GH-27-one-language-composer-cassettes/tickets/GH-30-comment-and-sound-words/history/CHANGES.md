@@ -7,3 +7,4 @@
 - 2026-11-14: ticket pass done (decisions 001-005), impl.md written.
 - 2026-11-14: built on feat/30-comment-and-sound-words; impl.md notes six corrections.
 - 2026-11-14: pull request #37 opened.
+- 2026-11-14: pull request #37 merged.

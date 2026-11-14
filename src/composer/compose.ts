@@ -1,9 +1,10 @@
 // Composes one script, inside the container: load it, replay it through the integration while recording the
-// display, then voice, render and hand the results to the cassette store.
-import { writeFileSync } from "node:fs";
+// display, then voice, render and hand the results to the reel store.
+import { createHash } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import type { CassetteStore, Integration, Voice } from "./ports.ts";
+import type { Integration, ReelStore, Voice } from "./ports.ts";
 import { type ComposerEvent, validateEvents } from "./schema/events.ts";
 import { type Transcript } from "./schema/transcript.ts";
 import { validateSync } from "./schema/sync.ts";
@@ -23,7 +24,7 @@ const TAIL_MS = 500;
 const MAX_SHORTFALL = 0.03;
 // A pixel takes about 100 ms to reach the master after the composer acts (drawing, Xvfb, x11grab), and it varies by
 // machine. So each run flashes a full-screen marker, finds its first frame in the master, and shifts every time by
-// the measured delay; demo.mp4 starts at CUT_MS, after the marker.
+// the measured delay; the video starts at CUT_MS, after the marker.
 const MARK_AT_MS = 200;
 const MARK_HOLD_MS = 200;
 const CUT_MS = 1000;
@@ -32,14 +33,20 @@ const MARK_RGB: [number, number, number] = [0, 255, 0];
 export interface ComposeOptions {
   integration: Integration;
   voice: Voice;
-  store: CassetteStore;
+  store: ReelStore;
+  /** The package version, for the manifest. */
+  composerVersion: string;
+  /** Where the reel goes; beside the script when omitted. */
+  outDir?: string;
   sfx?: boolean;
 }
 
-export async function compose(scriptPath: string, { integration, voice, store, sfx }: ComposeOptions): Promise<void> {
+const ARCH: Record<string, string> = { x64: "amd64", arm64: "arm64" };
+
+export async function compose(scriptPath: string, { integration, voice, store, composerVersion, outDir, sfx }: ComposeOptions): Promise<void> {
   const script = await integration.load(scriptPath);
-  const cassette = store.open(scriptPath);
-  const out = cassette.work;
+  const reel = store.open(scriptPath, outDir);
+  const out = reel.work;
   const { viewport } = script;
   const events: ComposerEvent[] = [];
   let steps: ReturnType<typeof stepTimer>["steps"] = [];
@@ -78,7 +85,7 @@ export async function compose(scriptPath: string, { integration, voice, store, s
 
       const markFrameMs = firstFrameOfColour(out.capture, MARK_RGB, CUT_MS);
       if (markFrameMs === undefined || markFrameMs < markMs) throw new Error("the timing marker isn't in the master");
-      // demo.mp4 starts on the master frame nearest CUT_MS in on-screen time; times move from the composer's clock to it.
+      // The video starts on the master frame nearest CUT_MS in on-screen time; times move from the composer's clock to it.
       const frameMs = 1000 / FPS;
       const startMs = markFrameMs + Math.round((CUT_MS - markMs) / frameMs) * frameMs;
       const shift = markFrameMs - markMs - startMs;
@@ -88,7 +95,7 @@ export async function compose(scriptPath: string, { integration, voice, store, s
         s.endMs = Math.round(s.endMs + shift);
       }
       for (const e of events) e.t += shift;
-      // Where demo.mp4, and so every time in the JSON files, starts in the master (for the render tickets).
+      // Where the video, and so every time in the JSON files, starts in the master (for the render tickets).
       writeFileSync(out.masterInfo, `${JSON.stringify({ startMs })}\n`);
 
       deliveryCutMs = startMs;
@@ -100,20 +107,25 @@ export async function compose(scriptPath: string, { integration, voice, store, s
   }
 
   // CPU synthesis starts only after capture, browser and display have finished.
-  const voiced = await voiceSteps(steps, cassette.audioDir, voice);
+  const voiced = await voiceSteps(steps, reel.audioDir, voice);
   const timeline = planTimeline(voiced.steps, { fps: FPS, frames: videoFrames(out.capture), cutMs: deliveryCutMs });
   const log = { version: 3 as const, events: retimeEvents(events, timeline) };
   const eventErrors = validateEvents(log);
   if (eventErrors.length) throw new Error(`recording events are invalid:\n  ${eventErrors.join("\n  ")}`);
   renderTimeline({ capture: out.capture, master: out.master, video: out.stagedVideo,
-    voice: out.voiceBus, audioDir: cassette.audioRoot, viewport, timeline, events: log.events, sfx });
+    voice: out.voiceBus, audioDir: reel.audioRoot, viewport, timeline, events: log.events, sfx });
   const transcript: Transcript = {
     version: 2,
     script: basename(scriptPath),
-    video: { file: cassette.videoFile, width: viewport[0], height: viewport[1], fps: FPS, durationMs: durationMs(out.stagedVideo) },
+    video: { file: reel.videoFile, width: viewport[0], height: viewport[1], fps: FPS, durationMs: durationMs(out.stagedVideo) },
     voice: voiced.voice, steps: timeline.steps,
   };
   const errors = validateSync(transcript);
   if (errors.length) throw new Error(`recording is invalid:\n  ${errors.join("\n  ")}`);
-  cassette.commit({ transcript, events: log, captions: renderCaptions(transcript.steps) });
+  reel.commit({ transcript, events: log, captions: renderCaptions(transcript.steps), about: {
+    script: { file: basename(scriptPath), sha256: createHash("sha256").update(readFileSync(scriptPath)).digest("hex") },
+    composer: { version: composerVersion, platform: `linux/${ARCH[process.arch] ?? process.arch}` },
+    integration: integration.name,
+    voice: voiced.voice,
+  } });
 }

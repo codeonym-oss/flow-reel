@@ -17,6 +17,11 @@ describe("buildRunArgs", () => {
     expect(buildRunArgs({ ...base, engine: "docker", desktop: false, sfx: false }).slice(-3))
       .toEqual(["compose", "/work/demo.ts", "--no-sfx"]);
   });
+  it("mounts --out at /out and passes it on", () => {
+    const args = buildRunArgs({ ...base, engine: "docker", desktop: false, outDir: "/home/me/reels" });
+    expect(args).toEqual(expect.arrayContaining(["-v", "/home/me/reels:/out"]));
+    expect(args.slice(-4)).toEqual(["compose", "/work/demo.ts", "--out", "/out"]);
+  });
   it("Linux Docker: host network, the host's uid, the script's folder at /work", () => {
     expect(buildRunArgs({ ...base, engine: "docker", desktop: false })).toEqual([
       "run", "--rm", "--init", "--shm-size=1g",

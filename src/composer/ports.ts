@@ -1,6 +1,7 @@
 // The composer's three ports (GH-27 decision 007). The core depends on these interfaces; the adapters in
 // src/adapters implement them, and src/cli.ts chooses which.
 import type { ComposerEvent, EventLog, Sound } from "./schema/events.ts";
+import type { ManifestAbout } from "./schema/manifest.ts";
 import type { Transcript } from "./schema/transcript.ts";
 
 export interface ClipRequest { index: number; text: string; file: string }
@@ -46,29 +47,34 @@ export interface LoadedScript {
 
 /** The adapter for one E2E tool. */
 export interface Integration {
+  /** How the manifest names this integration. */
+  name: string;
   load(scriptPath: string): Promise<LoadedScript>;
 }
 
-export interface CassetteResult {
+export interface ReelResult {
   transcript: Transcript;
   events: EventLog;
   captions: { srt: string; vtt: string };
+  /** What the manifest says about how the reel was composed; the store adds the file list. */
+  about: ManifestAbout;
 }
 
-/** Where one script's work files and results live. */
-export interface Cassette {
+/** Where one script's reel is built: its work files, its audio, and the step that publishes it. */
+export interface Reel {
   /** Intermediate files; the composer writes them, nothing reads them afterwards except to debug. */
   work: { capture: string; master: string; masterInfo: string; stagedVideo: string; voiceBus: string };
   /** Where the voice's clips go. */
   audioDir: string;
-  /** The folder a clip's transcript path (`<name>.audio/000.wav`) is relative to. */
+  /** The folder a clip's transcript path (`audio/000.wav`) is relative to. */
   audioRoot: string;
   /** The finished video's file name, as the transcript records it. */
   videoFile: string;
-  /** Publishes the staged video with its transcript, captions and event log. */
-  commit(result: CassetteResult): void;
+  /** Writes the transcript, captions, event log and manifest, and replaces the previous reel with this one. */
+  commit(result: ReelResult): void;
 }
 
-export interface CassetteStore {
-  open(scriptPath: string): Cassette;
+export interface ReelStore {
+  /** Starts a new reel for `scriptPath`, beside it or inside `outDir`. */
+  open(scriptPath: string, outDir?: string): Reel;
 }

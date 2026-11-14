@@ -1,6 +1,6 @@
 import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { type Server, createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join, resolve } from "node:path";
@@ -11,6 +11,7 @@ import { compareTranscripts } from "../../src/compare.ts";
 import { validateSync } from "../../src/composer/schema/sync.ts";
 import { type Transcript, validateTranscript } from "../../src/composer/schema/transcript.ts";
 import { planPolish } from "../../src/composer/polish.ts";
+import { verifyReel } from "../../src/reel.ts";
 import { prepareImage } from "./image.ts";
 
 // The whole recorder, in Docker, against a fixture app served from the host's 127.0.0.1 (GH-2 impl.md step 12).
@@ -48,8 +49,8 @@ async function recordOnce(name: string): Promise<Run> {
   }
   return {
     dir,
-    transcript: JSON.parse(readFileSync(join(dir, "demo.transcript.json"), "utf8")),
-    events: JSON.parse(readFileSync(join(dir, "demo.events.json"), "utf8")),
+    transcript: JSON.parse(readFileSync(join(dir, "demo.reel/transcript.json"), "utf8")),
+    events: JSON.parse(readFileSync(join(dir, "demo.reel/events.json"), "utf8")),
   };
 }
 
@@ -106,13 +107,13 @@ export default script({ url: "http://localhost:${port}/", viewport: [960, 540] }
   } finally {
     spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
   }
-  const log = JSON.parse(readFileSync(join(dir, "demo.events.json"), "utf8"));
+  const log = JSON.parse(readFileSync(join(dir, "demo.reel/events.json"), "utf8"));
   expect(validateEvents(log)).toEqual([]);
   expect(log.events.map((e: { name: string }) => e.name)).toEqual(SOUND_NAMES);
   expect(log.events.every((e: { t: number }, i: number) => i === 0 || e.t > log.events[i - 1].t)).toBe(true);
-  const { streams } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_streams", "-of", "json", join(dir, "demo.mp4")], { encoding: "utf8" }));
+  const { streams } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_streams", "-of", "json", join(dir, "demo.reel/video.mp4")], { encoding: "utf8" }));
   expect(streams.map((s: { codec_type: string }) => s.codec_type)).toEqual(["video"]);
-  expect(existsSync(join(dir, ".flow-reel/demo/sfx.wav"))).toBe(false);
+  expect(existsSync(join(dir, "demo.reel/work/sfx.wav"))).toBe(false);
 }, 120_000);
 
 it("captures the settled response while keeping the callback finish time", async () => {
@@ -132,10 +133,10 @@ export default script({ url: "http://localhost:${port}/", viewport: [960, 540] }
   } finally {
     spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
   }
-  const transcript: Transcript = JSON.parse(readFileSync(join(dir, "demo.transcript.json"), "utf8"));
+  const transcript: Transcript = JSON.parse(readFileSync(join(dir, "demo.reel/transcript.json"), "utf8"));
   const step = transcript.steps[0];
   expect(step.endMs - step.actionEndMs).toBeGreaterThanOrEqual(900);
-  const painted = firstMagentaMs(join(dir, "demo.mp4"));
+  const painted = firstMagentaMs(join(dir, "demo.reel/video.mp4"));
   expect(painted).toBeGreaterThan(step.actionEndMs);
   expect(painted).toBeLessThan(step.endMs);
 }, 120_000);
@@ -156,7 +157,7 @@ it("fails the command without publishing a successful transcript when TTS assets
     // A killed Docker client can leave its container alive, holding the host-network X11 socket.
     spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
   }
-  expect(existsSync(join(dir, "demo.transcript.json"))).toBe(false);
+  expect(existsSync(join(dir, "demo.reel"))).toBe(false);
 }, 120_000);
 
 describe("flow-reel compose", () => {
@@ -169,15 +170,15 @@ describe("flow-reel compose", () => {
     for (const run of [a, b]) {
       expect(run.transcript.voice).toEqual({ adapter: "qwen3-tts-0.6b", voice: "Ryan", seed: 0 });
       run.transcript.steps.forEach((step, index) => {
-        expect(step.audio?.file).toBe(`demo.audio/${String(index).padStart(3, "0")}.wav`);
-        const file = join(run.dir, step.audio!.file);
+        expect(step.audio?.file).toBe(`audio/${String(index).padStart(3, "0")}.wav`);
+        const file = join(run.dir, "demo.reel", step.audio!.file);
         const { streams: [audio] } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_streams", "-of", "json", file], { encoding: "utf8" }));
         expect(audio).toMatchObject({ codec_name: "pcm_s16le", channels: 1 });
         expect(step.audio!.durationMs).toBe(Math.round(Number(audio.duration) * 1000));
         expect(step.audio!.durationMs).toBeGreaterThan(0);
         expect(step.audio!.sha256).toBe(createHash("sha256").update(readFileSync(file)).digest("hex"));
       });
-      const { streams } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_entries", "stream=codec_type,duration", "-of", "json", join(run.dir, "demo.mp4")], { encoding: "utf8" }));
+      const { streams } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_entries", "stream=codec_type,duration", "-of", "json", join(run.dir, "demo.reel/video.mp4")], { encoding: "utf8" }));
       expect(streams.map((s: { codec_type: string }) => s.codec_type)).toEqual(["video", "audio"]);
       const audio = streams.find((s: { codec_type: string }) => s.codec_type === "audio");
       expect(Math.abs(Number(audio.duration) * 1000 - run.transcript.video.durationMs)).toBeLessThanOrEqual(1000 / 30);
@@ -203,28 +204,28 @@ describe("flow-reel compose", () => {
   it("preserves original comments and writes SRT cues on each run's calibrated timeline", () => {
     for (const run of [a, b]) {
       expect(run.transcript.steps.map((s) => s.comment)).toEqual(COMMENTS);
-      const srt = readFileSync(join(run.dir, "demo.srt"), "utf8");
+      const srt = readFileSync(join(run.dir, "demo.reel/captions.srt"), "utf8");
       expect(srt.split("\n\n").filter(Boolean).map((cue) => cue.split("\n")[2])).toEqual([
         "Type &lt;b&gt;Ada&lt;/b&gt; &amp; &amp;lt; --&gt; 保存.", "Scroll down and save.", "Open the settings.",
       ]);
       const { packets } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_packets",
-        "-show_entries", "packet=pts_time,duration_time", "-of", "json", join(run.dir, "demo.srt")], { encoding: "utf8" }));
+        "-show_entries", "packet=pts_time,duration_time", "-of", "json", join(run.dir, "demo.reel/captions.srt")], { encoding: "utf8" }));
       expect(packets.map((p: { pts_time: string; duration_time: string }) => ({
         startMs: Math.round(Number(p.pts_time) * 1000), durationMs: Math.round(Number(p.duration_time) * 1000),
       }))).toEqual(run.transcript.steps.map((s) => ({ startMs: Math.round(s.startMs), durationMs: Math.round(s.endMs) - Math.round(s.startMs) })));
-      expect(readFileSync(join(run.dir, "demo.vtt"), "utf8")).toContain("WEBVTT\n\n");
+      expect(readFileSync(join(run.dir, "demo.reel/captions.vtt"), "utf8")).toContain("WEBVTT\n\n");
     }
   });
 
   it("writes a 1440p 30 fps master and a 1080p copy, dropping no frames", () => {
-    const master = probe(join(a.dir, ".flow-reel/demo/master.mp4"));
+    const master = probe(join(a.dir, "demo.reel/work/master.mp4"));
     expect(master).toMatchObject({ width: 2560, height: 1440, fps: "30/1" });
-    const capture = probe(join(a.dir, ".flow-reel/demo/capture.mp4"));
+    const capture = probe(join(a.dir, "demo.reel/work/capture.mp4"));
     expect(master.frames).toBeGreaterThan(capture.frames);
     expect(Math.abs(capture.frames - capture.seconds * 30)).toBeLessThanOrEqual(capture.seconds * 30 * 0.01 + 1);
     expect(Math.abs(master.frames - master.seconds * 30)).toBeLessThanOrEqual(master.seconds * 30 * 0.01 + 1);
-    expect(probe(join(a.dir, "demo.mp4"))).toMatchObject({ width: 1920, height: 1080, fps: "30/1" });
-    expect(readFileSync(join(a.dir, ".flow-reel/.gitignore"), "utf8")).toBe("*\n");
+    expect(probe(join(a.dir, "demo.reel/video.mp4"))).toMatchObject({ width: 1920, height: 1080, fps: "30/1" });
+    expect(readFileSync(join(a.dir, "demo.reel/work/.gitignore"), "utf8")).toBe("*\n");
   });
 
   it("writes a valid transcript and event log", () => {
@@ -241,10 +242,26 @@ describe("flow-reel compose", () => {
     }
   });
 
+  it("writes one reel beside the script, whole according to its manifest (GH-31 decisions 001-003)", () => {
+    for (const run of [a, b]) {
+      expect(readdirSync(run.dir).filter((f) => !["record.log", "captions.png"].includes(f)).sort()).toEqual(["demo.reel", "demo.ts"]);
+      expect(readdirSync(join(run.dir, "demo.reel")).sort()).toEqual([
+        "audio", "captions.srt", "captions.vtt", "events.json", "manifest.json", "transcript.json", "video.mp4", "work",
+      ]);
+      const { errors, differences, manifest } = verifyReel(join(run.dir, "demo.reel"));
+      expect({ errors, differences }).toEqual({ errors: [], differences: [] });
+      expect(manifest).toMatchObject({
+        script: { file: "demo.ts", sha256: createHash("sha256").update(readFileSync(join(run.dir, "demo.ts"))).digest("hex") },
+        composer: { version: JSON.parse(readFileSync("package.json", "utf8")).version, platform: expect.stringMatching(/^linux\/(amd64|arm64)$/) },
+        integration: "playwright", voice: run.transcript.voice,
+      });
+    }
+  });
+
   it("gives the same steps on two runs, every start within ±150 ms (story decision 009)", () => {
     expect(compareTranscripts(a.transcript, b.transcript)).toEqual({ errors: [], differences: [] });
-    expect(spawnSync(process.execPath, ["dist/cli.js", "compare", join(a.dir, "demo.transcript.json"),
-      join(b.dir, "demo.transcript.json")], { encoding: "utf8" }).status).toBe(0);
+    expect(spawnSync(process.execPath, ["dist/cli.js", "compare", join(a.dir, "demo.reel"),
+      join(b.dir, "demo.reel")], { encoding: "utf8" }).status).toBe(0);
     expect(b.transcript.steps).toHaveLength(a.transcript.steps.length);
     a.transcript.steps.forEach((s, i) => {
       expect(Math.abs(s.startMs - b.transcript.steps[i].startMs)).toBeLessThanOrEqual(150);
@@ -253,7 +270,7 @@ describe("flow-reel compose", () => {
 
   it("times events on the video's own clock: the marker click shows within 2 frames of its t", () => {
     const click = a.events.events.filter((e) => e.type === "click").at(-1)!;
-    const work = join(a.dir, ".flow-reel/demo");
+    const work = join(a.dir, "demo.reel/work");
     const cut = JSON.parse(readFileSync(join(work, "master.json"), "utf8")).startMs;
     expect(Math.abs(firstMagentaMs(join(work, "master.mp4")) - cut - click.t)).toBeLessThanOrEqual(2 * 1000 / 30);
   });
@@ -266,7 +283,7 @@ describe("flow-reel compose", () => {
       const { x, y } = plan.frame(n).ripples[0];
       const left = Math.max(0, Math.min(1856, Math.round(x) - 32));
       const top = Math.max(0, Math.min(1016, Math.round(y) - 32));
-      const raw = execFileSync("ffmpeg", ["-v", "error", "-i", join(a.dir, "demo.mp4"), "-vf",
+      const raw = execFileSync("ffmpeg", ["-v", "error", "-i", join(a.dir, "demo.reel/video.mp4"), "-vf",
         `select=eq(n\\,${n}),crop=64:64:${left}:${top}`, "-frames:v", "1", "-pix_fmt", "rgb24", "-f", "rawvideo", "-"],
       { maxBuffer: 1 << 20 });
       let blue = 0;

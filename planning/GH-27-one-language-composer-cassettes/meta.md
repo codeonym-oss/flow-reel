@@ -1,6 +1,6 @@
 ---
 kind: story
-title: "flow-reel 0.2: one language, a composer and cassettes"
+title: "flow-reel 0.2: one language, a composer and reels"
 key: GH-27
 parent:
 status: tracked

@@ -36,15 +36,19 @@ try {
   writeFileSync(join(dir, "record.log"), result.stdout + result.stderr);
   assert.doesNotMatch(result.stderr, /building it locally/);
   assert.doesNotMatch(readFileSync(commands, "utf8"), /^build /m);
-  const transcript = JSON.parse(readFileSync(join(dir, "demo.transcript.json"), "utf8"));
+  const transcript = JSON.parse(readFileSync(join(dir, "demo.reel", "transcript.json"), "utf8"));
   assert.deepEqual(validateTranscript(transcript), []);
   assert.deepEqual(validateSync(transcript), []);
-  assert.deepEqual(validateEvents(JSON.parse(readFileSync(join(dir, "demo.events.json"), "utf8"))), []);
+  assert.deepEqual(validateEvents(JSON.parse(readFileSync(join(dir, "demo.reel", "events.json"), "utf8"))), []);
   assert.equal(transcript.steps.length, 2);
   assert(transcript.steps.every((s: { audio?: unknown }) => s.audio));
-  for (const ext of ["srt", "vtt", "mp4"]) assert(readFileSync(join(dir, `demo.${ext}`)).length > 0);
-  const probe = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_streams", "-of", "json", join(dir, "demo.mp4")], { encoding: "utf8" }));
+  for (const file of ["captions.srt", "captions.vtt", "video.mp4"]) assert(readFileSync(join(dir, "demo.reel", file)).length > 0);
+  const probe = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_streams", "-of", "json", join(dir, "demo.reel", "video.mp4")], { encoding: "utf8" }));
   assert.deepEqual(probe.streams.map((s: { codec_type: string }) => s.codec_type), ["video", "audio"]);
+  const verified = await promisify(execFile)("npx", [...args, "verify", join(dir, "demo.reel")], {
+    cwd: dir, env: { ...process.env, npm_config_cache: join(dir, "npm-cache"), npm_config_userconfig: "/dev/null" },
+  });
+  assert.match(verified.stdout, /^Reel matches its manifest/);
   console.log(`Consumer passed: ${spec}; outputs ${dir}`);
 } catch (error) {
   writeFileSync(join(dir, "record.log"), (error as { stderr?: string }).stderr ?? String(error));

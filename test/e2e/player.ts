@@ -10,10 +10,10 @@ try {
     if (path === "/") {
       await route.fulfill({ contentType: "text/html", body: `<style>body{margin:0;background:#111}</style>
         <video controls width="1280" height="720">
-          <track default kind="captions" srclang="en" label="Narration" src="/demo.vtt">
+          <track default kind="captions" srclang="en" label="Narration" src="/demo.reel/captions.vtt">
         </video><script>
           // A Blob makes the fixture seekable without emulating HTTP range responses in the route handler.
-          fetch('/demo.mp4').then(r => r.blob()).then(blob => {
+          fetch('/demo.reel/video.mp4').then(r => r.blob()).then(blob => {
             document.querySelector('video').src = URL.createObjectURL(blob);
           });
         </script>` });

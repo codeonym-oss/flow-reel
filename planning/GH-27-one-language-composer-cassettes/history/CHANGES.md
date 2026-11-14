@@ -1,2 +1,4 @@
 - 2026-11-14: story created from the shaping session (decisions 001-008 moved in; shaping notes kept in history).
 - 2026-11-14: tracker issue #27 created with seven sub-issues; added to board 6.
+- 2026-11-14: decision 010 (GH-31 ticket pass): the compiled result is a reel; 009 superseded for that term.
+- 2026-11-14: draft.md and title use "reel" (decision 010).
