@@ -34,5 +34,8 @@ export async function loadScript(path: string): Promise<Script> {
   if (!Array.isArray(viewport) || viewport.length !== 2 || !viewport.every((n) => Number.isInteger(n) && n > 0)) {
     throw new Error(`${path}: viewport must be [width, height] in whole CSS pixels, got ${JSON.stringify(viewport)}`);
   }
+  if (typeof d.options.autoZoom !== "boolean") {
+    throw new Error(`${path}: autoZoom must be true or false, got ${JSON.stringify(d.options.autoZoom)}`);
+  }
   return d as Script;
 }

@@ -24,6 +24,8 @@ export interface Stage {
   sound(sound: Sound): void;
   /** Runs one action of the script inside its step, opening the step first when one is due. */
   action<T>(run: () => Promise<T>): Promise<T>;
+  /** Inserts an image into the video, as an action of its step (GH-32 decision 003). */
+  showFrame(image: string, durationMs: number, options?: unknown): Promise<void>;
 }
 
 /** One script, open in its E2E tool and ready to replay. */
@@ -41,6 +43,8 @@ export interface Session {
 export interface LoadedScript {
   /** CSS pixels. */
   viewport: [width: number, height: number];
+  /** False when the script turned automatic zoom off. */
+  autoZoom: boolean;
   /** Opens the app on the composer's display, which must already be running. */
   open(): Promise<Session>;
 }

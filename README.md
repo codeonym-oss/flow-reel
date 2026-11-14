@@ -1,8 +1,8 @@
 # flow-reel
 
 flow-reel turns a **script** into a **reel**. A person or a coding agent writes the script as an ordinary
-Playwright script, plus flow-reel words: **comments** to speak and **sounds** to play, each standalone or chained on
-the element it is about (**effects** for the picture come later in 0.2). The **composer**, a container image,
+Playwright script, plus flow-reel words: **comments** to speak, **sounds** to play and **effects** for the picture,
+each standalone or chained on the element it is about. The **composer**, a container image,
 replays the script on a virtual display and records the screen. It speaks the comments with a local voice and
 polishes the picture with a smooth cursor, click ripples and zoom. The result is the reel: one folder holding the
 video, the transcript, the captions, the event log, the audio and a manifest. Composing the same script again gives
@@ -11,7 +11,7 @@ a matching reel, which `flow-reel compare` checks.
 [`CONTEXT.md`](CONTEXT.md) defines the project's vocabulary.
 
 This release composes commented video with captions, fitted step timings, a smooth cursor, click ripples and
-automatic zoom, click/typing sounds and optional named sounds.
+automatic zoom, click/typing sounds, optional named sounds, and flashes, shown images and directed zoom.
 
 ## Requirements
 
@@ -74,6 +74,42 @@ export default script({ url: "http://localhost:4173" }, async ({ page, comment }
 - Write erasable TypeScript only: no `enum`, `namespace` or parameter properties. Import only from `flow-reel` and
   from files in the same folder as the script.
 
+## Direct the picture
+
+The picture is polished automatically (see [Compose](#compose)). Effect words direct it where you want: they stand
+alone, or are chained on the element they are about, like `comment` and `sound`.
+
+```ts
+export default script({ url: "http://localhost:4173" }, async ({ page, comment, flash, showFrame, zoomIn, zoomOut }) => {
+  comment("Here is how the pieces fit.");
+  await showFrame("diagrams/overview.png", 3000);
+  await page.getByRole("button", { name: "Save" })
+    .zoomIn({ scale: 1.5 })
+    .flash()
+    .click();
+  await page.getByLabel("Name").fill("Ada"); // still zoomed in
+  zoomOut();
+});
+```
+
+| Word | Options (defaults) | When it happens |
+|---|---|---|
+| `flash(options?)` | `color: "#ffffff"`, `ms: 250` (fade-out) | Standalone: now. Chained: when the action happens. |
+| `await showFrame(image, ms, options?)` | `fit: "contain"` or `"cover"`, `background: "#000000"` | As an action of its step. Standalone only. |
+| `zoomIn(options?)` | `scale: 4/3` (1 to 2), `ms: 650` | Standalone: on the pointer. Chained: as the pointer heads for the element. |
+| `zoomOut(options?)` | `ms: 800` | Standalone: now. Chained: after the action. |
+
+- **`showFrame`** inserts the image into the video for `ms` milliseconds: the app is shown again exactly where it
+  was, and nothing runs in the app meanwhile. A comment spoken in its step plays on over the image. The image is a
+  PNG, JPEG or WebP inside the script's folder, given relative to the script; the event log records its hash. No
+  cursor, ripple or zoom is drawn over it.
+- **Zoom:** `zoomIn` holds the camera until `zoomOut`, across steps and clicks; automatic zoom waits meanwhile, and
+  a second `zoomIn` pans to its new target. A zoom still held when the script ends eases out. The camera still
+  keeps the cursor in frame. A large element zooms less than `scale`, so it stays whole. Above 4/3 the picture is
+  enlarged past the recording's resolution and softens.
+- **`autoZoom: false`** in the script's options turns automatic zoom off; the cursor, ripples and `zoomIn` stay.
+- A bad option, image path or duration throws where the word is written.
+
 ## Compose
 
 ```sh
@@ -87,7 +123,7 @@ instead, so one folder can collect the reels of many scripts. Every reel has the
 |---|---|
 | `video.mp4` | The polished video, 1920×1080, 30 fps, with AAC speech and interaction sounds. |
 | `transcript.json` | Each step's original `comment` and `startMs`, `actionEndMs` and `endMs` on the video's timeline (schema version 2). |
-| `events.json` | Every move, click, keystroke run, scroll and sound, timed the same way (schema version 3). |
+| `events.json` | Every move, click, keystroke run, scroll, sound and effect, timed the same way, and whether zoom is automatic (schema version 4). |
 | `captions.srt` | Captions for a subtitle-capable video player. |
 | `captions.vtt` | WebVTT captions for a browser's `<video>` / `<track>`. |
 | `audio/000.wav` | Local speech clips, named by zero-based step index. |
@@ -122,7 +158,7 @@ continue normally after speech finishes. Transcript windows, captions, events an
 timeline. A blank comment gets no speech padding; a script without comments can still have interaction sounds.
 If it has no effects, or `--no-sfx` is set, it has no audio stream.
 
-Visual polish is automatic: a white arrow with a dark outline follows logged pointer motion, and a blue ring
+Visual polish is automatic, unless the script [directs the picture](#direct-the-picture): a white arrow with a dark outline follows logged pointer motion, and a blue ring
 expands and fades for 400 ms at each click. The cursor and rings keep their screen size while the page zooms.
 Clicks ease the camera in over 650 ms; it stays zoomed until 2 seconds after the latest click or typing ends,
 then eases out over 800 ms. Further activity extends the zoom. Hover and scrolling alone do not trigger it.
@@ -150,7 +186,7 @@ SRT players display escape sequences such as `&lt;` instead. Use WebVTT in a bro
 
 In `settings.reel/work/`: `capture.mp4` is the original 2560×1440 recording (the viewport × 4/3, padded by one
 black pixel when that is odd, as for 1280×720); `master.mp4` is the clean recording
-with added holds, preserved before cursor/zoom rendering; `master.json.startMs` gives delivery time zero within
+with added holds and shown images, preserved before cursor/zoom rendering; `master.json.startMs` gives delivery time zero within
 the master, preserving its calibration pre-roll. Events use CSS pixels and final delivery times; click and typing
 events may include `bounds: { x, y, width, height }` in CSS pixels.
 `voice.wav` is the normalized voice-only bus on the delivery timeline; `sfx.wav` is the ducked effects
@@ -205,8 +241,8 @@ Final AAC peak checks also apply. See [asset sources, licences and calibration](
 
 Typing timestamps follow the logged fixed-delay intent, not measured browser keystrokes. Unicode code points are
 kept intact; non-US characters follow Playwright's delayed text insertion. Repeat renders of identical inputs in
-the same recording image produce identical decoded effect audio. The transcript comparison below still compares
-speech source hashes and step timing; it does not compare effects or prove final mixed-audio equality.
+the same recording image produce identical decoded sound audio. The comparison below compares speech source hashes,
+step timing and the effects written in the script; it does not compare sounds or prove final mixed-audio equality.
 
 The event log records a sound as `{ t, type: "sound", name }`, `name` being the constant's lowercase value. The
 selected sounds are bundled in the npm package/image and work offline. The full planning audition library is
@@ -231,11 +267,13 @@ npx flow-reel compare demos/a.reel demos/b.reel
 Comparison runs on the host without Docker or FFmpeg. It verifies both reels first (any problem exits 2), then
 validates each transcript's schema and sync, and checks
 video dimensions/FPS, step order, exact original comments, voice identity, source audio hashes/durations and step
-starts within ±150 ms inclusive. Script and output paths may differ. Legacy silent transcripts and blank-only
+starts within ±150 ms inclusive. It then checks the event logs' effects: the same `autoZoom`, and the same flashes,
+shown frames and zooms in order, with equal options and image hashes, each starting within ±150 ms. Clicks, moves,
+typing, scrolls and sounds are not compared. Script, image and output paths may differ. Legacy silent transcripts and blank-only
 recordings are supported. Exit status is 0 for a match, 1 for valid recordings that differ, and 2 for invalid input,
 failed sync or usage errors; diagnostics identify the file or step.
 
-These checks read transcript data only. They do not open referenced audio, caption or video files, prove visual/UI
+These checks read the transcript and event log only. They do not open referenced audio, caption or video files, prove visual/UI
 equality, or promise identical encoded MP4 bytes. Valid action/end/video durations may differ between recordings;
 only step starts have the 150 ms comparison tolerance. Recording automatically checks that all clips fit their
 step windows, including the speech tail, before publishing its transcript.
@@ -252,7 +290,7 @@ step windows, including the speech tail, before publishing its transcript.
 | `sfx("success")` | `sound(Sounds.feedback.SUCCESS)` or `button.sound(Sounds.feedback.SUCCESS)` |
 | `npx flow-reel record demo.ts` | `npx flow-reel compose demo.ts` |
 | transcript version 1, step field `narration` | transcript version 2, step field `comment` |
-| event log versions 1 and 2, event `{ type: "sfx" }` | event log version 3, event `{ type: "sound" }` |
+| event log versions 1 and 2, event `{ type: "sfx" }` | event log version 4, event `{ type: "sound" }`, plus effect events and `autoZoom` |
 | `demo.mp4`, `demo.transcript.json`, … beside the script, work files in `.flow-reel/` | one folder, `demo.reel/` (delete old `.flow-reel/` folders) |
 | `flow-reel compare a.transcript.json b.transcript.json` | `flow-reel compare a.reel b.reel` |
 

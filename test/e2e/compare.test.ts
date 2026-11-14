@@ -8,10 +8,13 @@ const transcript = () => ({ version: 2, script: "demo.ts",
   video: { file: "video.mp4", width: 960, height: 540, fps: 30, durationMs: 2000 },
   steps: [{ index: 0, comment: "Hello", startMs: 500, actionEndMs: 700, endMs: 1000 }] });
 
-/** A small reel on disk: its transcript, a stand-in video, and a manifest listing both. */
-function writeReel(dir: string, value: unknown) {
+const log = (color = "#ffffff") => ({ version: 4, autoZoom: true, events: [{ t: 600, type: "flash", color, ms: 250 }] });
+
+/** A small reel on disk: its transcript, its event log, a stand-in video, and a manifest listing them. */
+function writeReel(dir: string, value: unknown, effects: unknown = log()) {
   rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "transcript.json"), typeof value === "string" ? value : JSON.stringify(value));
+  writeFileSync(join(dir, "events.json"), JSON.stringify(effects));
   writeFileSync(join(dir, "video.mp4"), "video");
   writeFileSync(join(dir, "manifest.json"), JSON.stringify({ version: 1, script: { file: "demo.ts", sha256: "a".repeat(64) },
     composer: { version: "0.2.0", platform: "linux/amd64" }, integration: "playwright", files: hashFiles(dir, listReelFiles(dir)) }));
@@ -25,8 +28,12 @@ it("compares reels on the host without external executables, with distinct failu
   const cli = (...args: string[]) => spawnSync(process.execPath, ["dist/cli.js", ...args], {
     encoding: "utf8", env: { ...process.env, PATH: "/no-executables", FLOW_REEL_IN_CONTAINER: "1" },
   });
-  expect(cli("compare", a, b)).toMatchObject({ status: 0, stdout: expect.stringContaining("match") });
+  expect(cli("compare", a, b)).toMatchObject({ status: 0, stdout: "Reels match (step starts and effects within 150 ms).\n" });
   expect(cli("verify", a)).toMatchObject({ status: 0 });
+  writeReel(b, value, log("#ff0000"));
+  expect(cli("compare", a, b)).toMatchObject({ status: 1, stdout: "effects[0] (flash) differs\n" });
+  writeReel(b, value, { version: 3, events: [] });
+  expect(cli("compare", a, b)).toMatchObject({ status: 2, stderr: expect.stringContaining(`${b}: events.json: version must be 4`) });
   value.steps[0].comment = "Different"; writeReel(b, value);
   expect(cli("compare", a, b)).toMatchObject({ status: 1, stdout: expect.stringContaining("steps[0].comment") });
   value.steps[0].endMs = 3000; writeReel(b, value);

@@ -37,21 +37,26 @@ async function compare(args: string[]): Promise<number> {
   const problems = [];
   for (const dir of args) { const { errors, differences } = await checkReel(dir); problems.push(...errors, ...differences); }
   if (problems.length) { console.error(problems.join("\n")); return 2; }
-  const { compareTranscripts } = await import("./compare.ts");
+  const { compareEffects, compareTranscripts } = await import("./compare.ts");
   const [left, right] = args;
-  const read = (dir: string): unknown => {
-    try { return readJson(join(dir, "transcript.json")); }
+  const read = (dir: string, file: string): unknown => {
+    try { return readJson(join(dir, file)); }
     catch (error) { throw new Error(`${dir}: ${(error as Error).message}`); }
   };
-  let result: ReturnType<typeof compareTranscripts>;
-  try { result = compareTranscripts(read(left), read(right)); }
-  catch (error) { console.error(`flow-reel: ${(error as Error).message}`); return 2; }
+  const result = { errors: [] as string[], differences: [] as string[] };
+  try {
+    for (const [file, check] of [["transcript.json", compareTranscripts], ["events.json", compareEffects]] as const) {
+      const { errors, differences } = check(read(left, file), read(right, file));
+      result.errors.push(...errors);
+      result.differences.push(...differences);
+    }
+  } catch (error) { console.error(`flow-reel: ${(error as Error).message}`); return 2; }
   if (result.errors.length) {
     for (const error of result.errors) console.error(error.replace(/^left:/, `${left}:`).replace(/^right:/, `${right}:`));
     return 2;
   }
   if (result.differences.length) { console.log(result.differences.join("\n")); return 1; }
-  console.log("Reels match (step starts within 150 ms; transcript data only).");
+  console.log("Reels match (step starts and effects within 150 ms).");
   return 0;
 }
 

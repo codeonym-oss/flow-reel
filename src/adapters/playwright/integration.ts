@@ -4,7 +4,7 @@ import type { Integration } from "../../composer/ports.ts";
 import { launchBrowser } from "./browser.ts";
 import { loadScript } from "./load.ts";
 import { trackNetwork } from "./network.ts";
-import { wrapPage } from "./wrap.ts";
+import { wrapScript } from "./wrap.ts";
 
 const MARK_ID = "__flow_reel_mark";
 
@@ -12,9 +12,10 @@ export const playwright: Integration = {
   name: "playwright",
   async load(scriptPath) {
     const script = await loadScript(scriptPath);
-    const { viewport, url } = script.options;
+    const { viewport, url, autoZoom } = script.options;
     return {
       viewport,
+      autoZoom,
       async open() {
         const { context, page } = await launchBrowser(viewport);
         try {
@@ -36,8 +37,9 @@ export const playwright: Integration = {
               await page.evaluate((id) => document.getElementById(id)?.remove(), MARK_ID);
             },
             async run(stage) {
-              const { clock, events, fps, comment, sound } = stage;
-              await script.body({ page: wrapPage(page, { clock, events, fps, viewport, stage }), comment, sound });
+              const { clock, events, fps, comment, sound, showFrame } = stage;
+              const { page: wrapped, flash, zoomIn, zoomOut } = wrapScript(page, { clock, events, fps, viewport, stage });
+              await script.body({ page: wrapped, comment, sound, showFrame, flash, zoomIn, zoomOut });
             },
             close: () => context.close(),
           };

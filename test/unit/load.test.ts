@@ -22,7 +22,7 @@ describe("loadScript", () => {
     const dir = mkdtempSync(join(tmpdir(), "flow-reel-load-"));
     copyFileSync("test/fixtures/demo.ts", join(dir, "demo.ts"));
     expect(JSON.parse(loadInNode(join(dir, "demo.ts")))).toEqual({
-      options: { url: "http://localhost:4173", viewport: [1920, 1080] },
+      options: { url: "http://localhost:4173", viewport: [1920, 1080], autoZoom: true },
       body: "function",
     });
   });
@@ -34,6 +34,16 @@ describe("loadScript", () => {
 export default script({ url: "http://localhost:1", viewport: ${viewport} as [number, number] }, async () => {});\n`);
       expect(() => loadInNode(join(dir, "demo.ts"))).toThrow(/viewport must be \[width, height\] in whole CSS pixels/);
     }
+  });
+
+  it("loads autoZoom: false, and rejects an autoZoom that isn't true or false", () => {
+    const dir = mkdtempSync(join(tmpdir(), "flow-reel-load-"));
+    writeFileSync(join(dir, "demo.ts"), `import { script } from "flow-reel";
+export default script({ url: "http://localhost:1", autoZoom: false }, async () => {});\n`);
+    expect(JSON.parse(loadInNode(join(dir, "demo.ts"))).options.autoZoom).toBe(false);
+    writeFileSync(join(dir, "demo.ts"), `import { script } from "flow-reel";
+export default script({ url: "http://localhost:1", autoZoom: "no" as unknown as boolean }, async () => {});\n`);
+    expect(() => loadInNode(join(dir, "demo.ts"))).toThrow(/autoZoom must be true or false, got "no"/);
   });
 
   it("accepts a viewport whose 4/3 screen width is odd (padded when encoded)", () => {

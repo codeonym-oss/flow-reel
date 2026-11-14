@@ -19,7 +19,8 @@ const transcript = {
 };
 
 const events = {
-  version: 3,
+  version: 4,
+  autoZoom: true,
   events: [
     { t: 1200, type: "move", from: [960, 540], to: [1412, 288], durationMs: 450, easing: "easeInOutCubic" },
     { t: 1650, type: "click", at: [1412, 288], button: "left", target: 'link "Settings"' },
@@ -65,7 +66,7 @@ describe("validateTranscript", () => {
 
 describe("validateEvents", () => {
   it("accepts optional off-screen bounds and rejects malformed target bounds", () => {
-    const log = (bounds: unknown) => ({ version: 3, events: [{ ...events.events[1], bounds }] });
+    const log = (bounds: unknown) => ({ version: 4, autoZoom: true, events: [{ ...events.events[1], bounds }] });
     expect(validateEvents(log({ x: -10, y: 20, width: 100, height: 30 }))).toEqual([]);
     for (const bounds of [null, {}, { x: 0, y: 0, width: 0, height: 10 },
       { x: NaN, y: 0, width: 10, height: 10 }, { x: 0, y: 0, width: 10, height: -1 }]) {
@@ -77,18 +78,45 @@ describe("validateEvents", () => {
   });
 
   it("rejects a negative t", () => {
-    const bad = { version: 3, events: [{ ...events.events[1], t: -5 }] };
+    const bad = { ...events, events: [{ ...events.events[1], t: -5 }] };
     expect(validateEvents(bad)).toContain("events[0]: t must be a number >= 0");
   });
 
-  it("accepts only version 3, which names sounds `sound`", () => {
-    for (const version of [1, 2]) expect(validateEvents({ ...events, version })).toContain("version must be 3");
-    expect(validateEvents({ version: 3, events: [{ t: 0, type: "sfx", name: "success" }] }))
+  it("accepts only version 4, which names sounds `sound` and says whether zoom is automatic", () => {
+    for (const version of [1, 2, 3]) expect(validateEvents({ ...events, version })).toContain("version must be 4");
+    expect(validateEvents({ ...events, events: [{ t: 0, type: "sfx", name: "success" }] }))
       .toContain('events[0]: unknown type "sfx"');
+    const { autoZoom: _, ...noAutoZoom } = events;
+    expect(validateEvents(noAutoZoom)).toContain("autoZoom must be true or false");
+  });
+
+  it("accepts the effect events of GH-32 decision 005", () => {
+    expect(validateEvents({ version: 4, autoZoom: false, events: [
+      { t: 1200, type: "flash", color: "#FFFFFF", ms: 250 },
+      { t: 1800, type: "frame", image: "img/diagram.png", sha256: "a".repeat(64), durationMs: 3000, fit: "contain", background: "#000000" },
+      { t: 5000, type: "zoom", zoom: "in", at: [960, 540], bounds: { x: 900, y: 500, width: 120, height: 80 }, scale: 4 / 3, ms: 650 },
+      { t: 5100, type: "zoom", zoom: "in", at: [960, 540], scale: 2, ms: 650 },
+      { t: 9000, type: "zoom", zoom: "out", ms: 800 },
+    ] })).toEqual([]);
+  });
+
+  it("names each malformed effect field", () => {
+    const one = (event: object) => validateEvents({ ...events, events: [{ t: 0, ...event }] });
+    expect(one({ type: "flash", color: "white", ms: 0 })).toEqual([
+      "events[0]: color must be a #rrggbb colour", "events[0]: ms must be a number > 0"]);
+    for (const image of ["/abs.png", "../up.png", "a/./b.png", ""]) {
+      expect(one({ type: "frame", image, sha256: "a".repeat(64), durationMs: 1, fit: "contain", background: "#000000" }))
+        .toEqual(["events[0]: image must be a path relative to the script's folder, without . or .."]);
+    }
+    expect(one({ type: "frame", image: "a.png", sha256: "x", durationMs: -1, fit: "stretch", background: "#000" })).toEqual([
+      "events[0]: sha256 must be a SHA-256 hex digest", "events[0]: durationMs must be a number > 0",
+      'events[0]: fit must be "contain" or "cover"', "events[0]: background must be a #rrggbb colour"]);
+    expect(one({ type: "zoom", zoom: "in", at: [0, 0], scale: 2.5, ms: 650 })).toEqual(["events[0]: scale must be from 1 to 2"]);
+    expect(one({ type: "zoom", zoom: "sideways", ms: 650 })).toEqual(['events[0]: zoom must be "in" or "out"']);
   });
 
   it("rejects an unknown event type", () => {
-    const bad = { version: 3, events: [{ t: 0, type: "teleport" }] };
+    const bad = { ...events, events: [{ t: 0, type: "teleport" }] };
     expect(validateEvents(bad)).toContain('events[0]: unknown type "teleport"');
   });
 });

@@ -3,3 +3,4 @@
 - 2026-11-14: ticket pass: decisions 001-005 and story decision 010 (cassette is now reel); draft.md rewritten; impl.md written; status planned.
 - 2026-11-14: issues #27, #31, #33 updated to "reel"; #31 In Progress on board 6; building on feat/31-reel-folder-with-manifest.
 - 2026-11-14: pull request #39 opened.
+- 2026-11-15: pull request #39 merged (745eb95); #31 closed and Done on board 6.

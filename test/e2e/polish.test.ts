@@ -113,3 +113,48 @@ it("keeps the arrow sprite visible during a fast cross-screen move in zoom-out",
     expect(white).toBeGreaterThan(50);
   }
 }, 120_000);
+
+it("flashes over everything, and draws no cursor, ripple or zoom over an inserted image (GH-32)", async () => {
+  const { retimeEvents } = await import("../../src/composer/timeline.ts");
+  mkdirSync(dir, { recursive: true });
+  const capture = join(dir, "effects-capture.mp4");
+  media(["-f", "lavfi", "-i", "color=black:s=640x360:r=30:d=3", "-c:v", "libx264", capture]);
+  const image = join(dir, "framed.png");
+  // Green with a magenta border: a zoomed (cropped) image would lose the border.
+  media(["-f", "lavfi", "-i", "color=lime:s=320x180,drawbox=x=0:y=0:w=320:h=180:color=magenta:t=8", "-frames:v", "1", image]);
+  const timeline = planTimeline([], { fps: 30, frames: 90, cutMs: 0,
+    images: [{ t: 1000, durationMs: 500, file: image, fit: "contain", background: "#000000" }] });
+  const events = retimeEvents([
+    { t: 0, type: "zoom", zoom: "in", at: [160, 90], scale: 2, ms: 300 },
+    { t: 900, type: "click", at: [160, 90], button: "left", target: "middle" },
+    { t: 1000, type: "frame", image: "framed.png", sha256: "a".repeat(64), durationMs: 500, fit: "contain", background: "#000000" },
+    { t: 2000, type: "flash", color: "#ff0000", ms: 250 },
+  ], timeline);
+  const video = join(dir, "effects.mp4");
+  renderTimeline({ capture, master: join(dir, "effects-master.mp4"), video, voice: join(dir, "effects-voice.wav"),
+    audioDir: dir, viewport: [320, 180], timeline, events });
+  const raw = media(["-i", video, "-pix_fmt", "rgb24", "-an", "-fps_mode", "passthrough", "-f", "rawvideo", "-"]);
+  const size = 320 * 180 * 3;
+  expect(raw.length / size).toBe(105);
+  const count = (frame: number, test: (r: number, g: number, b: number) => boolean) => {
+    let n = 0;
+    for (let i = frame * size; i < (frame + 1) * size; i += 3) if (test(raw[i], raw[i + 1], raw[i + 2])) n++;
+    return n;
+  };
+  const at = (frame: number, x: number, y: number) => [...raw.subarray(frame * size + (y * 320 + x) * 3, frame * size + (y * 320 + x) * 3 + 3)];
+  const blue = (r: number, g: number, b: number) => b > 120 && b > r * 1.4 && b > g * 1.2;
+  const white = (r: number, g: number, b: number) => r > 190 && g > 190 && b > 190;
+  expect(count(28, blue)).toBeGreaterThan(10); // the click's ripple, before the image
+  expect(count(28, white)).toBeGreaterThan(20); // the cursor
+  for (const f of [30, 44]) {
+    expect(count(f, blue)).toBe(0);
+    expect(count(f, white)).toBe(0);
+    expect(at(f, 2, 2)[0]).toBeGreaterThan(180); // the border: the image is not cropped
+    expect(at(f, 160, 90)[1]).toBeGreaterThan(180);
+  }
+  expect(count(45, white)).toBeGreaterThan(20); // the cursor is back with the capture
+  // The flash at 2000 ms starts on frame 75 after the 15 inserted frames, red, and has faded 250 ms later.
+  expect(at(75, 5, 5)[0]).toBeGreaterThan(200);
+  expect(at(74, 5, 5)[0]).toBeLessThan(40);
+  expect(at(83, 5, 5)[0]).toBeLessThan(40);
+});

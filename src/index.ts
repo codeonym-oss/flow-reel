@@ -1,7 +1,9 @@
-// The public API a script imports (GH-27 decisions 001 and 008; GH-30 decisions 001-005).
+// The public API a script imports (GH-27 decisions 001 and 008; GH-30 decisions 001-005; GH-32 decisions 001-006).
 import type { Page } from "playwright";
 import type { Sound } from "./composer/schema/events.ts";
+import type { FlashOptions, ShowFrameOptions, ZoomInOptions, ZoomOutOptions } from "./composer/effects.ts";
 export { Sounds, type Sound } from "./composer/schema/events.ts";
+export type { FlashOptions, ShowFrameOptions, ZoomInOptions, ZoomOutOptions } from "./composer/effects.ts";
 
 declare module "playwright-core" {
   interface Locator {
@@ -9,6 +11,12 @@ declare module "playwright-core" {
     comment(text: string): Locator;
     /** Plays `sound` when this locator's next action happens. */
     sound(sound: Sound): Locator;
+    /** Flashes the screen when this locator's next action happens. */
+    flash(options?: FlashOptions): Locator;
+    /** Zooms in on this element as the pointer heads for it; the zoom holds until `zoomOut`. */
+    zoomIn(options?: ZoomInOptions): Locator;
+    /** Zooms back out to the full screen after this locator's next action. */
+    zoomOut(options?: ZoomOutOptions): Locator;
   }
 }
 
@@ -17,6 +25,8 @@ export interface ScriptOptions {
   url: string;
   /** CSS pixels; the composer records at device scale 4/3. */
   viewport?: [width: number, height: number];
+  /** False turns automatic zoom off; the cursor, the click ripple and `zoomIn` still work. True by default. */
+  autoZoom?: boolean;
 }
 
 export interface ScriptContext {
@@ -25,6 +35,17 @@ export interface ScriptContext {
   comment(text: string): void;
   /** Plays `sound` at this moment. */
   sound(sound: Sound): void;
+  /** Flashes the screen at this moment. */
+  flash(options?: FlashOptions): void;
+  /**
+   * Shows `image` (a PNG, JPEG or WebP in the script's folder, relative to the script) for `ms` milliseconds, inserted
+   * into the video; the app is shown again exactly where it was. An action of its step.
+   */
+  showFrame(image: string, ms: number, options?: ShowFrameOptions): Promise<void>;
+  /** Zooms in on wherever the pointer is; the zoom holds until `zoomOut`, and automatic zoom waits meanwhile. */
+  zoomIn(options?: ZoomInOptions): void;
+  /** Zooms back out to the full screen. */
+  zoomOut(options?: ZoomOutOptions): void;
 }
 
 export type ScriptBody = (context: ScriptContext) => Promise<void>;
@@ -36,5 +57,5 @@ export interface Script {
 
 /** Describes a script; the composer composes it. */
 export function script(options: ScriptOptions, body: ScriptBody): Script {
-  return { options: { viewport: [1920, 1080], ...options }, body };
+  return { options: { viewport: [1920, 1080], autoZoom: true, ...options }, body };
 }

@@ -6,8 +6,8 @@ it, the same way every time.
 This file is the project's vocabulary. Use these words, with these meanings, in code, documentation, commit
 messages, issues and the plugin. Each concept has one word; the "avoid" words are older or looser names for it.
 
-> **Status:** this is the 0.2 language. Scripts use it (`script`, `comment`, `sound`, `flow-reel compose`), and a
-> compose writes a reel. Effects arrive with [#32](https://github.com/codeonym-oss/flow-reel/issues/32).
+> **Status:** this is the 0.2 language. Scripts use it (`script`, `comment`, `sound`, the effects `flash`,
+> `showFrame`, `zoomIn` and `zoomOut`, `flow-reel compose`), and a compose writes a reel.
 
 ## What a person writes
 
@@ -28,7 +28,8 @@ A short sound effect placed at a moment.
 _Avoid:_ audio, SFX.
 
 **Effect**
-A change to the picture written in the script: a flash, a shown frame, a zoom in or out.
+A change to the picture written in the script: a flash (`flash`), a shown frame (`showFrame`), a zoom in or out
+(`zoomIn`, `zoomOut`). An explicit zoom holds the camera until the zoom out.
 _Avoid:_ visual effect, SFX.
 
 Comment, sound and effect are the three families of flow-reel words. Each can stand alone in a script or be chained
@@ -55,7 +56,12 @@ _Avoid:_ using "recording" for the finished video or for the act of composing.
 
 **Polish**
 The picture treatment the composer applies by default, without any word in the script: the drawn cursor, click
-ripples, zoom on click and following the cursor. An effect in the script overrides it.
+ripples, zoom on click and following the cursor. An effect in the script overrides it, and `autoZoom: false` turns
+its zoom off.
+
+**Insertion**
+Frames the composer puts into the video's timeline that the recording doesn't have: a hold, which repeats a frame so
+a comment can finish, or a shown frame's image. The recording resumes on the frame it left.
 
 **Port**
 A boundary of the composer's core that has more than one possible implementation. There are three: integration,
