@@ -1,5 +1,5 @@
-import { validateSync } from "./schema/sync.ts";
-import type { Transcript } from "./schema/transcript.ts";
+import { validateSync } from "./composer/schema/sync.ts";
+import type { Transcript } from "./composer/schema/transcript.ts";
 
 /** Compare transcript data only: paths and encoded media bytes are not content identity. */
 export function compareTranscripts(left: unknown, right: unknown): { errors: string[]; differences: string[] } {

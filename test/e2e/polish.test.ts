@@ -2,12 +2,12 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { expect, it } from "vitest";
-import { renderTimeline } from "../../src/runner/render.ts";
-import { planTimeline } from "../../src/runner/timeline.ts";
+import { renderTimeline } from "../../src/composer/media/render.ts";
+import { planTimeline } from "../../src/composer/timeline.ts";
 
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import type { RunnerEvent } from "../../src/schema/events.ts";
+import type { ComposerEvent } from "../../src/composer/schema/events.ts";
 
 it("shows a ripple on its first delivery frame despite fractional timestamp rounding", () => {
   const dir = resolve("test/e2e/out/polish-boundary");
@@ -46,7 +46,7 @@ it("zooms a known grid, follows movement, draws a timely fading ripple and repea
   mkdirSync(dir, { recursive: true });
   const capture = join(dir, "grid.mp4");
   media(["-f", "lavfi", "-i", "color=black:s=640x360:r=30:d=3,drawbox=x=270:y=150:w=100:h=60:color=red:t=fill", "-c:v", "libx264", capture]);
-  const events: RunnerEvent[] = [
+  const events: ComposerEvent[] = [
     { t: 0, type: "move", from: [100, 90], to: [160, 90], durationMs: 400, easing: "easeInOutCubic" },
     { t: 500.1, type: "click", at: [160, 90], button: "left", target: "red", bounds: { x: 135, y: 75, width: 50, height: 30 } }];
   const timeline = planTimeline([], { fps: 30, frames: 90, cutMs: 100 });
@@ -78,7 +78,7 @@ it("renders a long action sequence and simultaneous clicks within the media budg
   const capture = join(dir, "long-capture.mp4");
   mkdirSync(dir, { recursive: true });
   media(["-f", "lavfi", "-i", "color=black:s=640x360:r=30:d=32", "-c:v", "libx264", capture]);
-  const events: RunnerEvent[] = [];
+  const events: ComposerEvent[] = [];
   for (let i = 0; i < 30; i++) {
     const x = i % 2 ? 280 : 40;
     events.push({ t: i * 1000, type: "move", from: [320 - x, 90], to: [x, 90], durationMs: 300, easing: "easeInOutCubic" },

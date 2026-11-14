@@ -66,8 +66,8 @@ export function detectEngine(probe: Probe = run): DetectedEngine {
 
 /** A git checkout of flow-reel records with the released image of its version, not with its own source. */
 export function sourceCheckoutWarning(root: string, image: string): string | undefined {
-  if (!existsSync(resolve(root, ".git")) || !existsSync(resolve(root, "src/runner"))) return undefined;
-  return `flow-reel: running from a source checkout; recording uses ${image}, whose runner may differ from this ` +
+  if (!existsSync(resolve(root, ".git")) || !existsSync(resolve(root, "src/composer"))) return undefined;
+  return `flow-reel: running from a source checkout; recording uses ${image}, whose composer may differ from this ` +
     `checkout's src/. To record with local changes: npm run build && docker build -t ${image} -f docker/Dockerfile .`;
 }
 

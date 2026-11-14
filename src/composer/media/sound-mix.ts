@@ -2,11 +2,11 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { RunnerEvent } from "../schema/events.ts";
-import type { Timeline } from "./timeline.ts";
-import { planSfx, SAMPLE_RATE, type SoundAsset } from "./sfx.ts";
+import type { ComposerEvent } from "../schema/events.ts";
+import type { Timeline } from "../timeline.ts";
+import { planSfx, SAMPLE_RATE, type SoundAsset } from "../sounds.ts";
 
-const assets = fileURLToPath(new URL("../../docker/sfx/", import.meta.url));
+const assets = fileURLToPath(new URL("../../../docker/sfx/", import.meta.url));
 const amplitude = (db: number) => 10 ** (db / 20);
 
 function decode(file: string): Float32Array {
@@ -51,7 +51,7 @@ function writeStereo(file: string, pcm: Float32Array): void {
 }
 
 /** Quiet effects, plus an unnormalized mix bus when voice exists. Originals are never changed. */
-export function assembleSfx(events: readonly RunnerEvent[], timeline: Timeline, voice: string | undefined,
+export function assembleSfx(events: readonly ComposerEvent[], timeline: Timeline, voice: string | undefined,
   work: string, enabled = true): string | undefined {
   const sfx = join(work, "sfx.wav"), mix = join(work, "mix.bus.wav");
   for (const file of [sfx, mix, join(work, "mix.wav")]) rmSync(file, { force: true });

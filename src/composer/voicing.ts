@@ -1,40 +1,10 @@
-import { execFileSync, spawn } from "node:child_process";
+// Voices a script's comments through the voice port and records each clip's measured metadata.
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import type { Transcript, TranscriptStep } from "../schema/transcript.ts";
-
-export interface ClipRequest { index: number; text: string; file: string }
-export interface TtsAdapter {
-  voice: NonNullable<Transcript["voice"]>;
-  synthesize(jobs: readonly ClipRequest[]): Promise<void>;
-}
-
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-export const qwen: TtsAdapter = {
-  voice: { adapter: "qwen3-tts-0.6b", voice: "Ryan", seed: 0 },
-  synthesize(jobs) {
-    return new Promise<void>((resolve, reject) => {
-      const child = spawn(join(root, "tts-venv/bin/python"), [join(root, "docker/tts/worker.py")], {
-        env: { ...process.env, HF_HUB_OFFLINE: "1", TRANSFORMERS_OFFLINE: "1" },
-        stdio: ["pipe", "ignore", "pipe"], timeout: 900_000, killSignal: "SIGKILL",
-      });
-      let diagnostics = "";
-      child.stderr.on("data", (chunk: Buffer) => { diagnostics = (diagnostics + chunk).slice(-65536); });
-      child.once("error", (error) => reject(new Error(`Qwen TTS could not start: ${error.message}`, { cause: error })));
-      child.stdin.on("error", () => {}); // startup/exit errors are reported with the worker diagnostics
-      child.once("close", (code, signal) => {
-        if (code !== 0) reject(new Error(`Qwen TTS failed (${signal ?? code}): ${diagnostics.trim()}`));
-        else {
-          if (diagnostics) process.stderr.write(diagnostics);
-          resolve();
-        }
-      });
-      child.stdin.end(JSON.stringify(jobs));
-    });
-  },
-};
+import { basename, join } from "node:path";
+import type { ClipRequest, Voice } from "./ports.ts";
+import type { TranscriptStep } from "./schema/transcript.ts";
 
 function clipMetadata(job: ClipRequest, audioDir: string) {
   try {
@@ -54,8 +24,8 @@ function clipMetadata(job: ClipRequest, audioDir: string) {
 }
 
 export async function voiceSteps(
-  steps: readonly TranscriptStep[], audioDir: string, adapter: TtsAdapter = qwen,
-): Promise<{ voice: TtsAdapter["voice"]; steps: TranscriptStep[] }> {
+  steps: readonly TranscriptStep[], audioDir: string, adapter: Voice,
+): Promise<{ voice: Voice["voice"]; steps: TranscriptStep[] }> {
   mkdirSync(audioDir, { recursive: true });
   const staging = mkdtempSync(join(audioDir, ".pending-"));
   try {

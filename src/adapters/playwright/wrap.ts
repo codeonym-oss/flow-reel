@@ -1,13 +1,13 @@
 // The page a demo script receives (GH-2 decision 002): plain Playwright, except that actions ease the mouse to their
 // target, type visibly, and append what they did to the event log (story decision 013).
 import type { Locator, Page } from "playwright";
-import type { Bounds, Point, RunnerEvent } from "../schema/events.ts";
-import { easeInOutCubic, moveDuration, pathPoints } from "./easing.ts";
+import type { Bounds, Point, ComposerEvent } from "../../composer/schema/events.ts";
+import { easeInOutCubic, moveDuration, pathPoints } from "../../composer/easing.ts";
 
 export interface WrapOptions {
   /** Milliseconds on the recording's clock. */
   clock: { now(): number };
-  events: RunnerEvent[];
+  events: ComposerEvent[];
   sleep?: (ms: number) => Promise<void>;
   warn?: (message: string) => void;
   fps?: number;

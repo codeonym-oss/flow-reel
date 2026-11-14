@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
-import { planTimeline } from "../../src/runner/timeline.ts";
-import type { TranscriptStep } from "../../src/schema/transcript.ts";
+import { planTimeline } from "../../src/composer/timeline.ts";
+import type { TranscriptStep } from "../../src/composer/schema/transcript.ts";
 
 const step = (index: number, startMs: number, endMs: number, durationMs?: number): TranscriptStep => ({
   index, startMs, actionEndMs: endMs - 100, endMs, narration: durationMs ? "Hello" : " ",
@@ -30,7 +30,7 @@ it("keeps long actions and blank steps without extra speech padding", () => {
 });
 
 it("maps gaps and boundary events once while retaining action durations", async () => {
-  const { retimeEvents } = await import("../../src/runner/timeline.ts");
+  const { retimeEvents } = await import("../../src/composer/timeline.ts");
   const plan = planTimeline([step(0, 500, 1000, 1000), step(1, 1200, 1500, 900)],
     { fps: 30, frames: 90, cutMs: 1000 });
   expect(plan.holds).toEqual([{ frame: 60, frames: 21 }, { frame: 75, frames: 24 }]);

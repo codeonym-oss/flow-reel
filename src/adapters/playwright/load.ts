@@ -3,9 +3,9 @@
 import { registerHooks } from "node:module";
 import { extname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import type { Demo } from "../index.ts";
+import type { Demo } from "../../index.ts";
 
-const self = new URL(`../index${extname(fileURLToPath(import.meta.url))}`, import.meta.url).href;
+const self = new URL(`../../index${extname(fileURLToPath(import.meta.url))}`, import.meta.url).href;
 
 registerHooks({
   resolve(specifier, context, next) {

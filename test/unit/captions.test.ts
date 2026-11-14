@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderCaptions } from "../../src/runner/captions.ts";
+import { renderCaptions } from "../../src/composer/captions.ts";
 
 describe("renderCaptions", () => {
   it("writes empty SRT and header-only WebVTT when no cues remain", () => {

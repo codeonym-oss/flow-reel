@@ -3,7 +3,7 @@ kind: ticket
 title: Declare the flow-reel language in CONTEXT.md
 key: GH-28
 parent: GH-27
-status: in-review
+status: done
 branch: docs/28-declare-language-in-context
 tracker-url: https://github.com/codeonym-oss/flow-reel/issues/28
 mr: https://github.com/codeonym-oss/flow-reel/pull/35

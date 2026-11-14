@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// `flow-reel record <script>`: on the host it starts the container; inside it (FLOW_REEL_IN_CONTAINER=1) it records.
+// `flow-reel record <script>`: on the host it starts the container; inside it (FLOW_REEL_IN_CONTAINER=1) it composes
+// the script, with the adapters chosen here.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -36,8 +37,11 @@ async function main(argv: string[]): Promise<number> {
   script = positionals[0];
   const options = { sfx: !flags.includes("--no-sfx") };
   if (process.env.FLOW_REEL_IN_CONTAINER === "1") {
-    const { record } = await import("./runner/run.ts");
-    await record(resolve(script), options);
+    const { compose } = await import("./composer/compose.ts");
+    const { playwright } = await import("./adapters/playwright/integration.ts");
+    const { qwen } = await import("./adapters/qwen/voice.ts");
+    const { folderStore } = await import("./adapters/folder/store.ts");
+    await compose(resolve(script), { integration: playwright, voice: qwen, store: folderStore, ...options });
     return 0;
   }
   const { launch } = await import("./host/launch.ts");

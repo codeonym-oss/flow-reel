@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import { describe, expect, it } from "vitest";
 import type { Page } from "playwright";
-import { trackNetwork } from "../../src/runner/network.ts";
+import { trackNetwork } from "../../src/adapters/playwright/network.ts";
 
 // A page that only emits request events, at times scheduled on a fake clock that sleep() moves forward.
 // Requests are fetches unless a test says otherwise; a finished or failed event settles the first open one.

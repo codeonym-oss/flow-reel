@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { easeInOutCubic, moveDuration, pathPoints } from "../../src/runner/easing.ts";
+import { easeInOutCubic, moveDuration, pathPoints } from "../../src/composer/easing.ts";
 
 describe("easeInOutCubic", () => {
   it("starts at 0, is halfway at the midpoint, ends at 1", () => {

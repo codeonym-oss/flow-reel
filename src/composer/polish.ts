@@ -1,6 +1,6 @@
-import type { Bounds, Point, RunnerEvent } from "../schema/events.ts";
+import type { Bounds, Point, ComposerEvent } from "./schema/events.ts";
 import { easeInOutCubic } from "./easing.ts";
-import { SAME_CLICK_MS } from "./sfx.ts";
+import { SAME_CLICK_MS } from "./sounds.ts";
 
 export interface CurveSpan { start: number; end: number; from: number; to: number }
 export type Curve = CurveSpan[];
@@ -22,7 +22,7 @@ const ZOOM_IDLE_MS = 2000;
 const ZOOM_OUT_MS = 800;
 
 /** Camera crops are normalized [left, top, width share]; all crops retain the viewport aspect ratio. */
-export function planPolish(events: readonly RunnerEvent[], options: PolishOptions) {
+export function planPolish(events: readonly ComposerEvent[], options: PolishOptions) {
   const { viewport: [width, height], source: [sw, sh], fps, frames } = options;
   const minShare = 1 / Math.max(1, Math.min(4 / 3, sw / width, sh / height));
   const camera: [Curve, Curve, Curve] = [[], [], []];

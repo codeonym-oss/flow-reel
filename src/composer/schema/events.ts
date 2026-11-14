@@ -6,7 +6,7 @@ export interface Bounds { x: number; y: number; width: number; height: number }
 export const SFX_NAMES = ["success", "error", "notification", "open", "close", "toggle", "back", "select"] as const;
 export type SfxName = typeof SFX_NAMES[number];
 
-export type RunnerEvent =
+export type ComposerEvent =
   | { t: number; type: "move"; from: Point; to: Point; durationMs: number; easing: string }
   | { t: number; type: "click"; at: Point; button: "left" | "right" | "middle"; target: string; bounds?: Bounds }
   | { t: number; type: "type"; text: string; charDelayMs: number; target: string; bounds?: Bounds }
@@ -15,7 +15,7 @@ export type RunnerEvent =
 
 export interface EventLog {
   version: 1 | 2;
-  events: RunnerEvent[];
+  events: ComposerEvent[];
 }
 
 export function validateEvents(value: unknown): Errors {

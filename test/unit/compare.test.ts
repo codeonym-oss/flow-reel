@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { compareTranscripts } from "../../src/compare.ts";
-import type { Transcript } from "../../src/schema/transcript.ts";
+import type { Transcript } from "../../src/composer/schema/transcript.ts";
 
 const transcript = (): Transcript => ({ version: 1, script: "demo.ts",
   video: { file: "demo.mp4", width: 960, height: 540, fps: 30, durationMs: 4000 },
