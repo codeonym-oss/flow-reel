@@ -1,5 +1,7 @@
 Planning follows groundwork: read groundwork.md before planning or building anything.
 
+Read CONTEXT.md and use its terms, with its meanings, in code, documentation and commit messages.
+
 ## Coding guidelines
 
 From https://github.com/multica-ai/andrej-karpathy-skills (CLAUDE.md).

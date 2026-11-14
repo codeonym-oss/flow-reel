@@ -1,5 +1,7 @@
 # 010: A demo script is a thin `flow-reel` API over Playwright, one `step(narration, action)` per unit
 
+**Superseded by GH-27 decisions 001 and 008** (scripts are the tool's own script plus flow-reel words; `demo`, `step` and `sfx` are removed in 0.2.0).
+
 **Date:** 2026-11-02 (global pass, Q8; agreed: "ok")
 
 **Question:** what does a demo script look like?

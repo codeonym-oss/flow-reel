@@ -4,6 +4,8 @@ Record reproducible feature demos from a short Playwright script. A coding agent
 writes the script, and `flow-reel` replays it in a sandbox on a virtual display while recording the screen. The same
 script gives the same video, step for step.
 
+[`CONTEXT.md`](CONTEXT.md) defines the project's vocabulary.
+
 This release records narrated video with captions, fitted step timings, a smooth cursor, click ripples and
 automatic zoom, click/typing sounds and optional named action cues.
 

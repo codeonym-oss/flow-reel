@@ -1,0 +1,5 @@
+- 2026-11-14: drafted by the story's global pass.
+- 2026-11-14: tracker issue #28 created, sub-issue of #27.
+- 2026-11-14: ticket pass done, impl.md written.
+- 2026-11-14: branch created, implementation started.
+- 2026-11-14: pull request #35 opened.

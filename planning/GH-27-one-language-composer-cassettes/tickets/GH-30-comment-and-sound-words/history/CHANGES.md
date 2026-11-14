@@ -1,0 +1,2 @@
+- 2026-11-14: drafted by the story's global pass.
+- 2026-11-14: tracker issue #30 created, sub-issue of #27.
