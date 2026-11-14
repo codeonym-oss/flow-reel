@@ -2,3 +2,4 @@
 - 2026-11-14: tracker issue #29 created, sub-issue of #27.
 - 2026-11-14: ticket pass done (decision 001), impl.md written.
 - 2026-11-14: built on refactor/29-composer-core-three-ports; impl.md notes three corrections.
+- 2026-11-14: pull request #36 opened.
