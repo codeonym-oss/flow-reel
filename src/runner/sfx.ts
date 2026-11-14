@@ -4,6 +4,8 @@ import type { Sfx } from "../index.ts";
 export type SoundAsset = "click" | "typing0" | "typing1" | "typing2" | Parameters<Sfx>[0];
 export interface SoundPlacement { sample: number; asset: SoundAsset }
 export const SAMPLE_RATE = 48000;
+/** Clicks this close together are one gesture's presses (a double-click), rendered as one sound and one ripple. */
+export const SAME_CLICK_MS = 30;
 
 /** Mark an explicit sound without advancing the recording clock. */
 export function cueLogger(clock: { now(): number }, events: RunnerEvent[]): Sfx {
@@ -19,13 +21,19 @@ export function planSfx(events: readonly RunnerEvent[], durationMs: number): Sou
   const cues = sorted.filter((e) => e.type === "sfx" && e.t >= 0 && e.t < durationMs);
   const placed: SoundPlacement[] = [];
   let typing = 0;
+  let lastClick = -Infinity;
   const add = (t: number, asset: SoundAsset) => {
     const sample = Math.round(t * 48);
     if (t >= 0 && sample < Math.round(durationMs * 48)) placed.push({ sample, asset });
   };
   for (const event of sorted) {
-    if (event.type === "click" && !cues.some((c) => Math.abs(c.t - event.t) <= 150)) add(event.t, "click");
-    else if (event.type === "sfx") add(event.t, event.name);
+    if (event.type === "click") {
+      // A double-click logs two presses at one moment: one click sound, not two stacked into a louder one.
+      if (event.t - lastClick > SAME_CLICK_MS && !cues.some((c) => Math.abs(c.t - event.t) <= 150)) {
+        add(event.t, "click");
+        lastClick = event.t;
+      }
+    } else if (event.type === "sfx") add(event.t, event.name);
     else if (event.type === "type") {
       let i = 0;
       for (const char of event.text) {

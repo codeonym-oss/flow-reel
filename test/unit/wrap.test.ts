@@ -6,22 +6,38 @@ import { wrapPage } from "../../src/runner/wrap.ts";
 // A fake of the Playwright surface the wrapper touches: the page, its mouse and locators. Every call lands in `calls`.
 interface Box { x: number; y: number; width: number; height: number }
 
-function fakePage(boxes: Record<string, Box>, boxLatencyMs = 0, clickLatencyMs = 0, removeOnClick = false) {
+function fakePage(boxes: Record<string, Box>, boxLatencyMs = 0, clickLatencyMs = 0, removeOnClick = false,
+  inputTypes: Record<string, string> = {}) {
   const calls: string[] = [];
+  let scrollX = 0;
   let scrollY = 0;
+  const describe = (o?: { button?: string; timeout?: number }) =>
+    `${o?.button ? ` ${o.button}` : ""}${o?.timeout ? ` timeout=${o.timeout}` : ""}`;
   const locator = (name: string): Record<string, unknown> => ({
     toString: () => name,
     boundingBox: async () => {
       now += boxLatencyMs;
       const b = boxes[name];
-      return b && { ...b, y: b.y - scrollY };
+      return b && { ...b, x: b.x - scrollX, y: b.y - scrollY };
     },
-    click: async () => { now += clickLatencyMs; calls.push(`click ${name}`); if (removeOnClick) delete boxes[name]; },
+    click: async (o?: { button?: string; timeout?: number }) => {
+      now += clickLatencyMs; calls.push(`click ${name}${describe(o)}`); if (removeOnClick) delete boxes[name];
+    },
+    dblclick: async () => void calls.push(`dblclick ${name}`),
     hover: async () => void calls.push(`hover ${name}`),
-    fill: async (v: string) => void calls.push(`fill ${name} "${v}"`),
-    pressSequentially: async (v: string, o: { delay: number }) =>
-      void calls.push(`pressSequentially ${name} "${v}" ${o.delay}`),
+    fill: async (v: string, o?: { timeout?: number }) => void calls.push(`fill ${name} "${v}"${describe(o)}`),
+    pressSequentially: async (v: string, o: { delay: number; timeout?: number }) =>
+      void calls.push(`pressSequentially ${name} "${v}" ${o.delay}${describe(o)}`),
+    press: async (key: string) => void calls.push(`press ${name} ${key}`),
+    evaluate: async (_fn: unknown, types: string[]) => types.includes(inputTypes[name]),
+    scrollIntoViewIfNeeded: async () => {
+      const b = boxes[name];
+      scrollX = b.x + b.width / 2 - 960;
+      scrollY = b.y + b.height / 2 - 540;
+      calls.push(`scrollIntoViewIfNeeded ${name}`);
+    },
     first: () => locator(`${name}.first()`),
+    all: async () => [locator(`${name} >> nth=0`), locator(`${name} >> nth=1`)],
     dispatchEvent: async () => void calls.push(`dispatchEvent ${name}`),
   });
   boxes["link Settings.first()"] = boxes["link Settings"];
@@ -32,19 +48,25 @@ function fakePage(boxes: Record<string, Box>, boxLatencyMs = 0, clickLatencyMs =
     evaluate: async () => { calls.push("evaluate"); return 42; },
     mouse: {
       move: async (x: number, y: number) => void calls.push(`move ${Math.round(x)},${Math.round(y)}`),
-      wheel: async (_dx: number, dy: number) => { scrollY += dy; calls.push(`wheel ${Math.round(dy)}`); },
+      // `nestedScroller`: the wheel lands on an inner scroll area, so the page itself doesn't move.
+      wheel: async (_dx: number, dy: number) => { if (!nestedScroller) scrollY += dy; calls.push(`wheel ${Math.round(dy)}`); },
+    },
+    keyboard: {
+      type: async (text: string, o: { delay: number }) => void calls.push(`keyboard.type "${text}" ${o.delay}`),
+      press: async (key: string) => void calls.push(`keyboard.press ${key}`),
     },
   };
   return { page: page as unknown as Page, calls };
 }
 
 let now = 0; // The fake clock; sleep() and the fake page's latency move it.
+let nestedScroller = false;
 const clock = { now: () => now };
 const sleep = async (ms: number) => { now += ms; };
 
 let events: RunnerEvent[];
 let warnings: string[];
-beforeEach(() => { now = 0; events = []; warnings = []; });
+beforeEach(() => { now = 0; events = []; warnings = []; nestedScroller = false; });
 
 const wrap = (page: Page) => wrapPage(page, { clock, events, sleep, warn: (m) => warnings.push(m) });
 
@@ -141,6 +163,79 @@ describe("wrapPage", () => {
       "locator.dispatchEvent() runs without cursor motion",
     ]);
     expect(events).toEqual([]);
+  });
+
+  it("moves to a click's position option and logs the button it pressed", async () => {
+    const { page, calls } = fakePage({ "button Menu": { x: 100, y: 100, width: 200, height: 40 } });
+    await wrap(page).getByRole("button", { name: "Menu" }).click({ button: "right", position: { x: 10, y: 5 } });
+    expect(calls.at(-1)).toBe("click button Menu right");
+    expect(events.at(-1)).toMatchObject({ type: "click", at: [110, 105], button: "right" });
+  });
+
+  it("logs both presses of a double-click at the same point", async () => {
+    const { page, calls } = fakePage({ "cell A1": { x: 100, y: 100, width: 80, height: 20 } });
+    await wrap(page).getByRole("cell", { name: "A1" }).dblclick();
+    expect(calls.at(-1)).toBe("dblclick cell A1");
+    expect(events.filter((e) => e.type === "click")).toHaveLength(2);
+  });
+
+  it("keeps fill's timeout for every call it makes", async () => {
+    const { page, calls } = fakePage({ "textbox Name": { x: 100, y: 100, width: 200, height: 30 } });
+    await wrap(page).getByRole("textbox", { name: "Name" }).fill("hi", { timeout: 5000 });
+    expect(calls.slice(-3)).toEqual([
+      "click textbox Name timeout=5000",
+      'fill textbox Name "" timeout=5000',
+      'pressSequentially textbox Name "hi" 60 timeout=5000',
+    ]);
+  });
+
+  it("fills date-like inputs directly instead of typing into them, without a click", async () => {
+    const { page, calls } = fakePage({ "textbox Due": { x: 100, y: 100, width: 200, height: 30 } }, 0, 0, false,
+      { "textbox Due": "date" });
+    await wrap(page).getByRole("textbox", { name: "Due" }).fill("2026-01-05");
+    expect(calls.filter((c) => !c.startsWith("move"))).toEqual(['fill textbox Due "2026-01-05"']);
+    expect(events.map((e) => e.type)).toEqual(["move"]);
+  });
+
+  it("types through page.keyboard at the readable speed and logs it", async () => {
+    const { page, calls } = fakePage({});
+    const p = wrap(page);
+    await p.keyboard.type("Ada");
+    await p.keyboard.press("Enter");
+    expect(calls).toEqual(['keyboard.type "Ada" 60', "keyboard.press Enter"]);
+    expect(events).toEqual([{ t: 0, type: "type", text: "Ada", charDelayMs: 60, target: "keyboard" }]);
+    expect(warnings).toEqual(["page.keyboard.press() runs without cursor motion"]);
+  });
+
+  it("wraps the locators all() returns", async () => {
+    const { page, calls } = fakePage({ "listitem >> nth=1": { x: 100, y: 300, width: 200, height: 20 } });
+    const items = await wrap(page).locator("listitem").all();
+    await items[1].click();
+    expect(calls.at(-1)).toBe("click listitem >> nth=1");
+    expect(events.map((e) => e.type)).toEqual(["move", "click"]);
+  });
+
+  it("warns for locator.press like page.press", async () => {
+    const { page, calls } = fakePage({});
+    await wrap(page).getByRole("textbox", { name: "Search" }).press("Enter");
+    expect(calls).toEqual(["press textbox Search Enter"]);
+    expect(warnings).toEqual(["locator.press() runs without cursor motion"]);
+  });
+
+  it("lets Playwright scroll the target in when the wheel scrolled a nested area instead of the page", async () => {
+    nestedScroller = true;
+    const { page, calls } = fakePage({ "button Save": { x: 900, y: 2500, width: 120, height: 40 } });
+    await wrap(page).getByRole("button", { name: "Save" }).click();
+    expect(calls).toContain("scrollIntoViewIfNeeded button Save");
+    expect(events.at(-1)).toMatchObject({ type: "click", at: [960, 540] });
+  });
+
+  it("brings a horizontally off-screen target into view before moving to it", async () => {
+    const { page, calls } = fakePage({ "button Next": { x: 3000, y: 500, width: 100, height: 40 } });
+    await wrap(page).getByRole("button", { name: "Next" }).click();
+    expect(calls.some((c) => c.startsWith("wheel"))).toBe(true);
+    expect(calls).toContain("scrollIntoViewIfNeeded button Next");
+    expect(events.at(-1)).toMatchObject({ type: "click", at: [960, 540] });
   });
 
   it("keeps events on the same times however long Playwright's round-trips take", async () => {

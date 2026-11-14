@@ -1,7 +1,7 @@
 // The host side of `flow-reel record` (story decision 008): find an engine, get the image matching this package's
 // version (GH-2 decision 004), and run the recording in it with the script's folder mounted.
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -37,11 +37,38 @@ function run(cmd: string, args: string[], inherit = false) {
   return spawnSync(cmd, args, { stdio: inherit ? "inherit" : "pipe", encoding: "utf8" });
 }
 
-function detectEngine(): Engine {
-  for (const engine of ["docker", "podman"] as const) {
-    if (run(engine, ["--version"]).status === 0) return engine;
+export interface DetectedEngine {
+  /** The command to run. */
+  command: Engine;
+  /** What actually answers it: podman-docker installs a `docker` command that runs Podman. */
+  engine: Engine;
+}
+
+type Probe = (cmd: string, args: string[]) => { status: number | null; stdout: string };
+
+/** The first installed engine whose daemon answers; a clear error when one is installed but not running. */
+export function detectEngine(probe: Probe = run): DetectedEngine {
+  const installed: Engine[] = [];
+  for (const command of ["docker", "podman"] as const) {
+    const version = probe(command, ["--version"]);
+    if (version.status !== 0) continue;
+    installed.push(command);
+    if (probe(command, ["info"]).status === 0) {
+      return { command, engine: /podman/i.test(version.stdout ?? "") ? "podman" : command };
+    }
+  }
+  if (installed.length) {
+    throw new Error(`${installed.join(" and ")} ${installed.length > 1 ? "are" : "is"} installed but not responding: ` +
+      "start the engine (e.g. Docker Desktop, `systemctl start docker`, or `podman machine start`) and try again");
   }
   throw new Error("flow-reel needs Docker or Podman: neither was found on PATH");
+}
+
+/** A git checkout of flow-reel records with the released image of its version, not with its own source. */
+export function sourceCheckoutWarning(root: string, image: string): string | undefined {
+  if (!existsSync(resolve(root, ".git")) || !existsSync(resolve(root, "src/runner"))) return undefined;
+  return `flow-reel: running from a source checkout; recording uses ${image}, whose runner may differ from this ` +
+    `checkout's src/. To record with local changes: npm run build && docker build -t ${image} -f docker/Dockerfile .`;
 }
 
 function ensureImage(engine: Engine, image: string) {
@@ -54,16 +81,18 @@ function ensureImage(engine: Engine, image: string) {
 
 /** Runs the recording in the container; resolves to its exit code. */
 export function launch(scriptPath: string, options: { sfx?: boolean } = {}): number {
-  const engine = detectEngine();
+  const { command, engine } = detectEngine();
   const { version } = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8")) as { version: string };
   const image = imageFor(version);
-  ensureImage(engine, image);
+  const warning = sourceCheckoutWarning(packageRoot, image);
+  if (warning) console.warn(warning);
+  ensureImage(command, image);
   const desktop = process.platform !== "linux"
-    || run(engine, ["info", "--format", "{{.OperatingSystem}}"]).stdout.includes("Docker Desktop");
+    || run(command, ["info", "--format", "{{.OperatingSystem}}"]).stdout.includes("Docker Desktop");
   const script = resolve(scriptPath);
   const args = buildRunArgs({
     engine, desktop, image, workDir: dirname(script), script: basename(script),
     uid: process.getuid?.() ?? 1000, gid: process.getgid?.() ?? 1000, sfx: options.sfx,
   });
-  return run(engine, args, true).status ?? 1;
+  return run(command, args, true).status ?? 1;
 }

@@ -27,6 +27,22 @@ describe("loadDemo", () => {
     });
   });
 
+  it("rejects a viewport that is not two positive whole numbers", () => {
+    const dir = mkdtempSync(join(tmpdir(), "flow-reel-load-"));
+    for (const viewport of ["[0, 360]", "[640.5, 360]", "[640]"]) {
+      writeFileSync(join(dir, "demo.ts"), `import { demo } from "flow-reel";
+export default demo({ url: "http://localhost:1", viewport: ${viewport} as [number, number] }, async () => {});\n`);
+      expect(() => loadInNode(join(dir, "demo.ts"))).toThrow(/viewport must be \[width, height\] in whole CSS pixels/);
+    }
+  });
+
+  it("accepts a viewport whose 4/3 screen width is odd (padded when encoded)", () => {
+    const dir = mkdtempSync(join(tmpdir(), "flow-reel-load-"));
+    writeFileSync(join(dir, "demo.ts"), `import { demo } from "flow-reel";
+export default demo({ url: "http://localhost:1", viewport: [640, 360] }, async () => {});\n`);
+    expect(JSON.parse(loadInNode(join(dir, "demo.ts"))).options.viewport).toEqual([640, 360]);
+  });
+
   it("says what is wrong when the script has no demo() default export", () => {
     const dir = mkdtempSync(join(tmpdir(), "flow-reel-load-"));
     writeFileSync(join(dir, "demo.ts"), "export const x: number = 1;\n");

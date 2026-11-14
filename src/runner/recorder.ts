@@ -13,38 +13,44 @@ export interface Recording {
   stop(): Promise<number>;
 }
 
+/** libx264's yuv420p needs even dimensions: an odd screen (640 px × 4/3 = 853) is padded by one black pixel. */
+export const EVEN_PAD = "pad=ceil(iw/2)*2:ceil(ih/2)*2";
+
 export async function startRecording(master: string, [width, height]: [number, number]): Promise<Recording> {
   // ultrafast: slower presets fall behind real time while Chromium renders (decision 005).
   const ffmpeg: ChildProcess = spawn("ffmpeg", [
     "-hide_banner", "-loglevel", "info", "-nostats", "-y",
     "-f", "x11grab", "-draw_mouse", "0", "-framerate", String(FPS), "-thread_queue_size", "512",
     "-video_size", `${width}x${height}`, "-i", DISPLAY,
-    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "10", "-pix_fmt", "yuv420p", master,
+    "-vf", EVEN_PAD, "-c:v", "libx264", "-preset", "ultrafast", "-crf", "10", "-pix_fmt", "yuv420p", master,
   ], { stdio: ["pipe", "ignore", "pipe"] });
 
   let log = "";
+  ffmpeg.stderr!.on("data", (chunk: Buffer) => { log = (log + chunk.toString()).slice(-65536); });
+  ffmpeg.stdin!.on("error", () => {}); // a dead encoder is reported through `exited` below
+  // Registered at spawn, so an encoder that dies at any point is seen: waiting for "exit" later would hang forever.
+  const exited = once(ffmpeg, "exit") as Promise<[number | null, NodeJS.Signals | null]>;
+  let exitCode: number | null | undefined;
+  exited.then(([code]) => { exitCode = code; }, () => { exitCode = null; });
+
   // x11grab stamps frames with the wall clock; "start:" is when it grabbed the first one.
   const origin = await new Promise<number>((resolve, reject) => {
-    ffmpeg.once("exit", (code) => reject(new Error(`ffmpeg exited (${code}) before its first frame:\n${log}`)));
-    ffmpeg.stderr!.on("data", function onData(chunk: Buffer) {
-      log += chunk.toString();
+    exited.then(([code]) => reject(new Error(`ffmpeg exited (${code}) before its first frame:\n${log}`)), reject);
+    ffmpeg.stderr!.on("data", function onData() {
       const start = /start: (\d+\.\d+)/.exec(log)?.[1];
       if (!start) return;
       ffmpeg.stderr!.off("data", onData);
       resolve(Number(start) * 1000 - performance.timeOrigin);
     });
   });
-  ffmpeg.removeAllListeners("exit");
-  ffmpeg.stderr!.resume();
 
   return {
     now: () => performance.now() - origin,
     async stop() {
       const ranMs = performance.now() - origin;
-      const exited = once(ffmpeg, "exit");
-      ffmpeg.stdin!.end("q");
+      if (exitCode === undefined) ffmpeg.stdin!.end("q");
       const [code] = await exited;
-      if (code !== 0) throw new Error(`ffmpeg exited with ${code} while finishing the master`);
+      if (code !== 0) throw new Error(`ffmpeg exited with ${code} while recording the master:\n${log.slice(-4000)}`);
       return ranMs;
     },
   };
@@ -54,7 +60,11 @@ export function durationMs(file: string): number {
   const r = spawnSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file], {
     encoding: "utf8",
   });
-  return Math.round(Number(r.stdout.trim()) * 1000);
+  const seconds = Number(r.stdout?.trim());
+  if (r.status !== 0 || !r.stdout?.trim() || !Number.isFinite(seconds)) {
+    throw new Error(`reading the duration of ${file} failed: ${r.error?.message ?? r.stderr}`);
+  }
+  return Math.round(seconds * 1000);
 }
 
 /**

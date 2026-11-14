@@ -60,7 +60,7 @@ function assembleVoice(voice: string, audioDir: string, timeline: Timeline): boo
     `adelay=${Math.round(s.startMs * 48)}S:all=1[a${i}]`);
   placed.push(`${clips.map((_, i) => `[a${i}]`).join("")}amix=inputs=${clips.length}:normalize=0,` +
     `apad=whole_len=${samples},atrim=end_sample=${samples}[bus]`);
-  const bus = join(voice + ".bus.wav");
+  const bus = `${voice}.bus.wav`;
   ffmpeg(["-v", "error", ...inputs, "-filter_complex", placed.join(";"), "-map", "[bus]", "-c:a", "pcm_f32le", bus]);
   normalizeAudio(bus, voice, samples);
   if (Math.abs(audioDurationMs(voice) - samples / 48) > 1 / 48) throw new Error("normalized voice duration disagrees with timeline");
