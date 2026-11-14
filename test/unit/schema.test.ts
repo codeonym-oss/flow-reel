@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { validateEvents } from "../../src/composer/schema/events.ts";
 import { validateTranscript } from "../../src/composer/schema/transcript.ts";
+import { validateManifest } from "../../src/composer/schema/manifest.ts";
 
 // The examples of story decisions 011 and 013, verbatim.
 const transcript = {
@@ -89,5 +90,34 @@ describe("validateEvents", () => {
   it("rejects an unknown event type", () => {
     const bad = { version: 3, events: [{ t: 0, type: "teleport" }] };
     expect(validateEvents(bad)).toContain('events[0]: unknown type "teleport"');
+  });
+});
+
+describe("validateManifest", () => {
+  const file = (path: string) => ({ path, bytes: 4, sha256: "b".repeat(64) });
+  const manifest = {
+    version: 1, script: { file: "settings.ts", sha256: "a".repeat(64) },
+    composer: { version: "0.2.0", platform: "linux/amd64" }, integration: "playwright",
+    voice: { adapter: "qwen3-tts-0.6b", voice: "Ryan", seed: 0 },
+    files: [file("audio/000.wav"), file("transcript.json"), file("video.mp4")],
+  };
+
+  it("accepts the decision 003 example, with or without a voice", () => {
+    expect(validateManifest(manifest)).toEqual([]);
+    const { voice: _, ...silent } = manifest;
+    expect(validateManifest(silent)).toEqual([]);
+  });
+
+  it("names what is wrong", () => {
+    expect(validateManifest({ ...manifest, version: 2 })).toContain("version must be 1");
+    expect(validateManifest({ ...manifest, script: { file: "x.ts", sha256: "bad" } })).toContain("script.sha256 must be a SHA-256 hex digest");
+    expect(validateManifest({ ...manifest, files: [] })).toContain("files must be a nonempty array");
+    expect(validateManifest({ ...manifest, files: [file("b"), file("a")] })).toContain("files[1]: paths must be sorted and unique");
+    expect(validateManifest({ ...manifest, files: [file("a"), file("a")] })).toContain("files[1]: paths must be sorted and unique");
+    for (const path of ["../x", "/etc/passwd", "a//b", "./a"]) {
+      expect(validateManifest({ ...manifest, files: [file(path)] })).toContain("files[0]: path must be relative to the reel, without . or ..");
+    }
+    expect(validateManifest({ ...manifest, files: [file("work/capture.mp4")] })).toContain("files[0]: work/capture.mp4 must not be listed");
+    expect(validateManifest({ ...manifest, files: [file("manifest.json")] })).toContain("files[0]: manifest.json must not be listed");
   });
 });

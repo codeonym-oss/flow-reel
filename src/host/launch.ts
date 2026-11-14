@@ -1,7 +1,7 @@
 // The host side of `flow-reel compose` (story decision 008): find an engine, get the image matching this package's
 // version (GH-2 decision 004), and run the recording in it with the script's folder mounted.
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,6 +17,8 @@ export interface RunArgsInput {
   uid: number;
   gid: number;
   sfx?: boolean;
+  /** An absolute folder for the reel, mounted at /out. */
+  outDir?: string;
 }
 
 export const imageFor = (version: string) => `ghcr.io/codeonym-oss/flow-reel:${version}`;
@@ -25,9 +27,11 @@ export function buildRunArgs(i: RunArgsInput): string[] {
   return [
     "run", "--rm", "--init", "--shm-size=1g",
     "-v", `${i.workDir}:/work`, "-w", "/work",
+    ...(i.outDir ? ["-v", `${i.outDir}:/out`] : []),
     ...(i.engine === "podman" ? ["--userns=keep-id"] : ["--user", `${i.uid}:${i.gid}`]),
     ...(i.desktop ? ["-e", "FLOW_REEL_HOST_MAP=1"] : ["--network", "host"]),
     i.image, "compose", `/work/${i.script}`, ...(i.sfx === false ? ["--no-sfx"] : []),
+    ...(i.outDir ? ["--out", "/out"] : []),
   ];
 }
 
@@ -80,7 +84,7 @@ function ensureImage(engine: Engine, image: string) {
 }
 
 /** Runs the recording in the container; resolves to its exit code. */
-export function launch(scriptPath: string, options: { sfx?: boolean } = {}): number {
+export function launch(scriptPath: string, options: { sfx?: boolean; outDir?: string } = {}): number {
   const { command, engine } = detectEngine();
   const { version } = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8")) as { version: string };
   const image = imageFor(version);
@@ -90,9 +94,12 @@ export function launch(scriptPath: string, options: { sfx?: boolean } = {}): num
   const desktop = process.platform !== "linux"
     || run(command, ["info", "--format", "{{.OperatingSystem}}"]).stdout.includes("Docker Desktop");
   const script = resolve(scriptPath);
+  // Created here, so the engine doesn't create the mount point as root.
+  const outDir = options.outDir === undefined ? undefined : resolve(options.outDir);
+  if (outDir) mkdirSync(outDir, { recursive: true });
   const args = buildRunArgs({
     engine, desktop, image, workDir: dirname(script), script: basename(script),
-    uid: process.getuid?.() ?? 1000, gid: process.getgid?.() ?? 1000, sfx: options.sfx,
+    uid: process.getuid?.() ?? 1000, gid: process.getgid?.() ?? 1000, sfx: options.sfx, outDir,
   });
   return run(command, args, true).status ?? 1;
 }

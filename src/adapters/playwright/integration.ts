@@ -9,6 +9,7 @@ import { wrapPage } from "./wrap.ts";
 const MARK_ID = "__flow_reel_mark";
 
 export const playwright: Integration = {
+  name: "playwright",
   async load(scriptPath) {
     const script = await loadScript(scriptPath);
     const { viewport, url } = script.options;

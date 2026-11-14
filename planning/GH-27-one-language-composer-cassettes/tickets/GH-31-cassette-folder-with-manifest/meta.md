@@ -1,12 +1,12 @@
 ---
 kind: ticket
-title: Compile each script into a cassette: one folder with a manifest
+title: "Compile each script into a reel: one folder with a manifest"
 key: GH-31
 parent: GH-27
-status: tracked
-branch:
+status: in-review
+branch: feat/31-reel-folder-with-manifest
 tracker-url: https://github.com/codeonym-oss/flow-reel/issues/31
-mr:
+mr: "#39"
 created: 2026-11-14
 updated: 2026-11-14
 ---

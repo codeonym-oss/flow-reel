@@ -1,4 +1,5 @@
 # 009: One word per concept; the command is `flow-reel compose`
+**Superseded by 010** for the term Cassette, which is now Reel.
 
 **Date:** 2026-11-14 (global pass, Q9; agreed: "ok")
 

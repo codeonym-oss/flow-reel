@@ -1,2 +1,3 @@
 - 2026-11-14: drafted by the story's global pass.
 - 2026-11-14: tracker issue #33 created, sub-issue of #27.
+- 2026-11-14: draft.md uses "reel" (story decision 010).

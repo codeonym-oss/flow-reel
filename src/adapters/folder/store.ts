@@ -1,36 +1,43 @@
-// The cassette store as plain files (story decision 006 of GH-1): results beside the script, work files in
-// .flow-reel/<name>/ next to it.
-import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
+// The reel store as a local folder (GH-31 decisions 001, 002 and 005): `<name>.reel/` beside the script or in
+// outDir, built in `<name>.reel.partial/` and swapped in only once it is complete.
+import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import type { CassetteStore } from "../../composer/ports.ts";
+import type { ReelStore } from "../../composer/ports.ts";
+import type { Manifest } from "../../composer/schema/manifest.ts";
+import { MANIFEST, hashFiles, listReelFiles } from "../../reel.ts";
 
 const writeJson = (file: string, value: unknown) => writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 
-export const folderStore: CassetteStore = {
-  open(scriptPath) {
-    const dir = dirname(scriptPath);
+export const folderStore: ReelStore = {
+  open(scriptPath, outDir) {
     const name = basename(scriptPath).replace(/\.[cm]?ts$/, "");
-    const hidden = join(dir, ".flow-reel");
-    const work = join(hidden, name);
+    const reel = join(outDir ?? dirname(scriptPath), `${name}.reel`);
+    const partial = `${reel}.partial`;
+    const work = join(partial, "work");
+    rmSync(partial, { recursive: true, force: true });
     mkdirSync(work, { recursive: true });
-    // Ignores the whole folder without touching the app's own .gitignore.
-    if (!existsSync(join(hidden, ".gitignore"))) writeFileSync(join(hidden, ".gitignore"), "*\n");
+    // The intermediates are large and only help debugging: keep them out of git without touching the app's .gitignore.
+    writeFileSync(join(work, ".gitignore"), "*\n");
     const stagedVideo = join(work, "delivery.mp4");
-    const videoFile = `${name}.mp4`;
+    const videoFile = "video.mp4";
     return {
       work: {
         capture: join(work, "capture.mp4"), master: join(work, "master.mp4"), masterInfo: join(work, "master.json"),
         stagedVideo, voiceBus: join(work, "voice.wav"),
       },
-      audioDir: join(dir, `${name}.audio`),
-      audioRoot: dir,
+      audioDir: join(partial, "audio"),
+      audioRoot: partial,
       videoFile,
-      commit({ transcript, events, captions }) {
-        renameSync(stagedVideo, join(dir, videoFile));
-        writeJson(join(dir, `${name}.transcript.json`), transcript);
-        writeFileSync(join(dir, `${name}.srt`), captions.srt, "utf8");
-        writeFileSync(join(dir, `${name}.vtt`), captions.vtt, "utf8");
-        writeJson(join(dir, `${name}.events.json`), events);
+      commit({ transcript, events, captions, about }) {
+        renameSync(stagedVideo, join(partial, videoFile));
+        writeJson(join(partial, "transcript.json"), transcript);
+        writeJson(join(partial, "events.json"), events);
+        writeFileSync(join(partial, "captions.srt"), captions.srt, "utf8");
+        writeFileSync(join(partial, "captions.vtt"), captions.vtt, "utf8");
+        const manifest: Manifest = { version: 1, ...about, files: hashFiles(partial, listReelFiles(partial)) };
+        writeJson(join(partial, MANIFEST), manifest);
+        rmSync(reel, { recursive: true, force: true });
+        renameSync(partial, reel);
       },
     };
   },

@@ -3,7 +3,7 @@ kind: ticket
 title: Write scripts with comment and sound words, chained or standalone
 key: GH-30
 parent: GH-27
-status: in-review
+status: done
 branch: feat/30-comment-and-sound-words
 tracker-url: https://github.com/codeonym-oss/flow-reel/issues/30
 mr: https://github.com/codeonym-oss/flow-reel/pull/37

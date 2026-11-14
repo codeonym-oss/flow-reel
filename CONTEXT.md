@@ -1,15 +1,13 @@
 # The flow-reel language
 
-flow-reel turns a **script** into a **cassette**. A person or an agent writes the script; the **composer** compiles
+flow-reel turns a **script** into a **reel**. A person or an agent writes the script; the **composer** compiles
 it, the same way every time.
 
 This file is the project's vocabulary. Use these words, with these meanings, in code, documentation, commit
 messages, issues and the plugin. Each concept has one word; the "avoid" words are older or looser names for it.
 
-> **Status:** this is the 0.2 language. Scripts use it (`script`, `comment`, `sound`, `flow-reel compose`). Until
-> [#31](https://github.com/codeonym-oss/flow-reel/issues/31) lands, a cassette is still loose files next to the
-> script rather than one folder with a manifest, and effects arrive with
-> [#32](https://github.com/codeonym-oss/flow-reel/issues/32).
+> **Status:** this is the 0.2 language. Scripts use it (`script`, `comment`, `sound`, `flow-reel compose`), and a
+> compose writes a reel. Effects arrive with [#32](https://github.com/codeonym-oss/flow-reel/issues/32).
 
 ## What a person writes
 
@@ -39,7 +37,7 @@ on the element it is about.
 ## What compiles it
 
 **Composer**
-The container image that compiles a script into a cassette. The verb is **compose**.
+The container image that compiles a script into a reel. The verb is **compose**.
 _Avoid:_ runner, recorder.
 
 **Integration**
@@ -61,23 +59,23 @@ ripples, zoom on click and following the cursor. An effect in the script overrid
 
 **Port**
 A boundary of the composer's core that has more than one possible implementation. There are three: integration,
-voice and cassette store.
+voice and reel store.
 
-**Cassette store**
-Where a cassette is written and read. Today it is a folder.
+**Reel store**
+Where a reel is written and read. Today it is a folder.
 
 ## What comes out
 
-**Cassette**
+**Reel**
 The whole compiled result of one script: one folder holding the video, the transcript, the captions, the event log,
 the audio and the manifest.
-_Avoid:_ output, take.
+_Avoid:_ cassette, output, take.
 
 **Manifest**
-The file in a cassette that lists what the cassette contains and how it was composed.
+The file in a reel that lists what the reel contains and how it was composed.
 
 **Transcript**
-The timed text of the comments, inside the cassette.
+The timed text of the comments, inside the reel.
 
 **Captions**
 The comments as subtitle files, timed from the transcript.
@@ -86,8 +84,8 @@ The comments as subtitle files, timed from the transcript.
 The timed record of what happened on screen while composing: pointer movement, clicks, typing, sounds and effects.
 Polish and effects are rendered from it.
 
-**Cassette cache**
-The voiced comments kept with a cassette, so composing an unchanged comment again reuses its audio instead of
+**Reel cache**
+The voiced comments kept with a reel, so composing an unchanged comment again reuses its audio instead of
 asking the voice for it.
 
 ## What teaches it
@@ -98,18 +96,18 @@ The skills and references that teach an agent this language: what to use, when, 
 ## How the terms relate
 
 - A **script** is made of **steps**. A step can carry **comments**, **sounds** and **effects**.
-- The **composer** composes one script into one **cassette**.
+- The **composer** composes one script into one **reel**.
 - The composer replays the script through an **integration** and speaks its comments with a **voice**.
 - While replaying, the composer makes a **recording** and an **event log**. It then applies **polish** and the
-  script's effects to produce the cassette's video.
-- A cassette holds the video, the **transcript**, the **captions**, the event log, the audio and the **manifest**.
-- The same script, with the same **cassette cache**, composes to the same cassette.
+  script's effects to produce the reel's video.
+- A reel holds the video, the **transcript**, the **captions**, the event log, the audio and the **manifest**.
+- The same script, with the same **reel cache**, composes to the same reel.
 - The **plugin** teaches an agent to write scripts. It contains no composing logic.
 
 ## In use
 
 > "The script comments on the login step and adds a success sound. Composing it with the local voice gives a
-> cassette whose transcript has two comments."
+> reel whose transcript has two comments."
 
 > "Zoom on click is polish, so the script doesn't ask for it. This step needs the camera on the chart, so it
 > carries a zoom effect, which overrides the polish for that step."
