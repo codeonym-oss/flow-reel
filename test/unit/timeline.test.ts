@@ -3,7 +3,7 @@ import { planTimeline } from "../../src/composer/timeline.ts";
 import type { TranscriptStep } from "../../src/composer/schema/transcript.ts";
 
 const step = (index: number, startMs: number, endMs: number, durationMs?: number): TranscriptStep => ({
-  index, startMs, actionEndMs: endMs - 100, endMs, narration: durationMs ? "Hello" : " ",
+  index, startMs, actionEndMs: endMs - 100, endMs, comment: durationMs ? "Hello" : " ",
   ...(durationMs ? { audio: { file: `${index}.wav`, durationMs, sha256: "a".repeat(64) } } : {}),
 });
 

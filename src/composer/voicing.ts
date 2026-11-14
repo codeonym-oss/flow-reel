@@ -30,7 +30,7 @@ export async function voiceSteps(
   const staging = mkdtempSync(join(audioDir, ".pending-"));
   try {
     const jobs = steps.flatMap((step) => {
-      const text = (step.narration ?? "").replace(/\s+/g, " ").trim();
+      const text = (step.comment ?? "").replace(/\s+/g, " ").trim();
       return text ? [{ index: step.index, text, file: join(staging, `${String(step.index).padStart(3, "0")}.wav`) }] : [];
     });
     if (jobs.length) await adapter.synthesize(jobs);

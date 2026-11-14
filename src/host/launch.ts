@@ -1,4 +1,4 @@
-// The host side of `flow-reel record` (story decision 008): find an engine, get the image matching this package's
+// The host side of `flow-reel compose` (story decision 008): find an engine, get the image matching this package's
 // version (GH-2 decision 004), and run the recording in it with the script's folder mounted.
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -27,7 +27,7 @@ export function buildRunArgs(i: RunArgsInput): string[] {
     "-v", `${i.workDir}:/work`, "-w", "/work",
     ...(i.engine === "podman" ? ["--userns=keep-id"] : ["--user", `${i.uid}:${i.gid}`]),
     ...(i.desktop ? ["-e", "FLOW_REEL_HOST_MAP=1"] : ["--network", "host"]),
-    i.image, "record", `/work/${i.script}`, ...(i.sfx === false ? ["--no-sfx"] : []),
+    i.image, "compose", `/work/${i.script}`, ...(i.sfx === false ? ["--no-sfx"] : []),
   ];
 }
 

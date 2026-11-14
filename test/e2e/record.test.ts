@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { SFX_NAMES, type EventLog, validateEvents } from "../../src/composer/schema/events.ts";
+import { SOUND_NAMES, type EventLog, validateEvents } from "../../src/composer/schema/events.ts";
 import { compareTranscripts } from "../../src/compare.ts";
 import { validateSync } from "../../src/composer/schema/sync.ts";
 import { type Transcript, validateTranscript } from "../../src/composer/schema/transcript.ts";
@@ -19,14 +19,15 @@ const html = readFileSync(resolve("test/e2e/app/index.html"));
 let server: Server;
 let port: number;
 let image: string;
-const NARRATIONS = ["  Type <b>Ada</b> & &lt; --> 保存.\r\n  ", "Scroll down and save.", "Open the settings."];
+const COMMENTS = ["  Type <b>Ada</b> & &lt; --> 保存.\r\n  ", "Scroll down and save.", "Open the settings."];
 
-const script = (p: number, viewport?: [number, number]) => `import { demo } from "flow-reel";
+const script = (p: number, viewport?: [number, number]) => `import { script, Sounds } from "flow-reel";
 
-export default demo(${JSON.stringify({ url: `http://localhost:${p}/`, viewport })}, async ({ page, step, sfx }) => {
-  await step(${JSON.stringify(NARRATIONS[0])}, () => page.getByRole("textbox", { name: "Name" }).fill("Ada"));
-  await step(${JSON.stringify(NARRATIONS[1])}, async () => { await page.getByRole("button", { name: "Save" }).click(); sfx("success"); });
-  await step(${JSON.stringify(NARRATIONS[2])}, async () => { await page.getByRole("link", { name: "Settings" }).click(); sfx("open"); });
+export default script(${JSON.stringify({ url: `http://localhost:${p}/`, viewport })}, async ({ page, comment }) => {
+  comment(${JSON.stringify(COMMENTS[0])});
+  await page.getByRole("textbox", { name: "Name" }).fill("Ada");
+  await page.getByRole("button", { name: "Save" }).comment(${JSON.stringify(COMMENTS[1])}).sound(Sounds.feedback.SUCCESS).click();
+  await page.getByRole("link", { name: "Settings" }).comment(${JSON.stringify(COMMENTS[2])}).sound(Sounds.navigation.OPEN).click();
 });
 `;
 
@@ -39,7 +40,7 @@ async function recordOnce(name: string): Promise<Run> {
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "demo.ts"), script(port));
   try {
-    const { stderr } = await promisify(execFile)(process.execPath, ["dist/cli.js", "record", join(dir, "demo.ts")]);
+    const { stderr } = await promisify(execFile)(process.execPath, ["dist/cli.js", "compose", join(dir, "demo.ts")]);
     if (stderr) writeFileSync(join(dir, "record.log"), stderr);
   } catch (error) {
     writeFileSync(join(dir, "record.log"), (error as { stderr?: string }).stderr ?? String(error));
@@ -85,29 +86,29 @@ beforeAll(async () => {
 
 afterAll(() => server?.close());
 
-it("records all eight explicit cues without narration and retains their logs when muted", async () => {
+it("records all eight sounds without comments and keeps them in the event log when muted", async () => {
   const dir = join(OUT, "muted-cues");
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "demo.ts"), `import { demo } from "flow-reel";
-export default demo({ url: "http://localhost:${port}/", viewport: [960, 540] }, async ({ step, sfx }) => {
-  await step(" ", async () => {
-    for (const name of ${JSON.stringify(SFX_NAMES)} as const) {
-      sfx(name);
+  writeFileSync(join(dir, "demo.ts"), `import { script, Sounds } from "flow-reel";
+export default script({ url: "http://localhost:${port}/", viewport: [960, 540] }, async ({ sound }) => {
+  for (const group of Object.values(Sounds)) {
+    for (const name of Object.values(group)) {
+      sound(name);
       await new Promise(resolve => setTimeout(resolve, 150));
     }
-  });
+  }
 });`);
   const container = `flow-reel-muted-cues-${randomUUID()}`;
   try {
     await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g", "--network", "host",
       "--user", `${process.getuid!()}:${process.getgid!()}`, "-v", `${dir}:/work`, image,
-      "record", "/work/demo.ts", "--no-sfx"], { timeout: 90_000 });
+      "compose", "/work/demo.ts", "--no-sfx"], { timeout: 90_000 });
   } finally {
     spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
   }
   const log = JSON.parse(readFileSync(join(dir, "demo.events.json"), "utf8"));
   expect(validateEvents(log)).toEqual([]);
-  expect(log.events.map((e: { name: string }) => e.name)).toEqual(SFX_NAMES);
+  expect(log.events.map((e: { name: string }) => e.name)).toEqual(SOUND_NAMES);
   expect(log.events.every((e: { t: number }, i: number) => i === 0 || e.t > log.events[i - 1].t)).toBe(true);
   const { streams } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_streams", "-of", "json", join(dir, "demo.mp4")], { encoding: "utf8" }));
   expect(streams.map((s: { codec_type: string }) => s.codec_type)).toEqual(["video"]);
@@ -117,17 +118,17 @@ export default demo({ url: "http://localhost:${port}/", viewport: [960, 540] }, 
 it("captures the settled response while keeping the callback finish time", async () => {
   const dir = join(OUT, "settled");
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "demo.ts"), `import { demo } from "flow-reel";
-export default demo({ url: "http://localhost:${port}/", viewport: [960, 540] }, async ({ page, step }) => {
-  await step(" ", () => page.evaluate(() => {
+  writeFileSync(join(dir, "demo.ts"), `import { script } from "flow-reel";
+export default script({ url: "http://localhost:${port}/", viewport: [960, 540] }, async ({ page }) => {
+  await page.evaluate(() => {
     void fetch("/delayed").then(() => document.body.classList.add("flash"));
-  }));
+  });
 });`);
   const container = `flow-reel-settled-${randomUUID()}`;
   try {
     await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g", "--network", "host",
       "--user", `${process.getuid!()}:${process.getgid!()}`, "-v", `${dir}:/work`, image,
-      "record", "/work/demo.ts"], { timeout: 90_000 });
+      "compose", "/work/demo.ts"], { timeout: 90_000 });
   } finally {
     spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
   }
@@ -149,7 +150,7 @@ it("fails the command without publishing a successful transcript when TTS assets
   try {
     await expect(promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g", "--network", "host",
       "--user", `${process.getuid!()}:${process.getgid!()}`, "-v", `${dir}:/work`,
-      "-v", `${assets}:/opt/flow-reel/tts-model:ro`, image, "record", "/work/demo.ts"], { timeout: 90_000 }))
+      "-v", `${assets}:/opt/flow-reel/tts-model:ro`, image, "compose", "/work/demo.ts"], { timeout: 90_000 }))
       .rejects.toMatchObject({ code: 1, stderr: expect.stringContaining("Qwen TTS failed") });
   } finally {
     // A killed Docker client can leave its container alive, holding the host-network X11 socket.
@@ -158,7 +159,7 @@ it("fails the command without publishing a successful transcript when TTS assets
   expect(existsSync(join(dir, "demo.transcript.json"))).toBe(false);
 }, 120_000);
 
-describe("flow-reel record", () => {
+describe("flow-reel compose", () => {
   beforeAll(async () => {
     a = await recordOnce("a");
     b = await recordOnce("b");
@@ -199,9 +200,9 @@ describe("flow-reel record", () => {
     }
   });
 
-  it("preserves original narration and writes SRT cues on each run's calibrated timeline", () => {
+  it("preserves original comments and writes SRT cues on each run's calibrated timeline", () => {
     for (const run of [a, b]) {
-      expect(run.transcript.steps.map((s) => s.narration)).toEqual(NARRATIONS);
+      expect(run.transcript.steps.map((s) => s.comment)).toEqual(COMMENTS);
       const srt = readFileSync(join(run.dir, "demo.srt"), "utf8");
       expect(srt.split("\n\n").filter(Boolean).map((cue) => cue.split("\n")[2])).toEqual([
         "Type &lt;b&gt;Ada&lt;/b&gt; &amp; &amp;lt; --&gt; 保存.", "Scroll down and save.", "Open the settings.",
@@ -231,9 +232,9 @@ describe("flow-reel record", () => {
     expect(validateSync(a.transcript)).toEqual([]);
     for (const s of a.transcript.steps) expect(s.endMs - s.startMs).toBeGreaterThanOrEqual(s.audio!.durationMs + 200 - 1e-6);
     expect(validateEvents(a.events)).toEqual([]);
-    expect(a.events.version).toBe(2);
+    expect(a.events.version).toBe(3);
     expect(a.transcript.steps).toHaveLength(3);
-    expect(a.events.events.map((e) => e.type)).toEqual(["move", "click", "type", "scroll", "move", "click", "sfx", "scroll", "move", "click", "sfx"]);
+    expect(a.events.events.map((e) => e.type)).toEqual(["move", "click", "type", "scroll", "move", "click", "sound", "scroll", "move", "click", "sound"]);
     for (const e of a.events.events) if (e.type === "click" || e.type === "type") {
       expect(e.bounds?.width).toBeGreaterThan(0);
       expect(e.bounds?.height).toBeGreaterThan(0);

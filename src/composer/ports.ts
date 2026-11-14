@@ -1,6 +1,6 @@
 // The composer's three ports (GH-27 decision 007). The core depends on these interfaces; the adapters in
 // src/adapters implement them, and src/cli.ts chooses which.
-import type { ComposerEvent, EventLog, SfxName } from "./schema/events.ts";
+import type { ComposerEvent, EventLog, Sound } from "./schema/events.ts";
 import type { Transcript } from "./schema/transcript.ts";
 
 export interface ClipRequest { index: number; text: string; file: string }
@@ -18,8 +18,11 @@ export interface Stage {
   clock: { now(): number };
   events: ComposerEvent[];
   fps: number;
-  step(comment: string, action: () => Promise<unknown>): Promise<void>;
-  sound(name: SfxName): void;
+  /** Queues a comment: it opens the next step. */
+  comment(text: string): void;
+  sound(sound: Sound): void;
+  /** Runs one action of the script inside its step, opening the step first when one is due. */
+  action<T>(run: () => Promise<T>): Promise<T>;
 }
 
 /** One script, open in its E2E tool and ready to replay. */

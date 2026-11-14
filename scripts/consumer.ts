@@ -21,14 +21,15 @@ const html = readFileSync("test/e2e/app/index.html");
 const server = createServer((_req, res) => res.writeHead(200, { "content-type": "text/html" }).end(html));
 await new Promise<void>(r => server.listen(0, "127.0.0.1", r));
 const port = (server.address() as { port: number }).port;
-writeFileSync(join(dir, "demo.ts"), `import { demo } from "flow-reel";
-export default demo({ url: "http://localhost:${port}/", viewport: [960, 540] }, async ({ page, step, sfx }) => {
-  await step("Enter a name.", () => page.getByRole("textbox", { name: "Name" }).fill("Ada"));
-  await step("Save the changes.", async () => { await page.getByRole("button", { name: "Save" }).click(); sfx("success"); });
+writeFileSync(join(dir, "demo.ts"), `import { script, Sounds } from "flow-reel";
+export default script({ url: "http://localhost:${port}/", viewport: [960, 540] }, async ({ page, comment }) => {
+  comment("Enter a name.");
+  await page.getByRole("textbox", { name: "Name" }).fill("Ada");
+  await page.getByRole("button", { name: "Save" }).comment("Save the changes.").sound(Sounds.feedback.SUCCESS).click();
 });\n`);
 try {
   const args = spec.startsWith("flow-reel@") ? ["--yes", spec] : ["--yes", "--package", resolve(spec), "flow-reel"];
-  const result = await promisify(execFile)("npx", [...args, "record", join(dir, "demo.ts")], {
+  const result = await promisify(execFile)("npx", [...args, "compose", join(dir, "demo.ts")], {
     cwd: dir, timeout: 900_000, maxBuffer: 4 << 20,
     env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, npm_config_cache: join(dir, "npm-cache"), npm_config_userconfig: "/dev/null" },
   });

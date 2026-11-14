@@ -6,9 +6,10 @@ it, the same way every time.
 This file is the project's vocabulary. Use these words, with these meanings, in code, documentation, commit
 messages, issues and the plugin. Each concept has one word; the "avoid" words are older or looser names for it.
 
-> **Status:** this is the 0.2 language. Until [#29](https://github.com/codeonym-oss/flow-reel/issues/29) and
-> [#30](https://github.com/codeonym-oss/flow-reel/issues/30) land, the code and the README still use the 0.1 names
-> (`demo`, `step(narration, action)`, `sfx`, `flow-reel record`).
+> **Status:** this is the 0.2 language. Scripts use it (`script`, `comment`, `sound`, `flow-reel compose`). Until
+> [#31](https://github.com/codeonym-oss/flow-reel/issues/31) lands, a cassette is still loose files next to the
+> script rather than one folder with a manifest, and effects arrive with
+> [#32](https://github.com/codeonym-oss/flow-reel/issues/32).
 
 ## What a person writes
 

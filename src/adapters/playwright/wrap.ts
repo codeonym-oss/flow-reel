@@ -1,8 +1,11 @@
-// The page a demo script receives (GH-2 decision 002): plain Playwright, except that actions ease the mouse to their
-// target, type visibly, and append what they did to the event log (story decision 013).
+// The page a script receives (GH-2 decision 002): plain Playwright, except that actions ease the mouse to their
+// target, type visibly, and append what they did to the event log (story decision 013). Every action runs inside
+// its step, and locators take the chained words comment() and sound() (GH-30 decision 001).
 import type { Locator, Page } from "playwright";
-import type { Bounds, Point, ComposerEvent } from "../../composer/schema/events.ts";
+import type { Bounds, Point, ComposerEvent, Sound } from "../../composer/schema/events.ts";
+import type { Stage } from "../../composer/ports.ts";
 import { easeInOutCubic, moveDuration, pathPoints } from "../../composer/easing.ts";
+import { checkSound } from "../../composer/sounds.ts";
 
 export interface WrapOptions {
   /** Milliseconds on the recording's clock. */
@@ -13,6 +16,8 @@ export interface WrapOptions {
   fps?: number;
   /** CSS pixels; defaults to the page's emulated viewport. */
   viewport?: [width: number, height: number];
+  /** Steps and sounds; without it, actions just run. */
+  stage?: Pick<Stage, "comment" | "sound" | "action">;
 }
 
 const CHAR_DELAY_MS = 60;
@@ -30,11 +35,14 @@ const PAGE_SELECTOR_ACTIONS = new Set([
   "click", "dblclick", "hover", "check", "uncheck", "setChecked", "fill", "type", "selectOption",
 ]);
 // Calls that act on the page (or hand out objects that do) but that the wrapper can't animate: they run as is,
-// with a warning.
+// with a warning. Those that return a promise run as actions of their step.
 const PAGE_UNCOVERED = new Set([
   "press", "tap", "dragAndDrop", "setInputFiles", "evaluate", "evaluateHandle", "dispatchEvent", "focus",
   "frame", "frames", "mainFrame",
 ]);
+const PAGE_HANDOUTS = new Set(["frame", "frames", "mainFrame"]);
+// Navigation runs as an action of its step, so a comment before it is spoken with it.
+const PAGE_NAVIGATION = new Set(["goto", "reload", "goBack", "goForward"]);
 const LOCATOR_UNCOVERED = new Set([
   "tap", "dragTo", "setInputFiles", "dispatchEvent", "evaluate", "evaluateAll", "focus", "press", "clear", "selectText",
 ]);
@@ -49,6 +57,7 @@ const optionsOf = (value: unknown): ActionOptions => (value && typeof value === 
 
 export function wrapPage(page: Page, options: WrapOptions): Page {
   const { clock, events, fps = 30 } = options;
+  const stage = options.stage ?? { comment() {}, sound() {}, action: (run) => run() };
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const warned = new Set<string>();
   const [vw, vh] = options.viewport ?? [page.viewportSize()?.width ?? 1920, page.viewportSize()?.height ?? 1080];
@@ -143,7 +152,8 @@ export function wrapPage(page: Page, options: WrapOptions): Page {
     await paced(text.length * CHAR_DELAY_MS + BUDGET_MS.typeTail, () => press(text));
   }
 
-  function wrapLocator(locator: Locator): Locator {
+  // `sound` is the sound chained on this locator: it plays when the locator's action is logged.
+  function wrapLocator(locator: Locator, sound?: Sound): Locator {
     const target = String(locator);
     const typeInto = (text: string, bounds: Bounds | undefined, timeout?: number) =>
       typeText(text, target, bounds, (t) => locator.pressSequentially(t, { delay: CHAR_DELAY_MS, timeout }));
@@ -188,36 +198,44 @@ export function wrapPage(page: Page, options: WrapOptions): Page {
         await act(() => locator.click({ timeout: optionsOf(args[1]).timeout }), [], position);
         return typeInto(String(args[0]), position?.bounds, optionsOf(args[1]).timeout);
       },
-      // Each locator all() hands out is wrapped, so looping over matches animates like any other locator.
-      async all(original, args) { return ((await original(...args)) as Locator[]).map(wrapLocator); },
     };
     const act = (original: Function, args: unknown[], clickAt?: { at: Point; bounds: Bounds }, clicks = 1, button?: Button) =>
       paced(BUDGET_MS.act, async () => {
         const result = await original(...args);
         for (let i = 0; i < clicks; i++) logClick(clickAt, target, button);
+        if (sound) stage.sound(sound);
         return result;
       });
 
-    return new Proxy(locator, {
+    const proxy: Locator = new Proxy(locator, {
       get(obj, prop, receiver) {
+        if (prop === "comment") return (text: string) => { stage.comment(text); return proxy; };
+        if (prop === "sound") return (next: Sound) => { checkSound(next); return wrapLocator(locator, next); };
         const value = Reflect.get(obj, prop, receiver);
         if (typeof prop !== "string" || typeof value !== "function") return value;
         const original = value.bind(obj);
-        if (prop in actions) return (...args: unknown[]) => actions[prop](original, args);
-        if (LOCATOR_FACTORIES.has(prop)) return (...args: unknown[]) => wrapLocator(original(...args));
-        if (LOCATOR_UNCOVERED.has(prop)) return (...args: unknown[]) => { warnOnce(`locator.${prop}`); return original(...args); };
+        if (prop in actions) return (...args: unknown[]) => stage.action(() => actions[prop](original, args));
+        // Each locator all() hands out is wrapped, so looping over matches animates like any other locator.
+        if (prop === "all") return async () => ((await original()) as Locator[]).map((l) => wrapLocator(l, sound));
+        if (LOCATOR_FACTORIES.has(prop)) return (...args: unknown[]) => wrapLocator(original(...args), sound);
+        if (LOCATOR_UNCOVERED.has(prop)) {
+          return (...args: unknown[]) => { warnOnce(`locator.${prop}`); return stage.action(() => original(...args)); };
+        }
         return original;
       },
     });
+    return proxy;
   }
 
   const mouse = new Proxy(page.mouse, {
     get(obj, prop, receiver) {
       const value = Reflect.get(obj, prop, receiver);
       if (typeof prop !== "string" || typeof value !== "function") return value;
-      if (prop === "wheel") return (dx: number, dy: number) => wheel(dx, dy);
+      if (prop === "wheel") return (dx: number, dy: number) => stage.action(() => wheel(dx, dy));
       const original = value.bind(obj);
-      if (MOUSE_UNCOVERED.has(prop)) return (...args: unknown[]) => { warnOnce(`page.mouse.${prop}`); return original(...args); };
+      if (MOUSE_UNCOVERED.has(prop)) {
+        return (...args: unknown[]) => { warnOnce(`page.mouse.${prop}`); return stage.action(() => original(...args)); };
+      }
       return original;
     },
   });
@@ -229,9 +247,12 @@ export function wrapPage(page: Page, options: WrapOptions): Page {
       if (typeof prop !== "string" || typeof value !== "function") return value;
       const original = value.bind(obj);
       if (prop === "type") {
-        return (text: string) => typeText(String(text), "keyboard", undefined, (t) => original(t, { delay: CHAR_DELAY_MS }));
+        return (text: string) => stage.action(() =>
+          typeText(String(text), "keyboard", undefined, (t) => original(t, { delay: CHAR_DELAY_MS })));
       }
-      if (KEYBOARD_UNCOVERED.has(prop)) return (...args: unknown[]) => { warnOnce(`page.keyboard.${prop}`); return original(...args); };
+      if (KEYBOARD_UNCOVERED.has(prop)) {
+        return (...args: unknown[]) => { warnOnce(`page.keyboard.${prop}`); return stage.action(() => original(...args)); };
+      }
       return original;
     },
   });
@@ -248,7 +269,13 @@ export function wrapPage(page: Page, options: WrapOptions): Page {
       if (typeof prop !== "string" || typeof value !== "function") return value;
       const original = value.bind(obj);
       if (LOCATOR_FACTORIES.has(prop)) return (...args: unknown[]) => wrapLocator(original(...args));
-      if (PAGE_UNCOVERED.has(prop)) return (...args: unknown[]) => { warnOnce(`page.${prop}`); return original(...args); };
+      if (PAGE_NAVIGATION.has(prop)) return (...args: unknown[]) => stage.action(() => original(...args));
+      if (PAGE_UNCOVERED.has(prop)) {
+        return (...args: unknown[]) => {
+          warnOnce(`page.${prop}`);
+          return PAGE_HANDOUTS.has(prop) ? original(...args) : stage.action(() => original(...args));
+        };
+      }
       return original;
     },
   });

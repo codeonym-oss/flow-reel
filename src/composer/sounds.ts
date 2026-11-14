@@ -1,24 +1,30 @@
-import { SFX_NAMES, type ComposerEvent } from "./schema/events.ts";
-import type { Sfx } from "../index.ts";
+import { SOUND_NAMES, type ComposerEvent, type Sound, type SoundName } from "./schema/events.ts";
 
-export type SoundAsset = "click" | "typing0" | "typing1" | "typing2" | Parameters<Sfx>[0];
+export type SoundAsset = "click" | "typing0" | "typing1" | "typing2" | SoundName;
 export interface SoundPlacement { sample: number; asset: SoundAsset }
 export const SAMPLE_RATE = 48000;
 /** Clicks this close together are one gesture's presses (a double-click), rendered as one sound and one ripple. */
 export const SAME_CLICK_MS = 30;
 
-/** Mark an explicit sound without advancing the recording clock. */
-export function cueLogger(clock: { now(): number }, events: ComposerEvent[]): Sfx {
-  return (name) => {
-    if (!SFX_NAMES.includes(name)) throw new Error(`unknown sound cue: ${String(name)}`);
-    events.push({ t: clock.now(), type: "sfx", name });
+/** Throws unless `sound` is one of the `Sounds` constants; a script in plain JavaScript has no types to catch it. */
+export function checkSound(sound: unknown): asserts sound is Sound {
+  if (!SOUND_NAMES.includes(sound as SoundName)) {
+    throw new Error(`unknown sound ${JSON.stringify(sound)}: use one of the Sounds constants from "flow-reel"`);
+  }
+}
+
+/** Logs a script's sound at this moment, without advancing the recording clock. */
+export function soundLogger(clock: { now(): number }, events: ComposerEvent[]): (sound: Sound) => void {
+  return (sound) => {
+    checkSound(sound);
+    events.push({ t: clock.now(), type: "sound", name: sound });
   };
 }
 
 /** Positions are already calibrated and held: never retime them a second time. */
 export function planSfx(events: readonly ComposerEvent[], durationMs: number): SoundPlacement[] {
   const sorted = [...events].sort((a, b) => a.t - b.t);
-  const cues = sorted.filter((e) => e.type === "sfx" && e.t >= 0 && e.t < durationMs);
+  const cues = sorted.filter((e) => e.type === "sound" && e.t >= 0 && e.t < durationMs);
   const placed: SoundPlacement[] = [];
   let typing = 0;
   let lastClick = -Infinity;
@@ -33,7 +39,7 @@ export function planSfx(events: readonly ComposerEvent[], durationMs: number): S
         add(event.t, "click");
         lastClick = event.t;
       }
-    } else if (event.type === "sfx") add(event.t, event.name);
+    } else if (event.type === "sound") add(event.t, event.name);
     else if (event.type === "type") {
       let i = 0;
       for (const char of event.text) {

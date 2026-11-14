@@ -5,7 +5,7 @@ import { expect, it } from "vitest";
 import { assembleSfx } from "../../src/composer/media/sound-mix.ts";
 import { planTimeline } from "../../src/composer/timeline.ts";
 import { renderTimeline, videoFrames, measureLoudness } from "../../src/composer/media/render.ts";
-import { SFX_NAMES, type ComposerEvent } from "../../src/composer/schema/events.ts";
+import { SOUND_NAMES, type ComposerEvent } from "../../src/composer/schema/events.ts";
 
 const dir = resolve("test/e2e/out/sfx");
 mkdirSync(dir, { recursive: true });
@@ -13,7 +13,7 @@ const timeline = planTimeline([], { fps: 30, frames: 90, cutMs: 0 });
 const decode = (file: string) => execFileSync("ffmpeg", ["-v", "error", "-i", file, "-af", "pan=mono|c0=c0", "-f", "f32le", "-"], { maxBuffer: 8 << 20 });
 
 it("renders quiet, sample-timed effects without voice, with exact duration and repeatable PCM", () => {
-  const events = [{ t: 500, type: "sfx" as const, name: "success" as const }];
+  const events = [{ t: 500, type: "sound" as const, name: "success" as const }];
   const file = assembleSfx(events, timeline, undefined, dir)!;
   const raw = decode(file);
   expect(raw.length).toBe(144000 * 4);
@@ -33,10 +33,10 @@ it("renders quiet, sample-timed effects without voice, with exact duration and r
   expect(readFileSync(file).length).toBeGreaterThan(raw.length);
 });
 
-it("ducks effects over whole narration clips with 30 ms attack and 250 ms recovery", () => {
+it("ducks effects over whole comment clips with 30 ms attack and 250 ms recovery", () => {
   const voice = join(dir, "reference.wav");
   execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=3", voice]);
-  const events: ComposerEvent[] = [{ t: 900, type: "sfx", name: "notification" }, { t: 1950, type: "sfx", name: "notification" }];
+  const events: ComposerEvent[] = [{ t: 900, type: "sound", name: "notification" }, { t: 1950, type: "sound", name: "notification" }];
   assembleSfx(events, timeline, voice, dir);
   const baseline = decode(join(dir, "sfx.wav"));
   const withSpeech = { ...timeline, steps: [{ index: 0, startMs: 1000, actionEndMs: 1100, endMs: 2200,
@@ -67,8 +67,8 @@ it("ducks effects over whole narration clips with 30 ms attack and 250 ms recove
 it("handles long typing and simultaneous cues with bounded peaks and exact tail trimming", () => {
   const long = planTimeline([], { fps: 30, frames: 960, cutMs: 0 });
   const events: ComposerEvent[] = [{ t: 100, type: "type", text: "abc".repeat(175), charDelayMs: 60, target: "field" },
-    ...SFX_NAMES.flatMap((name) => Array.from({ length: 10 }, (): ComposerEvent => ({ t: 16000, type: "sfx", name }))),
-    { t: 31990, type: "sfx", name: "success" }];
+    ...SOUND_NAMES.flatMap((name) => Array.from({ length: 10 }, (): ComposerEvent => ({ t: 16000, type: "sound", name }))),
+    { t: 31990, type: "sound", name: "success" }];
   const file = assembleSfx(events, long, undefined, dir)!;
   const raw = decode(file);
   expect(raw.length).toBe(1536000 * 4);
@@ -88,7 +88,7 @@ it("muxes all named cues and automatic typing, preserves frames, and fully mutes
   execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "color=black:s=160x90:r=30:d=3", "-c:v", "libx264", capture]);
   const options = { capture, master: join(dir, "master.mp4"), video: join(dir, "demo.mp4"), voice: join(dir, "voice.wav"),
     audioDir: dir, viewport: [160, 90] as [number, number], timeline,
-    events: SFX_NAMES.map((name, i): ComposerEvent => ({ t: 100 + i * 300, type: "sfx", name })) };
+    events: SOUND_NAMES.map((name, i): ComposerEvent => ({ t: 100 + i * 300, type: "sound", name })) };
   options.events.push({ t: 2500, type: "type", text: "Ada", charDelayMs: 60, target: "field" });
   renderTimeline(options);
   expect(videoFrames(options.video)).toBe(90);
@@ -99,7 +99,7 @@ it("muxes all named cues and automatic typing, preserves frames, and fully mutes
   expect(probe.streams.map((s: { codec_type: string }) => s.codec_type)).toEqual(["video"]);
   expect(existsSync(join(dir, "sfx.wav"))).toBe(false);
   expect(videoFrames(options.video)).toBe(90);
-  expect(() => renderTimeline({ ...options, events: [{ t: 2999.9, type: "sfx", name: "error" }] })).not.toThrow();
+  expect(() => renderTimeline({ ...options, events: [{ t: 2999.9, type: "sound", name: "error" }] })).not.toThrow();
 });
 
 it("calibrates cue and typing RMS separately and keeps their level independent of silent padding", () => {
@@ -111,7 +111,7 @@ it("calibrates cue and typing RMS separately and keeps their level independent o
     for (let i = first; i <= last; i++) energy += raw.readFloatLE(i * 4) ** 2;
     return 10 * Math.log10(energy / (last - first + 1));
   };
-  const cue: ComposerEvent[] = [{ t: 500, type: "sfx", name: "notification" }];
+  const cue: ComposerEvent[] = [{ t: 500, type: "sound", name: "notification" }];
   const file = assembleSfx(cue, timeline, undefined, dir)!;
   const normal = decode(file);
   expect(level(normal)).toBeCloseTo(-32, 0);

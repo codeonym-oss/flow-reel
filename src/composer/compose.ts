@@ -11,7 +11,7 @@ import { renderCaptions } from "./captions.ts";
 import { screenFor, startDisplay } from "./media/display.ts";
 import { FPS, durationMs, firstFrameOfColour, startRecording } from "./media/recording.ts";
 import { renderTimeline, videoFrames } from "./media/render.ts";
-import { cueLogger } from "./sounds.ts";
+import { soundLogger } from "./sounds.ts";
 import { stepTimer } from "./steps.ts";
 import { planTimeline, retimeEvents } from "./timeline.ts";
 import { voiceSteps } from "./voicing.ts";
@@ -61,7 +61,9 @@ export async function compose(scriptPath: string, { integration, voice, store, s
       steps = timer.steps;
       let ranMs = 0;
       try {
-        await session.run({ clock: recording, events, fps: FPS, step: timer.step, sound: cueLogger(recording, events) });
+        await session.run({ clock: recording, events, fps: FPS, comment: timer.comment, action: timer.action,
+          sound: soundLogger(recording, events) });
+        await timer.finish();
         await sleep(TAIL_MS);
       } finally {
         ranMs = await recording.stop();
@@ -98,18 +100,18 @@ export async function compose(scriptPath: string, { integration, voice, store, s
   }
 
   // CPU synthesis starts only after capture, browser and display have finished.
-  const narration = await voiceSteps(steps, cassette.audioDir, voice);
-  const timeline = planTimeline(narration.steps, { fps: FPS, frames: videoFrames(out.capture), cutMs: deliveryCutMs });
-  const log = { version: 2 as const, events: retimeEvents(events, timeline) };
+  const voiced = await voiceSteps(steps, cassette.audioDir, voice);
+  const timeline = planTimeline(voiced.steps, { fps: FPS, frames: videoFrames(out.capture), cutMs: deliveryCutMs });
+  const log = { version: 3 as const, events: retimeEvents(events, timeline) };
   const eventErrors = validateEvents(log);
   if (eventErrors.length) throw new Error(`recording events are invalid:\n  ${eventErrors.join("\n  ")}`);
   renderTimeline({ capture: out.capture, master: out.master, video: out.stagedVideo,
     voice: out.voiceBus, audioDir: cassette.audioRoot, viewport, timeline, events: log.events, sfx });
   const transcript: Transcript = {
-    version: 1,
+    version: 2,
     script: basename(scriptPath),
     video: { file: cassette.videoFile, width: viewport[0], height: viewport[1], fps: FPS, durationMs: durationMs(out.stagedVideo) },
-    voice: narration.voice, steps: timeline.steps,
+    voice: voiced.voice, steps: timeline.steps,
   };
   const errors = validateSync(transcript);
   if (errors.length) throw new Error(`recording is invalid:\n  ${errors.join("\n  ")}`);

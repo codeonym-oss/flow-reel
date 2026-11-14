@@ -15,7 +15,7 @@ export function renderCaptions(steps: readonly TranscriptStep[]): { srt: string;
   let vtt = "WEBVTT\n\n";
   let index = 0;
   for (const step of steps) {
-    const text = (step.narration ?? "").replace(/\s+/g, " ").trim()
+    const text = (step.comment ?? "").replace(/\s+/g, " ").trim()
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     if (!text || step.endMs <= step.startMs) continue;
     index++;
