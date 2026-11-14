@@ -5,9 +5,9 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { validateTranscript } from "../src/schema/transcript.ts";
-import { validateEvents } from "../src/schema/events.ts";
-import { validateSync } from "../src/schema/sync.ts";
+import { validateTranscript } from "../src/composer/schema/transcript.ts";
+import { validateEvents } from "../src/composer/schema/events.ts";
+import { validateSync } from "../src/composer/schema/sync.ts";
 
 const spec = process.argv[2];
 assert(spec, "provide a tested tarball path or flow-reel@version");

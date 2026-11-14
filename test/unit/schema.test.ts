@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { validateEvents } from "../../src/schema/events.ts";
-import { validateTranscript } from "../../src/schema/transcript.ts";
+import { validateEvents } from "../../src/composer/schema/events.ts";
+import { validateTranscript } from "../../src/composer/schema/transcript.ts";
 
 // The examples of story decisions 011 and 013, verbatim.
 const transcript = {

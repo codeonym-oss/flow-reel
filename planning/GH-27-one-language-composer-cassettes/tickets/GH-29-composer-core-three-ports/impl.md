@@ -1,0 +1,113 @@
+# GH-29: implementation plan
+
+Planned 2026-11-14 against `main` @ `0e1c25d`. A pure refactor: pull request type `refactor:`, branch
+`refactor/29-composer-core-three-ports`, no release.
+
+## Settled before this pass
+
+Story decisions 006 (TypeScript core, ports and adapters), 007 (three ports; media stays plain modules), 009
+(vocabulary) and this ticket's decision 001 (folders by role).
+
+## What the code shows
+
+- `src/runner/run.ts` (`record`, 170 lines) is the whole composing flow. It calls Playwright (`launchBrowser`,
+  `wrapPage`, `trackNetwork`, `page.evaluate` for the timing marker), the Qwen voice (`voiceSteps` default) and
+  builds every output path itself.
+- `src/runner/tts.ts` already has a voice interface (`TtsAdapter`) with one implementation (`qwen`), plus
+  `voiceSteps`, which is core logic.
+- `browser.ts`, `load.ts`, `network.ts` and `wrap.ts` are Playwright-specific. `display.ts`, `recorder.ts`,
+  `render.ts`, `polish-render.ts` and `sfx-audio.ts` drive Xvfb and ffmpeg.
+- Tests import 14 `src/runner/*` and `src/schema/*` paths; `scripts/consumer.ts` imports three schema paths.
+  Nothing in `package.json`, the Dockerfile or the workflows names a moved path (the image runs `dist/cli.js`).
+- Two modules find the package root by relative depth: `tts.ts` (`../..`, for `tts-venv` and `docker/tts/worker.py`)
+  and `load.ts` (`../index`). Both move one level deeper.
+
+## What does not change in this ticket
+
+The public script API (`demo`, `step`, `sfx`), the CLI (`flow-reel record`, `compare`), every output file, its name
+and its content. That includes serialized names that are not yet the vocabulary: the transcript's `narration`
+field and the event log's `sfx` event type change with the script language (GH-30) and the cassette (GH-31),
+where the schema versions change anyway. This ticket renames files and internal identifiers only.
+
+## Target layout
+
+| Now | After |
+|---|---|
+| `src/runner/run.ts` (`record`) | `src/composer/compose.ts` (`compose`) |
+| `src/runner/{timeline,captions,easing,polish}.ts` | `src/composer/` (same names) |
+| `src/runner/sfx.ts` | `src/composer/sounds.ts` |
+| `src/runner/tts.ts`: `voiceSteps` | `src/composer/voicing.ts` |
+| `src/runner/tts.ts`: `TtsAdapter`, `qwen` | `Voice` in `src/composer/ports.ts`; `src/adapters/qwen/voice.ts` |
+| `src/schema/*` | `src/composer/schema/*` |
+| `src/runner/{display,render,polish-render}.ts` | `src/composer/media/` (same names) |
+| `src/runner/recorder.ts` | `src/composer/media/recording.ts` |
+| `src/runner/sfx-audio.ts` | `src/composer/media/sound-mix.ts` |
+| `src/runner/{browser,load,network,wrap}.ts` | `src/adapters/playwright/` (same names) |
+| (new) | `src/composer/ports.ts`, `src/adapters/playwright/integration.ts`, `src/adapters/folder/store.ts` |
+| `src/host/launch.ts`, `src/index.ts`, `src/cli.ts`, `src/compare.ts` | unchanged places |
+
+## The three ports (`src/composer/ports.ts`)
+
+- **`Voice`**: today's `TtsAdapter` renamed: the voice's identity for the transcript, and "speak these clips".
+- **`Integration`**: `load(scriptPath)` returns the script's viewport and an `open()` that starts a session. A
+  session can report whether the page is still loading, show and hide the timing marker, run the script body
+  against a stage the core supplies (clock, event log, the step function, the sound function), and close.
+  The core keeps step timing, settling and the capture-delay measurement.
+- **`CassetteStore`**: given a script path, returns where work files, audio and results go, and commits the
+  finished video, transcript, captions and event log. The folder adapter reproduces today's layout exactly.
+
+`src/cli.ts` is the only place that names adapters: it passes Playwright, Qwen and the folder store to `compose`.
+
+## Steps
+
+1. Add `test/unit/layout.test.ts`: every file under `src/composer/` imports neither `playwright` nor a path under
+   `adapters/`.
+   → check: it fails first on `src/runner` not existing as `src/composer`, then passes at step 6.
+2. Move files with `git mv` per the table (no content change except import paths and the two root-depth
+   constants), and update imports in `src/`, `test/` and `scripts/consumer.ts`.
+   → check: `npm run typecheck` and `npm test` pass; `git diff -M --stat` shows renames, not rewrites.
+3. Voice port: move the interface to `ports.ts` as `Voice`, `qwen` to `src/adapters/qwen/voice.ts`, and
+   `voiceSteps` to `voicing.ts` with the voice as a required argument (no default).
+   → check: `test/unit/tts.test.ts` passes with only its imports changed.
+4. Cassette store port: move the path building and final writes out of `compose` into
+   `src/adapters/folder/store.ts`.
+   → check: a new unit test composes nothing but calls the folder store with a script path and asserts the exact
+   paths `README.md` documents today.
+5. Integration port: move browser launch, script loading, page wrapping, network tracking and the marker into
+   `src/adapters/playwright/integration.ts`; `compose` talks to a session.
+   → check: a new unit test runs `compose`'s step timing against a fake integration and fake voice (no browser),
+   asserting the nested-step guard and step order still hold.
+6. Rename internal identifiers and comments to the vocabulary where they are not serialized (`record` → `compose`,
+   "runner" → "composer" in comments). Wire the adapters in `src/cli.ts`.
+   → check: the layout test of step 1 passes; `npm run typecheck`, `npm test`, `npm run pack:check` pass on Node 26
+   and 22.18.0.
+7. Prove behaviour is unchanged on real recordings.
+   → check: CI's recording suite passes on amd64 and arm64 with no assertion edited. Then download the `e2e-amd64`
+   artifact of the last `main` run and of this pull request's run and run `flow-reel compare` on the fixture's two
+   transcripts; the result goes in the pull request.
+
+## Tests
+
+- New: the layout rule (step 1), the folder store's paths (step 4), `compose` against fakes (step 5).
+- Existing unit tests change in import paths only. Recording tests change nothing.
+
+## Risks
+
+- **Root-depth paths** (`tts-venv`, `worker.py`, the `flow-reel` import hook) break silently in the built image if
+  off by one level. Unit tests don't run the image; step 7's CI recording does, and it voices real clips.
+- **The package's file list** (`dist`, `docker`) is unaffected, but `pack:check` in step 6 confirms the built
+  layout still has `dist/cli.js` and `dist/index.js`.
+- **A recording cannot be built locally** without the 7 GB image; step 7 relies on CI, so a mistake there costs one
+  CI round (about 15 minutes).
+- **Scope creep:** renaming serialized fields or public words here would break the "no behaviour change" proof.
+  They are left for GH-30 and GH-31.
+
+## Corrections during the build (2026-11-14)
+
+- **Step 5 tests the step timer, not `compose`.** `compose` also starts Xvfb and ffmpeg, so it cannot run against
+  fakes without a display. The step timing moved out of `compose` into `src/composer/steps.ts` (`stepTimer`), and
+  `test/unit/steps.test.ts` covers order, timings, the nested-step guard, failures and the loading warning with a
+  fake clock. `compose` itself is covered by the recording suite (step 7).
+- **The host's source-checkout warning** (`src/host/launch.ts`) tested for `src/runner`; it now tests for
+  `src/composer`. Its unit test had kept passing only because git leaves an empty `src/runner/` folder behind.
+- **`RunnerEvent` is now `ComposerEvent`.** It is an internal type, not exported by `src/index.ts` and not serialized.

@@ -1,5 +1,5 @@
-import type { RunnerEvent } from "../schema/events.ts";
-import type { TranscriptStep } from "../schema/transcript.ts";
+import type { ComposerEvent } from "./schema/events.ts";
+import type { TranscriptStep } from "./schema/transcript.ts";
 
 /** A hold clones frame - 1 before source frame `frame` (indices include calibration pre-roll). */
 export interface Hold { frame: number; frames: number }
@@ -41,6 +41,6 @@ export function planTimeline(
   };
 }
 
-export function retimeEvents(events: readonly RunnerEvent[], timeline: Timeline): RunnerEvent[] {
+export function retimeEvents(events: readonly ComposerEvent[], timeline: Timeline): ComposerEvent[] {
   return events.map((event) => ({ ...event, t: timeline.mapTime(event.t) }));
 }

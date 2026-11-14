@@ -1,4 +1,4 @@
-import { SFX_NAMES, type RunnerEvent } from "../schema/events.ts";
+import { SFX_NAMES, type ComposerEvent } from "./schema/events.ts";
 import type { Sfx } from "../index.ts";
 
 export type SoundAsset = "click" | "typing0" | "typing1" | "typing2" | Parameters<Sfx>[0];
@@ -8,7 +8,7 @@ export const SAMPLE_RATE = 48000;
 export const SAME_CLICK_MS = 30;
 
 /** Mark an explicit sound without advancing the recording clock. */
-export function cueLogger(clock: { now(): number }, events: RunnerEvent[]): Sfx {
+export function cueLogger(clock: { now(): number }, events: ComposerEvent[]): Sfx {
   return (name) => {
     if (!SFX_NAMES.includes(name)) throw new Error(`unknown sound cue: ${String(name)}`);
     events.push({ t: clock.now(), type: "sfx", name });
@@ -16,7 +16,7 @@ export function cueLogger(clock: { now(): number }, events: RunnerEvent[]): Sfx 
 }
 
 /** Positions are already calibrated and held: never retime them a second time. */
-export function planSfx(events: readonly RunnerEvent[], durationMs: number): SoundPlacement[] {
+export function planSfx(events: readonly ComposerEvent[], durationMs: number): SoundPlacement[] {
   const sorted = [...events].sort((a, b) => a.t - b.t);
   const cues = sorted.filter((e) => e.type === "sfx" && e.t >= 0 && e.t < durationMs);
   const placed: SoundPlacement[] = [];

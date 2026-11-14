@@ -6,11 +6,11 @@ import type { AddressInfo } from "node:net";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { SFX_NAMES, type EventLog, validateEvents } from "../../src/schema/events.ts";
+import { SFX_NAMES, type EventLog, validateEvents } from "../../src/composer/schema/events.ts";
 import { compareTranscripts } from "../../src/compare.ts";
-import { validateSync } from "../../src/schema/sync.ts";
-import { type Transcript, validateTranscript } from "../../src/schema/transcript.ts";
-import { planPolish } from "../../src/runner/polish.ts";
+import { validateSync } from "../../src/composer/schema/sync.ts";
+import { type Transcript, validateTranscript } from "../../src/composer/schema/transcript.ts";
+import { planPolish } from "../../src/composer/polish.ts";
 import { prepareImage } from "./image.ts";
 
 // The whole recorder, in Docker, against a fixture app served from the host's 127.0.0.1 (GH-2 impl.md step 12).

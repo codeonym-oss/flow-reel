@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 // Vitest runs import() through its own module runner, so the loader is exercised in a real Node process.
 function loadInNode(script: string): string {
-  const loader = resolve("src/runner/load.ts");
+  const loader = resolve("src/adapters/playwright/load.ts");
   const code = `const { loadDemo } = await import(${JSON.stringify(loader)});
 const d = await loadDemo(${JSON.stringify(script)});
 console.log(JSON.stringify({ options: d.options, body: typeof d.body }));`;

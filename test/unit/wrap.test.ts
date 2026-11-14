@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Page } from "playwright";
-import type { RunnerEvent } from "../../src/schema/events.ts";
-import { wrapPage } from "../../src/runner/wrap.ts";
+import type { ComposerEvent } from "../../src/composer/schema/events.ts";
+import { wrapPage } from "../../src/adapters/playwright/wrap.ts";
 
 // A fake of the Playwright surface the wrapper touches: the page, its mouse and locators. Every call lands in `calls`.
 interface Box { x: number; y: number; width: number; height: number }
@@ -64,7 +64,7 @@ let nestedScroller = false;
 const clock = { now: () => now };
 const sleep = async (ms: number) => { now += ms; };
 
-let events: RunnerEvent[];
+let events: ComposerEvent[];
 let warnings: string[];
 beforeEach(() => { now = 0; events = []; warnings = []; nestedScroller = false; });
 

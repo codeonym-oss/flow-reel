@@ -2,8 +2,8 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { beforeAll, expect, it } from "vitest";
-import { planTimeline } from "../../src/runner/timeline.ts";
-import { renderTimeline, videoFrames } from "../../src/runner/render.ts";
+import { planTimeline } from "../../src/composer/timeline.ts";
+import { renderTimeline, videoFrames } from "../../src/composer/media/render.ts";
 
 const dir = resolve("test/e2e/out/render");
 const media = (args: string[]) => execFileSync("ffmpeg", ["-v", "error", "-y", ...args]);
@@ -80,7 +80,7 @@ it("places original clips on the delivery clock and normalizes decoded AAC witho
   expect(Math.abs(ends[0] - 1200)).toBeLessThanOrEqual(1000 / 30);
   expect(Math.abs(groups[1] - 3000)).toBeLessThanOrEqual(1000 / 30);
   expect(Math.abs(ends[1] - 3600)).toBeLessThanOrEqual(1000 / 30);
-  const { measureLoudness } = await import("../../src/runner/render.ts");
+  const { measureLoudness } = await import("../../src/composer/media/render.ts");
   const measured = measureLoudness(out.video);
   expect(Math.abs(Number(measured.input_i) + 16)).toBeLessThanOrEqual(1);
   expect(Number(measured.input_tp)).toBeLessThanOrEqual(-1.4);

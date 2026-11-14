@@ -4,7 +4,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type BrowserContext, type Page, chromium } from "playwright";
-import { DISPLAY, SCALE } from "./display.ts";
+import { DISPLAY, SCALE } from "../../composer/media/display.ts";
 
 const START_TIME = new Date("2026-01-05T09:00:00Z");
 const SEED = 0;

@@ -67,7 +67,7 @@ describe("detectEngine", () => {
 });
 
 describe("sourceCheckoutWarning", () => {
-  it("warns only in a git checkout with runner sources", () => {
+  it("warns only in a git checkout with composer sources", () => {
     const image = "ghcr.io/codeonym-oss/flow-reel:0.1.1";
     expect(sourceCheckoutWarning(resolve("."), image)).toMatch(/source checkout.*0\.1\.1.*docker build/s);
     expect(sourceCheckoutWarning(mkdtempSync(join(tmpdir(), "flow-reel-installed-")), image)).toBeUndefined();

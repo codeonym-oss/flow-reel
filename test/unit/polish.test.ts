@@ -1,14 +1,14 @@
 import { expect, it } from "vitest";
-import { planPolish } from "../../src/runner/polish.ts";
-import type { RunnerEvent } from "../../src/schema/events.ts";
+import { planPolish } from "../../src/composer/polish.ts";
+import type { ComposerEvent } from "../../src/composer/schema/events.ts";
 
 const options = { viewport: [1920, 1080] as [number, number], source: [2560, 1440] as [number, number], fps: 30, frames: 180 };
-const click = (t: number, at: [number, number] = [960, 540]): Extract<RunnerEvent, { type: "click" }> =>
+const click = (t: number, at: [number, number] = [960, 540]): Extract<ComposerEvent, { type: "click" }> =>
   ({ t, type: "click", at, button: "left", target: "button" });
 
 it("keeps camera lookahead and ripples unchanged when sound cues are interleaved", () => {
-  const move: RunnerEvent = { t: 1200, type: "move", from: [960, 540], to: [1700, 900], durationMs: 450, easing: "easeInOutCubic" };
-  const events: RunnerEvent[] = [click(1000), move, { ...click(1650, [1700, 900]), bounds: { x: 0, y: 0, width: 1900, height: 1000 } }];
+  const move: ComposerEvent = { t: 1200, type: "move", from: [960, 540], to: [1700, 900], durationMs: 450, easing: "easeInOutCubic" };
+  const events: ComposerEvent[] = [click(1000), move, { ...click(1650, [1700, 900]), bounds: { x: 0, y: 0, width: 1900, height: 1000 } }];
   const base = planPolish(events, options);
   const cues = planPolish([events[0], move, { t: 1400, type: "sfx", name: "open" }, events[2]], options);
   for (let n = 0; n < options.frames; n++) expect(cues.frame(n)).toEqual(base.frame(n));
@@ -26,7 +26,7 @@ it("zooms on click, holds for two seconds, then eases back without extending the
 });
 
 it("merges clicks and typing, including activity during ease-out, without snapping", () => {
-  const events: RunnerEvent[] = [click(1000),
+  const events: ComposerEvent[] = [click(1000),
     { t: 1500, type: "type", text: "hello", charDelayMs: 60, target: "field" }, click(4000)];
   const plan = planPolish(events, options);
   expect(plan.frame(113).zoom).toBeCloseTo(4 / 3);
@@ -44,7 +44,7 @@ it("extends the hold without restarting an unfinished zoom when typing begins", 
 });
 
 it("follows logged eased pointer paths, holds between moves, and times fractional clicks by frame", () => {
-  const events: RunnerEvent[] = [{ t: 0, type: "move", from: [0, 0], to: [1920, 1080], durationMs: 1000, easing: "easeInOutCubic" },
+  const events: ComposerEvent[] = [{ t: 0, type: "move", from: [0, 0], to: [1920, 1080], durationMs: 1000, easing: "easeInOutCubic" },
     click(1000.1, [1920, 1080])];
   const plan = planPolish(events, options);
   expect(plan.frame(0).cursor).toEqual([0, 0]);
@@ -54,7 +54,7 @@ it("follows logged eased pointer paths, holds between moves, and times fractiona
   expect(plan.frame(31).ripples).toHaveLength(1);
   expect(plan.frame(43).ripples).toEqual([]);
   expect(plan.frame(50).crop[0]).toBeGreaterThan(0.24);
-  expect(() => planPolish([{ ...events[0], easing: "unknown" } as RunnerEvent], options)).toThrow(/easing/);
+  expect(() => planPolish([{ ...events[0], easing: "unknown" } as ComposerEvent], options)).toThrow(/easing/);
 });
 
 it("fits padded targets at edges and reduces zoom for large or partly off-screen targets", () => {
@@ -80,7 +80,7 @@ it("fits padded targets at edges and reduces zoom for large or partly off-screen
 });
 
 it("does not zoom for hover, scrolling or standalone typing and preserves inputs", () => {
-  const events: RunnerEvent[] = [
+  const events: ComposerEvent[] = [
     { t: 0, type: "move", from: [960, 540], to: [100, 100], durationMs: 300, easing: "easeInOutCubic" },
     { t: 400, type: "scroll", delta: [0, 600], durationMs: 400 },
     { t: 800, type: "type", text: "old log", charDelayMs: 60, target: "field" }];

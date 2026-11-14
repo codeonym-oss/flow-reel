@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
-import { validateSync } from "../../src/schema/sync.ts";
-import type { Transcript } from "../../src/schema/transcript.ts";
+import { validateSync } from "../../src/composer/schema/sync.ts";
+import type { Transcript } from "../../src/composer/schema/transcript.ts";
 
 export const voiced = (): Transcript => ({ version: 1, script: "demo.ts",
   video: { file: "demo.mp4", width: 960, height: 540, fps: 30, durationMs: 3000 },

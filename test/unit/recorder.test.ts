@@ -2,7 +2,7 @@ import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { EVEN_PAD, startRecording } from "../../src/runner/recorder.ts";
+import { EVEN_PAD, startRecording } from "../../src/composer/media/recording.ts";
 
 // A fake ffmpeg on PATH: it reports its first frame like x11grab, then behaves as `body` says.
 const path = process.env.PATH;

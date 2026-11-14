@@ -1,5 +1,5 @@
 // Caption sidecars use the transcript's final, calibrated timeline (GH-3 decisions 001-004).
-import type { TranscriptStep } from "../schema/transcript.ts";
+import type { TranscriptStep } from "./schema/transcript.ts";
 
 function timestamp(ms: number, separator: string): string {
   ms = Math.round(ms);

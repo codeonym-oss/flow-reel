@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it } from "vitest";
-import { voiceSteps, type TtsAdapter } from "../../src/runner/tts.ts";
+import type { Voice } from "../../src/composer/ports.ts";
+import { voiceSteps } from "../../src/composer/voicing.ts";
 
 // Python wave: mono PCM16, 8 kHz, sixteen silent samples (2 ms).
 const WAV = Buffer.from("UklGRkQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YSAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==", "base64");
@@ -14,13 +15,13 @@ const directory = () => {
 };
 afterEach(() => dirs.forEach((dir) => rmSync(dir, { recursive: true, force: true })));
 const voice = { adapter: "fixture", voice: "test", seed: 0 };
-const adapter: TtsAdapter = { voice, async synthesize(jobs) {
+const adapter: Voice = { voice, async synthesize(jobs) {
   jobs.forEach((job) => writeFileSync(job.file, WAV));
 } };
 
 it("writes normalized narration as a clip with measured metadata, preserving the original step", async () => {
   const texts: string[] = [];
-  const adapter: TtsAdapter = {
+  const adapter: Voice = {
     voice,
     async synthesize(jobs) {
       for (const job of jobs) {

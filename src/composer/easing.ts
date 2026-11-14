@@ -1,5 +1,5 @@
-// How the runner moves the mouse: eased paths whose duration grows with distance (GH-2 decision 002).
-import type { Point } from "../schema/events.ts";
+// How the composer moves the mouse: eased paths whose duration grows with distance (GH-2 decision 002).
+import type { Point } from "./schema/events.ts";
 
 const MIN_MS = 300;
 const MAX_MS = 700;

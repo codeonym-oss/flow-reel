@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { type Curve, planPolish, type PolishOptions } from "./polish.ts";
-import type { RunnerEvent } from "../schema/events.ts";
+import { type Curve, planPolish, type PolishOptions } from "../polish.ts";
+import type { ComposerEvent } from "../schema/events.ts";
 
 // Same cubic curves as the pure planner, evaluated by FFmpeg on the delivery frame clock.
 function expression(curve: Curve, clock: string, initial: number): string {
@@ -38,7 +38,7 @@ function cursor(file: string): void {
   writeFileSync(file, Buffer.concat([Buffer.from(`P7\nWIDTH ${size}\nHEIGHT ${size}\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n`), pixels]));
 }
 
-export function polishFilters(events: readonly RunnerEvent[], options: PolishOptions, video: string, firstInput: number) {
+export function polishFilters(events: readonly ComposerEvent[], options: PolishOptions, video: string, firstInput: number) {
   const plan = planPolish(events, options);
   const [width, height] = options.viewport;
   const work = dirname(video);

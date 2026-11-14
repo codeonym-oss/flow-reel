@@ -1,9 +1,9 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { copyFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { Timeline } from "./timeline.ts";
-import type { RunnerEvent } from "../schema/events.ts";
-import { assembleSfx } from "./sfx-audio.ts";
+import type { Timeline } from "../timeline.ts";
+import type { ComposerEvent } from "../schema/events.ts";
+import { assembleSfx } from "./sound-mix.ts";
 import { polishFilters } from "./polish-render.ts";
 
 function ffmpeg(args: string[]): string {
@@ -84,7 +84,7 @@ interface RenderOptions {
   audioDir: string;
   viewport: [number, number];
   timeline: Timeline;
-  events?: readonly RunnerEvent[];
+  events?: readonly ComposerEvent[];
   sfx?: boolean;
 }
 
