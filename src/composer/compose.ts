@@ -2,7 +2,7 @@
 // display, then voice, render and hand the results to the reel store.
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
-import { basename } from "node:path";
+import { basename, dirname } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { Integration, ReelStore, Voice } from "./ports.ts";
 import { type ComposerEvent, validateEvents } from "./schema/events.ts";
@@ -16,6 +16,7 @@ import { soundLogger } from "./sounds.ts";
 import { stepTimer } from "./steps.ts";
 import { planTimeline, retimeEvents } from "./timeline.ts";
 import { voiceSteps } from "./voicing.ts";
+import { frameRequest, zoomOutEvent, zoomOutSettings } from "./effects.ts";
 
 // A still moment before the first step and after the last (story decision 009).
 const LEAD_IN_MS = 500;
@@ -49,6 +50,8 @@ export async function compose(scriptPath: string, { integration, voice, store, c
   const out = reel.work;
   const { viewport } = script;
   const events: ComposerEvent[] = [];
+  // Each showFrame's image, in the order the frame events were logged.
+  const imageFiles: string[] = [];
   let steps: ReturnType<typeof stepTimer>["steps"] = [];
 
   let deliveryCutMs = 0;
@@ -69,7 +72,19 @@ export async function compose(scriptPath: string, { integration, voice, store, c
       let ranMs = 0;
       try {
         await session.run({ clock: recording, events, fps: FPS, comment: timer.comment, action: timer.action,
-          sound: soundLogger(recording, events) });
+          sound: soundLogger(recording, events),
+          async showFrame(image, durationMs, options) {
+            const request = frameRequest(dirname(scriptPath), image, durationMs, options);
+            await timer.action(async () => {
+              events.push({ t: recording.now(), ...request.event });
+              imageFiles.push(request.file);
+            });
+          } });
+        // A zoom the script never zoomed out of eases out as the script ends (story decision 011).
+        const lastZoom = events.findLast((e) => e.type === "zoom");
+        if (lastZoom?.type === "zoom" && lastZoom.zoom === "in") {
+          events.push(zoomOutEvent(recording.now(), zoomOutSettings()));
+        }
         await timer.finish();
         await sleep(TAIL_MS);
       } finally {
@@ -108,12 +123,14 @@ export async function compose(scriptPath: string, { integration, voice, store, c
 
   // CPU synthesis starts only after capture, browser and display have finished.
   const voiced = await voiceSteps(steps, reel.audioDir, voice);
-  const timeline = planTimeline(voiced.steps, { fps: FPS, frames: videoFrames(out.capture), cutMs: deliveryCutMs });
-  const log = { version: 3 as const, events: retimeEvents(events, timeline) };
+  const images = events.flatMap((e) => e.type === "frame" ? [e] : []).map((e, i) =>
+    ({ t: e.t, durationMs: e.durationMs, file: imageFiles[i], fit: e.fit, background: e.background }));
+  const timeline = planTimeline(voiced.steps, { fps: FPS, frames: videoFrames(out.capture), cutMs: deliveryCutMs, images });
+  const log = { version: 4 as const, autoZoom: script.autoZoom, events: retimeEvents(events, timeline) };
   const eventErrors = validateEvents(log);
   if (eventErrors.length) throw new Error(`recording events are invalid:\n  ${eventErrors.join("\n  ")}`);
   renderTimeline({ capture: out.capture, master: out.master, video: out.stagedVideo,
-    voice: out.voiceBus, audioDir: reel.audioRoot, viewport, timeline, events: log.events, sfx });
+    voice: out.voiceBus, audioDir: reel.audioRoot, viewport, timeline, events: log.events, sfx, autoZoom: script.autoZoom });
   const transcript: Transcript = {
     version: 2,
     script: basename(scriptPath),

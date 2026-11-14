@@ -1,2 +1,5 @@
 - 2026-11-14: drafted by the story's global pass.
 - 2026-11-14: tracker issue #32 created, sub-issue of #27.
+- 2026-11-14: ticket pass: decisions 001-007 and story decision 011 (supersedes 003 for zoom ownership); draft.md updated; impl.md written; status planned.
+- 2026-11-14: building on feat/32-effect-words; In Progress on board 6.
+- 2026-11-14: built; corrections noted in impl.md.

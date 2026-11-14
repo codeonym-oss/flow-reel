@@ -1,5 +1,6 @@
-import { expect, it } from "vitest";
-import { compareTranscripts } from "../../src/compare.ts";
+import { describe, expect, it } from "vitest";
+import { compareEffects, compareTranscripts } from "../../src/compare.ts";
+import type { EventLog } from "../../src/composer/schema/events.ts";
 import type { Transcript } from "../../src/composer/schema/transcript.ts";
 
 const transcript = (): Transcript => ({ version: 2, script: "demo.ts",
@@ -37,4 +38,42 @@ it("separates invalid inputs from content differences and preserves silent compa
   expect(compareTranscripts(a, b).differences).toEqual(["step count differs"]);
   b.steps = [{ ...a.steps[0], index: 1 }];
   expect(compareTranscripts(a, b).errors).toContain("right: steps[0]: index must be 0");
+});
+
+describe("compareEffects (GH-32 decision 007)", () => {
+  const log = (): EventLog => ({ version: 4, autoZoom: true, events: [
+    { t: 100, type: "click", at: [1, 1], button: "left", target: "a" },
+    { t: 200, type: "flash", color: "#ffffff", ms: 250 },
+    { t: 300, type: "frame", image: "a.png", sha256: "a".repeat(64), durationMs: 1000, fit: "contain", background: "#000000" },
+    { t: 1400, type: "zoom", zoom: "in", at: [5, 5], scale: 4 / 3, ms: 650 },
+    { t: 2000, type: "zoom", zoom: "out", ms: 800 },
+  ] });
+
+  it("matches effects within 150 ms, whatever the clicks, sounds and image paths", () => {
+    const a = log(); const b = log();
+    b.events = b.events.map((e) => ({ ...e, t: e.t + 150 }));
+    b.events[0] = { t: 900, type: "click", at: [500, 500], button: "left", target: "b" };
+    b.events.push({ t: 50, type: "sound", name: "open" });
+    (b.events[2] as { image: string }).image = "moved/a.png";
+    expect(compareEffects(a, b)).toEqual({ errors: [], differences: [] });
+    b.events[1].t += 1;
+    expect(compareEffects(a, b).differences).toEqual(["effects[0] (flash) starts 151 ms apart (maximum 150 ms)"]);
+  });
+
+  it("names each effect that differs, and autoZoom", () => {
+    const a = log(); const b = log();
+    b.autoZoom = false;
+    (b.events[1] as { color: string }).color = "#ff0000";
+    (b.events[2] as { sha256: string }).sha256 = "b".repeat(64);
+    (b.events[3] as { scale: number }).scale = 2;
+    expect(compareEffects(a, b).differences).toEqual(["autoZoom differs",
+      "effects[0] (flash) differs", "effects[1] (frame) differs", "effects[2] (zoom) differs"]);
+    expect(compareEffects(a, log()).differences).toEqual([]);
+    expect(compareEffects(a, { ...log(), events: log().events.slice(0, 4) }).differences).toEqual(["effect count differs (4 and 3)"]);
+  });
+
+  it("reports an invalid event log as an error", () => {
+    expect(compareEffects({ version: 3, events: [] }, log()).errors).toEqual([
+      "left: events.json: version must be 4", "left: events.json: autoZoom must be true or false"]);
+  });
 });

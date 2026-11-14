@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Page } from "playwright";
 import { Sounds, type ComposerEvent, type Sound } from "../../src/composer/schema/events.ts";
-import { wrapPage } from "../../src/adapters/playwright/wrap.ts";
+import { wrapPage, wrapScript } from "../../src/adapters/playwright/wrap.ts";
 
 // A fake of the Playwright surface the wrapper touches: the page, its mouse and locators. Every call lands in `calls`.
 interface Box { x: number; y: number; width: number; height: number }
@@ -311,5 +311,58 @@ describe("wrapPage with a stage", () => {
     const { page } = fakePage(boxes());
     const { p } = staged(page);
     expect(() => p.getByRole("button", { name: "Save" }).sound("kaboom" as Sound)).toThrow(/unknown sound "kaboom"/);
+  });
+});
+
+describe("effect words (GH-32 decisions 001, 002 and 006)", () => {
+  const save = { x: 900, y: 500, width: 120, height: 40 };
+  const words = (page: Page) => wrapScript(page, { clock, events, sleep, warn: (m) => warnings.push(m) });
+
+  it("starts a chained zoom in before the pointer moves, flashes with the click and zooms out after it", async () => {
+    const { page } = fakePage({ "button Save": save });
+    await words(page).page.getByRole("button", { name: "Save" }).zoomIn().flash({ color: "#FF0000" }).zoomOut({ ms: 300 }).click();
+    expect(events.map((e) => e.type === "zoom" ? `zoom ${e.zoom}` : e.type)).toEqual(["zoom in", "move", "click", "flash", "zoom out"]);
+    const [zoom, move, click, flash, out] = events;
+    expect(zoom).toEqual({ t: 150, type: "zoom", zoom: "in", at: [960, 520], bounds: save, scale: 4 / 3, ms: 650 });
+    expect(move.t).toBe(zoom.t);
+    expect(flash).toEqual({ t: click.t, type: "flash", color: "#ff0000", ms: 250 });
+    expect(out).toEqual({ t: click.t + 400, type: "zoom", zoom: "out", ms: 300 }); // after the act budget
+  });
+
+  it("zooms out after the whole fill, not after its first click", async () => {
+    const { page } = fakePage({ "textbox Name": { x: 100, y: 100, width: 200, height: 30 } });
+    await words(page).page.getByRole("textbox", { name: "Name" }).zoomOut().fill("hi");
+    expect(events.map((e) => e.type)).toEqual(["move", "click", "type", "zoom"]);
+  });
+
+  it("frames the element's box when an uncovered action has no pointer move", async () => {
+    const { page } = fakePage({ "button Save": save });
+    await words(page).page.getByRole("button", { name: "Save" }).zoomIn({ scale: 2 }).flash().press("Enter");
+    expect(events).toEqual([
+      { t: 0, type: "zoom", zoom: "in", at: [960, 520], bounds: save, scale: 2, ms: 650 },
+      { t: 0, type: "flash", color: "#ffffff", ms: 250 },
+    ]);
+  });
+
+  it("zooms standalone on the pointer, and keeps chained effects on their own locator", async () => {
+    const { page } = fakePage({ "button Save": save });
+    const w = words(page);
+    const button = w.page.getByRole("button", { name: "Save" });
+    void button.flash();
+    await button.hover();
+    w.zoomIn();
+    w.flash({ ms: 100 });
+    w.zoomOut();
+    expect(events.map((e) => e.type)).toEqual(["move", "zoom", "flash", "zoom"]);
+    expect(events[1]).toMatchObject({ zoom: "in", at: [960, 520] });
+    expect(events[1]).not.toHaveProperty("bounds");
+  });
+
+  it("rejects a bad option where the word is written", () => {
+    const { page } = fakePage({ "button Save": save });
+    const w = words(page);
+    expect(() => w.page.getByRole("button", { name: "Save" }).zoomIn({ scale: 5 })).toThrow("zoomIn(): scale must be a number from 1 to 2");
+    expect(() => w.flash({ color: "red" })).toThrow("flash(): color must be a #rrggbb colour");
+    expect(events).toEqual([]);
   });
 });

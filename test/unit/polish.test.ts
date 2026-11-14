@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { planPolish } from "../../src/composer/polish.ts";
 import type { ComposerEvent } from "../../src/composer/schema/events.ts";
 
@@ -117,4 +117,56 @@ it("draws one ripple for a double-click's two presses", () => {
   const plan = planPolish([click(1000), click(1000.2)], options);
   expect(plan.clicks).toHaveLength(1);
   expect(plan.frame(31).ripples).toHaveLength(1);
+});
+
+describe("explicit zoom, autoZoom and images (story decision 011, GH-32)", () => {
+  const zoomIn = (t: number, at: [number, number], extra: object = {}): ComposerEvent =>
+    ({ t, type: "zoom", zoom: "in", at, scale: 4 / 3, ms: 650, ...extra }) as ComposerEvent;
+  const zoomOut = (t: number, ms = 800): ComposerEvent => ({ t, type: "zoom", zoom: "out", ms });
+
+  it("holds an explicit zoom across clicks elsewhere until zoom out, then zooms automatically again", () => {
+    // The clicks are inside the held frame (x 240-1680, y 135-945); automatic zoom would have framed each of them.
+    const plan = planPolish([zoomIn(0, [960, 540]), click(1000, [400, 300]), click(4000, [1500, 800]), zoomOut(5000), click(7000, [400, 300])],
+      { ...options, frames: 330 });
+    const held = [0.125, 0.125, 0.75];
+    for (const n of [20, 30, 60, 120, 149]) expect(plan.frame(n).crop).toEqual(held);
+    expect(plan.frame(150).crop).toEqual(held);
+    expect(plan.frame(174).crop).toEqual([0, 0, 1]);
+    expect(plan.frame(209).crop).toEqual([0, 0, 1]);
+    expect(plan.frame(240).zoom).toBeCloseTo(4 / 3);
+    // A pointer leaving the held frame stays visible: the crop moves just enough.
+    const away = planPolish([zoomIn(0, [960, 540]), click(1000, [100, 100])], options);
+    expect(away.frame(40).crop[0]).toBeLessThan(0.125);
+    expect(away.frame(40).crop[2]).toBe(0.75);
+  });
+
+  it("eases a second zoom in from the current crop and frames the element with at most `scale`", () => {
+    const plan = planPolish([zoomIn(0, [960, 540], { scale: 2 }), zoomIn(1000, [1800, 1000], { bounds: { x: 1700, y: 950, width: 100, height: 60 } })], options);
+    expect(plan.frame(20).crop).toEqual([0.25, 0.25, 0.5]);
+    expect(plan.frame(31).zoom).toBeGreaterThan(1.9); // still zoomed while it pans: no return to full
+    const [left, top, share] = plan.frame(60).crop;
+    expect(share).toBeCloseTo(0.75);
+    expect([left, top]).toEqual([0.25, 0.25]);
+    // A box wider than the floor zooms less, keeping the whole box in frame.
+    const wide = planPolish([zoomIn(0, [960, 540], { bounds: { x: 100, y: 500, width: 1500, height: 100 } })], options);
+    expect(wide.frame(30).crop[2]).toBeCloseTo((1500 + 48) / 1920);
+  });
+
+  it("keeps the full frame through clicks and typing when autoZoom is off, with cursor and ripples", () => {
+    const plan = planPolish([click(1000), { t: 1500, type: "type", text: "hello", charDelayMs: 60, target: "field" }],
+      { ...options, autoZoom: false });
+    for (let n = 0; n < 180; n++) expect(plan.frame(n).crop).toEqual([0, 0, 1]);
+    expect(plan.frame(31).ripples).toHaveLength(1);
+    expect(planPolish([zoomIn(0, [960, 540])], { ...options, autoZoom: false }).frame(30).zoom).toBeCloseTo(4 / 3);
+  });
+
+  it("draws nothing over an image and leaves it uncropped, and ignores flash and frame events", () => {
+    const events = [click(1000), { t: 1100, type: "flash", color: "#ffffff", ms: 250 } as ComposerEvent];
+    const plan = planPolish(events, { ...options, imageSpans: [{ startMs: 1000, endMs: 2000 }] });
+    expect(plan.frame(29).hidden).toBe(false);
+    for (const n of [30, 31, 59]) expect(plan.frame(n)).toMatchObject({ crop: [0, 0, 1], hidden: true, ripples: [] });
+    expect(plan.frame(60)).toMatchObject({ hidden: false });
+    expect(plan.frame(60).zoom).toBeGreaterThan(1);
+    expect(planPolish(events, options).camera).toEqual(planPolish([click(1000)], options).camera);
+  });
 });

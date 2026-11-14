@@ -16,14 +16,23 @@ export function curveAt(curve: Curve, t: number, initial: number): number {
   return value;
 }
 
-export interface PolishOptions { viewport: [number, number]; source: [number, number]; fps: number; frames: number }
+export interface PolishOptions {
+  viewport: [number, number]; source: [number, number]; fps: number; frames: number;
+  /** False when the script turned automatic zoom off; explicit zoom and the cursor still work (story decision 011). */
+  autoZoom?: boolean;
+  /** Where inserted images show, in video milliseconds: nothing is drawn over them, and the crop is full. */
+  imageSpans?: readonly { startMs: number; endMs: number }[];
+}
 const ZOOM_IN_MS = 650;
 const ZOOM_IDLE_MS = 2000;
 const ZOOM_OUT_MS = 800;
 
-/** Camera crops are normalized [left, top, width share]; all crops retain the viewport aspect ratio. */
+/**
+ * Camera crops are normalized [left, top, width share]; all crops retain the viewport aspect ratio. A script's
+ * `zoom in` holds the camera until its `zoom out`, and automatic zoom waits meanwhile (story decision 011).
+ */
 export function planPolish(events: readonly ComposerEvent[], options: PolishOptions) {
-  const { viewport: [width, height], source: [sw, sh], fps, frames } = options;
+  const { viewport: [width, height], source: [sw, sh], fps, frames, autoZoom = true, imageSpans = [] } = options;
   const minShare = 1 / Math.max(1, Math.min(4 / 3, sw / width, sh / height));
   const camera: [Curve, Curve, Curve] = [[], [], []];
   const pointer: [Curve, Curve] = [[], []];
@@ -36,21 +45,31 @@ export function planPolish(events: readonly ComposerEvent[], options: PolishOpti
       c.push({ start: t, end: t + duration, from: from[i], to: to[i] });
     });
   };
-  const fit = (at: Point, bounds?: Bounds): number[] => {
+  const fit = (at: Point, bounds?: Bounds, floor = minShare): number[] => {
     const left = bounds ? clamp(bounds.x - 24, 0, width) / width : clamp(at[0] / width, 0, 1);
     const right = bounds ? clamp(bounds.x + bounds.width + 24, 0, width) / width : left;
     const top = bounds ? clamp(bounds.y - 24, 0, height) / height : clamp(at[1] / height, 0, 1);
     const bottom = bounds ? clamp(bounds.y + bounds.height + 24, 0, height) / height : top;
-    const share = Math.max(minShare, right - left, bottom - top);
+    const share = Math.min(1, Math.max(floor, right - left, bottom - top));
     return [clamp(at[0] / width - share / 2, Math.max(0, right - share), Math.min(left, 1 - share)),
       clamp(at[1] / height - share / 2, Math.max(0, bottom - share), Math.min(top, 1 - share)), share];
   };
   let deadline = -Infinity;
   let target = [0, 0, 1];
   let cameraTarget = target;
-  const sorted = events.filter((e) => e.type !== "sound").sort((a, b) => a.t - b.t);
+  let held = false;
+  const sorted = events.filter((e) => e.type !== "sound" && e.type !== "flash" && e.type !== "frame").sort((a, b) => a.t - b.t);
   sorted.forEach((event, i) => {
     const previousDeadline = deadline;
+    if (event.type === "zoom") {
+      // An explicit zoom eases from wherever the camera is, so a second zoom in pans rather than snapping out first.
+      held = event.zoom === "in";
+      const to = event.zoom === "in" ? fit(event.at, event.bounds, 1 / event.scale) : initial;
+      change(camera, event.t, event.ms, to, initial);
+      deadline = -Infinity;
+      cameraTarget = to;
+      return;
+    }
     if (event.type === "move") {
       if (event.easing !== "easeInOutCubic") throw new Error(`unsupported pointer easing: ${event.easing}`);
       // A logged move includes its actual starting point, including older standalone logs.
@@ -68,6 +87,7 @@ export function planPolish(events: readonly ComposerEvent[], options: PolishOpti
       const at = value(pointer, event.t, [0.5, 0.5]);
       target = fit([at[0] * width, at[1] * height], event.bounds);
     } else return;
+    if (held || !autoZoom) return;
     if (event.t > deadline + ZOOM_OUT_MS) return;
     // Hover does not restart an already-ending zoom or move its return-to-full deadline.
     if (event.type === "move" && event.t >= deadline) return;
@@ -84,7 +104,8 @@ export function planPolish(events: readonly ComposerEvent[], options: PolishOpti
   // A double-click's two presses share one ripple rather than doubling its opacity.
   const clicks = sorted.filter((e) => e.type === "click")
     .filter((e, i, all) => i === 0 || e.t - all[i - 1].t > SAME_CLICK_MS);
-  return { frames, fps, camera, pointer, clicks, frame(n: number) {
+  const inImage = (t: number) => imageSpans.some((s) => t >= s.startMs - 0.5 && t < s.endMs - 0.5);
+  return { frames, fps, camera, pointer, clicks, imageSpans, frame(n: number) {
     const t = n * 1000 / fps;
     const crop = value(camera, t, initial);
     const at = value(pointer, t, [0.5, 0.5]);
@@ -95,7 +116,9 @@ export function planPolish(events: readonly ComposerEvent[], options: PolishOpti
       crop[axis] = clamp(crop[axis], clamp(at[axis] - crop[2] + 24 * crop[2] / pixels, 0, 1 - crop[2]),
         clamp(at[axis] - crop[2] / pixels, 0, 1 - crop[2]));
     }
-    return { crop, zoom: 1 / crop[2], cursor: [(at[0] - crop[0]) * width / crop[2], (at[1] - crop[1]) * height / crop[2]],
+    // Nothing is drawn over an inserted image, and the image is never cropped.
+    if (inImage(t)) return { crop: [...initial], zoom: 1, cursor: [at[0] * width, at[1] * height], hidden: true, ripples: [] };
+    return { crop, zoom: 1 / crop[2], hidden: false, cursor: [(at[0] - crop[0]) * width / crop[2], (at[1] - crop[1]) * height / crop[2]],
       ripples: clicks.filter((e) => t >= e.t && t < e.t + 400).map((e) => ({
         x: (e.at[0] / width - crop[0]) * width / crop[2], y: (e.at[1] / height - crop[1]) * height / crop[2],
         radius: 8 + 20 * (t - e.t) / 400, opacity: 1 - (t - e.t) / 400,

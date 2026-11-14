@@ -1,3 +1,4 @@
+import { type ComposerEvent, type EventLog, validateEvents } from "./composer/schema/events.ts";
 import { validateSync } from "./composer/schema/sync.ts";
 import type { Transcript } from "./composer/schema/transcript.ts";
 
@@ -24,6 +25,37 @@ export function compareTranscripts(left: unknown, right: unknown): { errors: str
     }
     const drift = Math.abs(s.startMs - other.startMs);
     if (drift > 150) differences.push(`steps[${i}].startMs differs by ${drift} ms (maximum 150 ms)`);
+  });
+  return { errors, differences };
+}
+
+const EFFECTS = ["flash", "frame", "zoom"];
+// Paths and times may differ between honest composes; everything else an effect asked for must match.
+const effectKeys = (event: ComposerEvent) => Object.keys(event).filter((key) => key !== "t" && key !== "image").sort();
+
+/**
+ * Compare the effects of two event logs (GH-32 decision 007): the same `autoZoom`, and the same flashes, images and
+ * zooms in the same order with the same options and image hashes, each starting within 150 ms. Clicks, moves,
+ * typing, scrolls and sounds come from the app and are not compared.
+ */
+export function compareEffects(left: unknown, right: unknown): { errors: string[]; differences: string[] } {
+  const errors = [...validateEvents(left).map((e) => `left: events.json: ${e}`), ...validateEvents(right).map((e) => `right: events.json: ${e}`)];
+  const differences: string[] = [];
+  if (errors.length) return { errors, differences };
+  const a = left as EventLog; const b = right as EventLog;
+  if (a.autoZoom !== b.autoZoom) differences.push("autoZoom differs");
+  const effects = (log: EventLog) => log.events.filter((e) => EFFECTS.includes(e.type));
+  const [x, y] = [effects(a), effects(b)];
+  if (x.length !== y.length) differences.push(`effect count differs (${x.length} and ${y.length})`);
+  x.forEach((e, i) => {
+    const other = y[i];
+    if (!other) return;
+    const name = `effects[${i}] (${e.type})`;
+    const same = e.type === other.type && JSON.stringify(effectKeys(e)) === JSON.stringify(effectKeys(other)) &&
+      effectKeys(e).every((key) => JSON.stringify(e[key as keyof ComposerEvent]) === JSON.stringify(other[key as keyof ComposerEvent]));
+    if (!same) differences.push(`${name} differs`);
+    const drift = Math.abs(e.t - other.t);
+    if (drift > 150) differences.push(`${name} starts ${Math.round(drift)} ms apart (maximum 150 ms)`);
   });
   return { errors, differences };
 }

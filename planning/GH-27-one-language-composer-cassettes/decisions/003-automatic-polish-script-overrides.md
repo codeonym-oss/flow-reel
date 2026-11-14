@@ -1,4 +1,5 @@
 # 003: The picture is polished automatically by default; effect words in the script override it
+**Superseded by 011** for how long an explicit zoom holds the camera (until `zoomOut`, not to the end of its step).
 
 **Date:** 2026-11-14 (shaping, Q2; agreed: "ok")
 

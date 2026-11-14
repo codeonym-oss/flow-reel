@@ -7,7 +7,7 @@ describe("script", () => {
     let ran = false;
     const body = async () => { ran = true; };
     const s = script({ url: "http://localhost:3000" }, body);
-    expect(s.options).toEqual({ url: "http://localhost:3000", viewport: [1920, 1080] });
+    expect(s.options).toEqual({ url: "http://localhost:3000", viewport: [1920, 1080], autoZoom: true });
     expect(s.body).toBe(body);
     expect(ran).toBe(false);
   });
@@ -38,5 +38,26 @@ describe("Sounds", () => {
       locator.sound("nope");
     };
     expect(typeof check).toBe("function");
+  });
+});
+
+describe("effect words (GH-32 decisions 001 and 002)", () => {
+  it("take options objects, standalone and chained; showFrame is awaited", () => {
+    const check = async ({ flash, showFrame, zoomIn, zoomOut }: ScriptContext, locator: Locator) => {
+      flash();
+      flash({ color: "#ff0000", ms: 100 });
+      zoomIn({ scale: 1.5 });
+      zoomOut({ ms: 400 });
+      await showFrame("diagram.png", 3000, { fit: "cover", background: "#ffffff" });
+      await locator.zoomIn().flash({ ms: 300 }).sound(Sounds.feedback.SUCCESS).zoomOut().click();
+      // @ts-expect-error an unknown option
+      flash({ colour: "#ffffff" });
+      // @ts-expect-error fit is contain or cover
+      await showFrame("a.png", 10, { fit: "stretch" });
+      // @ts-expect-error showFrame needs a duration
+      await showFrame("a.png");
+    };
+    expect(typeof check).toBe("function");
+    expect(script({ url: "http://x", autoZoom: false }, async () => {}).options.autoZoom).toBe(false);
   });
 });

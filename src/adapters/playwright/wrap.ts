@@ -1,11 +1,13 @@
 // The page a script receives (GH-2 decision 002): plain Playwright, except that actions ease the mouse to their
 // target, type visibly, and append what they did to the event log (story decision 013). Every action runs inside
-// its step, and locators take the chained words comment() and sound() (GH-30 decision 001).
+// its step, and locators take the chained words comment() and sound() (GH-30 decision 001) and the effect words
+// flash(), zoomIn() and zoomOut() (GH-32 decisions 001 and 006).
 import type { Locator, Page } from "playwright";
 import type { Bounds, Point, ComposerEvent, Sound } from "../../composer/schema/events.ts";
 import type { Stage } from "../../composer/ports.ts";
 import { easeInOutCubic, moveDuration, pathPoints } from "../../composer/easing.ts";
 import { checkSound } from "../../composer/sounds.ts";
+import { flashSettings, zoomInEvent, zoomInSettings, zoomOutEvent, zoomOutSettings } from "../../composer/effects.ts";
 
 export interface WrapOptions {
   /** Milliseconds on the recording's clock. */
@@ -55,7 +57,20 @@ type Button = "left" | "right" | "middle";
 interface ActionOptions { button?: Button; position?: { x: number; y: number }; timeout?: number; force?: boolean }
 const optionsOf = (value: unknown): ActionOptions => (value && typeof value === "object" ? value as ActionOptions : {});
 
+/** What a locator carries from its chained words to its next action. */
+interface Chain {
+  sound?: Sound;
+  flash?: ReturnType<typeof flashSettings>;
+  zoomIn?: ReturnType<typeof zoomInSettings>;
+  zoomOut?: ReturnType<typeof zoomOutSettings>;
+}
+
 export function wrapPage(page: Page, options: WrapOptions): Page {
+  return wrapScript(page, options).page;
+}
+
+/** The wrapped page and the standalone effect words, which share the wrapper's clock and pointer. */
+export function wrapScript(page: Page, options: WrapOptions) {
   const { clock, events, fps = 30 } = options;
   const stage = options.stage ?? { comment() {}, sound() {}, action: (run) => run() };
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
@@ -117,7 +132,8 @@ export function wrapPage(page: Page, options: WrapOptions): Page {
 
   // Scrolls the target to the middle of the viewport when it is off screen, then eases the mouse to its centre (or
   // to `position`, relative to its top-left corner, as Playwright's own option means).
-  async function approach(locator: Locator, position?: { x: number; y: number }):
+  // A chained zoomIn starts here, once the target's box is known and before the pointer heads for it.
+  async function approach(locator: Locator, position?: { x: number; y: number }, zoom?: Chain["zoomIn"]):
     Promise<{ at: Point; bounds: Bounds } | undefined> {
     let box = await paced(BUDGET_MS.locate, () => locator.boundingBox());
     if (!box) return undefined;
@@ -138,6 +154,7 @@ export function wrapPage(page: Page, options: WrapOptions): Page {
     const at: Point = position
       ? [Math.round(box.x + position.x), Math.round(box.y + position.y)]
       : [Math.round(box.x + box.width / 2), Math.round(box.y + box.height / 2)];
+    if (zoom) events.push(zoomInEvent(clock.now(), at, box, zoom));
     await paced(moveDuration(pointer, at) + BUDGET_MS.moveTail, () => moveTo(at));
     return { at, bounds: box };
   }
@@ -152,9 +169,16 @@ export function wrapPage(page: Page, options: WrapOptions): Page {
     await paced(text.length * CHAR_DELAY_MS + BUDGET_MS.typeTail, () => press(text));
   }
 
-  // `sound` is the sound chained on this locator: it plays when the locator's action is logged.
-  function wrapLocator(locator: Locator, sound?: Sound): Locator {
+  // `chain` holds the words chained on this locator: a sound and a flash play when its action is logged, a zoom in
+  // starts as the pointer heads for it, and a zoom out follows the action.
+  function wrapLocator(locator: Locator, chain: Chain = {}): Locator {
     const target = String(locator);
+    const near = (position?: { x: number; y: number }) => approach(locator, position, chain.zoomIn);
+    const zoomOutAfter = async <T>(run: () => Promise<T>) => {
+      const result = await run();
+      if (chain.zoomOut) events.push(zoomOutEvent(clock.now(), chain.zoomOut));
+      return result;
+    };
     const typeInto = (text: string, bounds: Bounds | undefined, timeout?: number) =>
       typeText(text, target, bounds, (t) => locator.pressSequentially(t, { delay: CHAR_DELAY_MS, timeout }));
     // Typing sets these inputs' values only through fill(); a click would also open the browser's picker.
@@ -167,34 +191,34 @@ export function wrapPage(page: Page, options: WrapOptions): Page {
     // which take ~100 ms and longer under load, so logging before the call would put the click early.
     const clickAction = (clicks: number) => async (original: Function, args: unknown[]) => {
       const { button, position } = optionsOf(args[0]);
-      return act(original, args, await approach(locator, position), clicks, button);
+      return act(original, args, await near(position), clicks, button);
     };
     const actions: Record<string, (original: Function, args: unknown[]) => Promise<unknown>> = {
       click: clickAction(1),
       // Both presses are logged; effects play one sound and one ripple for clicks at the same moment and point.
       dblclick: clickAction(2),
-      async hover(original, args) { await approach(locator, optionsOf(args[0]).position); return act(original, args); },
-      async check(original, args) { return act(original, args, await approach(locator, optionsOf(args[0]).position)); },
-      async uncheck(original, args) { return act(original, args, await approach(locator, optionsOf(args[0]).position)); },
-      async setChecked(original, args) { return act(original, args, await approach(locator, optionsOf(args[1]).position)); },
-      async selectOption(original, args) { return act(original, args, await approach(locator)); },
-      async scrollIntoViewIfNeeded(original, args) { await approach(locator); return act(original, args); },
+      async hover(original, args) { await near(optionsOf(args[0]).position); return act(original, args); },
+      async check(original, args) { return act(original, args, await near(optionsOf(args[0]).position)); },
+      async uncheck(original, args) { return act(original, args, await near(optionsOf(args[0]).position)); },
+      async setChecked(original, args) { return act(original, args, await near(optionsOf(args[1]).position)); },
+      async selectOption(original, args) { return act(original, args, await near()); },
+      async scrollIntoViewIfNeeded(original, args) { await near(); return act(original, args); },
       async fill(original, args) {
         const { timeout, force } = optionsOf(args[1]);
         const direct = setsValueDirectly();
-        const position = await approach(locator);
+        const position = await near();
         if (await direct) return act(original, args);
         await act(() => locator.click({ timeout, force }), [], position);
         await paced(BUDGET_MS.clear, () => original("", optionsOf(args[1])));
         return typeInto(String(args[0]), position?.bounds, timeout);
       },
       async type(_original, args) {
-        const position = await approach(locator);
+        const position = await near();
         await act(() => locator.click({ timeout: optionsOf(args[1]).timeout }), [], position);
         return typeInto(String(args[0]), position?.bounds, optionsOf(args[1]).timeout);
       },
       async pressSequentially(_original, args) {
-        const position = await approach(locator);
+        const position = await near();
         await act(() => locator.click({ timeout: optionsOf(args[1]).timeout }), [], position);
         return typeInto(String(args[0]), position?.bounds, optionsOf(args[1]).timeout);
       },
@@ -203,23 +227,41 @@ export function wrapPage(page: Page, options: WrapOptions): Page {
       paced(BUDGET_MS.act, async () => {
         const result = await original(...args);
         for (let i = 0; i < clicks; i++) logClick(clickAt, target, button);
-        if (sound) stage.sound(sound);
+        if (chain.sound) stage.sound(chain.sound);
+        if (chain.flash) events.push({ t: clock.now(), type: "flash", ...chain.flash });
         return result;
       });
 
     const proxy: Locator = new Proxy(locator, {
       get(obj, prop, receiver) {
         if (prop === "comment") return (text: string) => { stage.comment(text); return proxy; };
-        if (prop === "sound") return (next: Sound) => { checkSound(next); return wrapLocator(locator, next); };
+        if (prop === "sound") return (next: Sound) => { checkSound(next); return wrapLocator(locator, { ...chain, sound: next }); };
+        if (prop === "flash") return (o?: unknown) => wrapLocator(locator, { ...chain, flash: flashSettings(o) });
+        if (prop === "zoomIn") return (o?: unknown) => wrapLocator(locator, { ...chain, zoomIn: zoomInSettings(o) });
+        if (prop === "zoomOut") return (o?: unknown) => wrapLocator(locator, { ...chain, zoomOut: zoomOutSettings(o) });
         const value = Reflect.get(obj, prop, receiver);
         if (typeof prop !== "string" || typeof value !== "function") return value;
         const original = value.bind(obj);
-        if (prop in actions) return (...args: unknown[]) => stage.action(() => actions[prop](original, args));
+        if (prop in actions) return (...args: unknown[]) => stage.action(() => zoomOutAfter(() => actions[prop](original, args)));
         // Each locator all() hands out is wrapped, so looping over matches animates like any other locator.
-        if (prop === "all") return async () => ((await original()) as Locator[]).map((l) => wrapLocator(l, sound));
-        if (LOCATOR_FACTORIES.has(prop)) return (...args: unknown[]) => wrapLocator(original(...args), sound);
+        if (prop === "all") return async () => ((await original()) as Locator[]).map((l) => wrapLocator(l, chain));
+        if (LOCATOR_FACTORIES.has(prop)) return (...args: unknown[]) => wrapLocator(original(...args), chain);
         if (LOCATOR_UNCOVERED.has(prop)) {
-          return (...args: unknown[]) => { warnOnce(`locator.${prop}`); return stage.action(() => original(...args)); };
+          return (...args: unknown[]) => {
+            warnOnce(`locator.${prop}`);
+            if (!chain.zoomIn && !chain.flash && !chain.zoomOut) return stage.action(() => original(...args));
+            // No pointer move to start a zoom with: it starts with the action, framing the element's box.
+            return stage.action(() => zoomOutAfter(async () => {
+              if (chain.zoomIn) {
+                const box = await locator.boundingBox().catch(() => null);
+                const at: Point = box ? [Math.round(box.x + box.width / 2), Math.round(box.y + box.height / 2)] : pointer;
+                events.push(zoomInEvent(clock.now(), at, box ?? undefined, chain.zoomIn));
+              }
+              const result = await original(...args);
+              if (chain.flash) events.push({ t: clock.now(), type: "flash", ...chain.flash });
+              return result;
+            }));
+          };
         }
         return original;
       },
@@ -257,7 +299,7 @@ export function wrapPage(page: Page, options: WrapOptions): Page {
     },
   });
 
-  return new Proxy(page, {
+  const wrapped = new Proxy(page, {
     get(obj, prop, receiver) {
       if (prop === "mouse") return mouse;
       if (prop === "keyboard") return keyboard;
@@ -279,4 +321,13 @@ export function wrapPage(page: Page, options: WrapOptions): Page {
       return original;
     },
   });
+
+  return {
+    page: wrapped,
+    /** Flashes the screen now. */
+    flash: (o?: unknown) => void events.push({ t: clock.now(), type: "flash", ...flashSettings(o) }),
+    /** Zooms in on wherever the pointer is. */
+    zoomIn: (o?: unknown) => void events.push(zoomInEvent(clock.now(), pointer, undefined, zoomInSettings(o))),
+    zoomOut: (o?: unknown) => void events.push(zoomOutEvent(clock.now(), zoomOutSettings(o))),
+  };
 }
