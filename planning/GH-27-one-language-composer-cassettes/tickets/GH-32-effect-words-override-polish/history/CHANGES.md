@@ -3,3 +3,4 @@
 - 2026-11-14: ticket pass: decisions 001-007 and story decision 011 (supersedes 003 for zoom ownership); draft.md updated; impl.md written; status planned.
 - 2026-11-14: building on feat/32-effect-words; In Progress on board 6.
 - 2026-11-14: built; corrections noted in impl.md.
+- 2026-11-14: pull request #40 opened.
