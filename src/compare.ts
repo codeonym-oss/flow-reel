@@ -17,7 +17,7 @@ export function compareTranscripts(left: unknown, right: unknown): { errors: str
   a.steps.forEach((s, i) => {
     const other = b.steps[i];
     if (!other) return;
-    compare(`steps[${i}].narration`, s.narration, other.narration);
+    compare(`steps[${i}].comment`, s.comment, other.comment);
     compare(`steps[${i}].audio presence`, Boolean(s.audio), Boolean(other.audio));
     if (s.audio && other.audio) {
       for (const key of ["sha256", "durationMs"] as const) compare(`steps[${i}].audio.${key}`, s.audio[key], other.audio[key]);

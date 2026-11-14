@@ -1,5 +1,7 @@
-// Times a script's steps on the recording's clock: each step waits for the app to stop loading, settles, runs its
-// action and settles again (story decision 009 of GH-1).
+// Times a script's steps on the recording's clock (story decision 009 of GH-1, GH-30 decision 001). A comment opens a
+// step; the step starts with the next action, after the app stops loading and settles, and ends when the following
+// step is due, after the app stops loading and settles again. A comment with no action before the next comment is
+// a step of its own, with no action.
 import { setTimeout as sleep } from "node:timers/promises";
 import type { Stage } from "./ports.ts";
 import type { TranscriptStep } from "./schema/transcript.ts";
@@ -16,30 +18,63 @@ export interface StepTimerOptions {
 
 export function stepTimer({ clock, idle, sleep: wait = sleep, warn = console.warn }: StepTimerOptions) {
   const steps: TranscriptStep[] = [];
+  const queued: string[] = [];
+  let open: { comment?: string; startMs: number; actionEndMs: number } | undefined;
   const until = (ms: number) => wait(Math.max(0, ms - clock.now()));
-  let inStep: string | undefined;
-  const run: Stage["step"] = async (narration, action) => {
-    const settle = clock.now() + STEP_SETTLE_MS;
+  const settled = async () => {
     if (!(await idle())) warn(`step ${steps.length}: the page was still loading after 10 s; going on`);
+  };
+
+  async function start(comment: string | undefined) {
+    const settle = clock.now() + STEP_SETTLE_MS;
+    await settled();
     await until(settle);
     const startMs = Math.round(clock.now());
-    try {
-      await action();
-    } catch (e) {
-      throw new Error(`step ${steps.length} ("${narration}") failed: ${(e as Error).message}`, { cause: e });
-    }
-    const actionEndMs = Math.round(clock.now());
-    if (!(await idle())) warn(`step ${steps.length}: the page was still loading after 10 s; going on`);
+    open = { ...(comment === undefined ? {} : { comment }), startMs, actionEndMs: startMs };
+  }
+
+  async function end() {
+    if (!open) return;
+    await settled();
     await wait(STEP_SETTLE_MS);
-    steps.push({ index: steps.length, narration, startMs, actionEndMs, endMs: Math.round(clock.now()) });
-  };
-  const step: Stage["step"] = async (narration, action) => {
-    // Steps are sequential windows on one timeline: a nested or concurrent step would overlap another.
-    if (inStep !== undefined) {
-      throw new Error(`step("${narration}") started inside step("${inStep}"); await each step before the next`);
+    steps.push({ index: steps.length, ...open, endMs: Math.round(clock.now()) });
+    open = undefined;
+  }
+
+  // Each queued comment opens a step; all but the last end with no action.
+  async function layDown() {
+    while (queued.length) {
+      await end();
+      await start(queued.shift());
     }
-    inStep = narration;
-    try { await run(narration, action); } finally { inStep = undefined; }
+  }
+
+  const comment: Stage["comment"] = (text) => {
+    if (typeof text !== "string") throw new Error(`comment() takes text, got ${JSON.stringify(text)}`);
+    queued.push(text);
   };
-  return { steps, step };
+
+  const action: Stage["action"] = async (run) => {
+    if (queued.length) await layDown();
+    else if (!open) await start(undefined);
+    const index = steps.length;
+    const { comment: text } = open!;
+    let result;
+    try {
+      result = await run();
+    } catch (e) {
+      const name = text === undefined ? "" : ` ("${text}")`;
+      throw new Error(`step ${index}${name} failed: ${(e as Error).message}`, { cause: e });
+    }
+    open!.actionEndMs = Math.round(clock.now());
+    return result;
+  };
+
+  /** Lays down the comments still queued and ends the last step; call it after the script returns. */
+  async function finish() {
+    await layDown();
+    await end();
+  }
+
+  return { steps, comment, action, finish };
 }

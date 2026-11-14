@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// `flow-reel record <script>`: on the host it starts the container; inside it (FLOW_REEL_IN_CONTAINER=1) it composes
+// `flow-reel compose <script>`: on the host it starts the container; inside it (FLOW_REEL_IN_CONTAINER=1) it composes
 // the script, with the adapters chosen here.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const USAGE = "usage: flow-reel record <script.ts> [--no-sfx] | flow-reel compare <a.json> <b.json>";
+const USAGE = "usage: flow-reel compose <script.ts> [--no-sfx] | flow-reel compare <a.json> <b.json>";
 
 async function main(argv: string[]): Promise<number> {
   const [command] = argv;
@@ -27,10 +27,11 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     } catch (error) { console.error(`flow-reel: ${(error as Error).message}`); return 2; }
   }
+  if (command === "record") { console.error("flow-reel: `record` is now `compose` (flow-reel 0.2)"); return 2; }
   const args = argv.slice(1);
   const positionals = args.filter((arg) => !arg.startsWith("-"));
   const flags = args.filter((arg) => arg.startsWith("-"));
-  if (command !== "record" || positionals.length !== 1 || flags.length > 1 || flags.some((arg) => arg !== "--no-sfx")) {
+  if (command !== "compose" || positionals.length !== 1 || flags.length > 1 || flags.some((arg) => arg !== "--no-sfx")) {
     console.error(USAGE);
     return 2;
   }

@@ -39,9 +39,9 @@ it("publishes the staged video with its transcript, captions and event log besid
   const { dir, script } = scriptIn();
   const cassette = folderStore.open(script);
   writeFileSync(cassette.work.stagedVideo, "video");
-  const transcript = { version: 1 as const, script: "settings.ts", steps: [],
+  const transcript = { version: 2 as const, script: "settings.ts", steps: [],
     video: { file: "settings.mp4", width: 1920, height: 1080, fps: 30, durationMs: 0 } };
-  const events = { version: 2 as const, events: [] };
+  const events = { version: 3 as const, events: [] };
   cassette.commit({ transcript, events, captions: { srt: "srt", vtt: "vtt" } });
   expect(readdirSync(dir).sort()).toEqual([
     ".flow-reel", "settings.events.json", "settings.mp4", "settings.srt", "settings.transcript.json", "settings.vtt",

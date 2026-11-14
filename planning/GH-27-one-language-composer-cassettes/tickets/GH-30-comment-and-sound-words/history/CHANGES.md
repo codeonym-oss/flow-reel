@@ -1,2 +1,8 @@
 - 2026-11-14: drafted by the story's global pass.
 - 2026-11-14: tracker issue #30 created, sub-issue of #27.
+- 2026-11-14: ticket pass started; decision 001 (the script's words).
+- 2026-11-14: decision 002 (comment is not awaited).
+- 2026-11-14: decisions 003 (output field rename) and 004 (sound constants).
+- 2026-11-14: decision 005 (sound groups).
+- 2026-11-14: ticket pass done (decisions 001-005), impl.md written.
+- 2026-11-14: built on feat/30-comment-and-sound-words; impl.md notes six corrections.

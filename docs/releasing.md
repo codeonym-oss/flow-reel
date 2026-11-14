@@ -18,7 +18,7 @@ another workflow. Publication runs in this order:
    existing media suite on each exact digest, including a narrated recording pair and fresh offline synthesis.
 3. Assemble the exact versioned multi-architecture image from verified digests. Existing tags must match.
 4. Check anonymous pulls and run the packed CLI from clean consumers on both architectures.
-5. Publish the retained tarball to npm using OIDC, then run `npx flow-reel@X.Y.Z record demo.ts` on both architectures.
+5. Publish the retained tarball to npm using OIDC, then run `npx flow-reel@X.Y.Z compose demo.ts` on both architectures.
 
 PR CI builds/tests both architectures without registry writes. Image builds use separate per-architecture caches.
 Media checks run sequentially per runner; the capture overload guard remains enabled.

@@ -1,6 +1,6 @@
 import { type Transcript, validateTranscript } from "./transcript.ts";
 
-/** Semantic checks for a finished recording, separate from the backward-compatible v1 shape validator. */
+/** Semantic checks for a finished recording, separate from the shape validator. */
 export function validateSync(value: unknown): string[] {
   const errors = validateTranscript(value);
   if (errors.length) return errors;
@@ -13,8 +13,8 @@ export function validateSync(value: unknown): string[] {
     const where = `steps[${i}]: `;
     if (i && step.startMs < t.steps[i - 1].endMs) errors.push(`${where}window overlaps the previous step`);
     if (step.endMs > t.video.durationMs + 1e-6) errors.push(`${where}endMs exceeds video durationMs`);
-    if (t.voice && step.narration?.trim() && !step.audio) {
-      errors.push(`${where}nonblank narration needs audio when voice is configured`);
+    if (t.voice && step.comment?.trim() && !step.audio) {
+      errors.push(`${where}nonblank comment needs audio when voice is configured`);
     }
     if (step.audio) {
       if (!/^[a-f0-9]{64}$/i.test(step.audio.sha256)) errors.push(`${where}audio.sha256 must be a SHA-256 hex digest`);

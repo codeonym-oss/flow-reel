@@ -32,9 +32,9 @@ it("preserves calibration pre-roll and exact frames in a silent no-hold delivery
 
 it("clones the last captured frame at multiple boundaries including the final frame", () => {
   const timeline = planTimeline([
-    { index: 0, narration: "red", startMs: 0, actionEndMs: 200, endMs: 500,
+    { index: 0, comment: "red", startMs: 0, actionEndMs: 200, endMs: 500,
       audio: { file: "unused.wav", durationMs: 800, sha256: "a".repeat(64) } },
-    { index: 1, narration: "blue", startMs: 1200, actionEndMs: 1300, endMs: 1500,
+    { index: 1, comment: "blue", startMs: 1200, actionEndMs: 1300, endMs: 1500,
       audio: { file: "unused.wav", durationMs: 600, sha256: "a".repeat(64) } },
   ], { fps: 30, frames: 60, cutMs: 500 });
   const out = options("held");
@@ -56,9 +56,9 @@ it("places original clips on the delivery clock and normalizes decoded AAC witho
   const hash = (file: string) => createHash("sha256").update(readFileSync(file)).digest("hex");
   const hashes = [hash(join(dir, "one.wav")), hash(join(dir, "two.wav"))];
   const timeline = planTimeline([
-    { index: 0, narration: "one", startMs: 500, actionEndMs: 600, endMs: 1500,
+    { index: 0, comment: "one", startMs: 500, actionEndMs: 600, endMs: 1500,
       audio: { file: "one.wav", durationMs: 700, sha256: hashes[0] } },
-    { index: 1, narration: "two", startMs: 3000, actionEndMs: 3200, endMs: 4000,
+    { index: 1, comment: "two", startMs: 3000, actionEndMs: 3200, endMs: 4000,
       audio: { file: "two.wav", durationMs: 600, sha256: hashes[1] } },
   ], { fps: 30, frames: 180, cutMs: 500 });
   const out = { ...options("audio"), capture: join(dir, "audio-capture.mp4") };
@@ -91,12 +91,12 @@ it("rejects missing media and nonempty clips containing only silence", () => {
   const timeline = planTimeline([], { fps: 30, frames: 60, cutMs: 500 });
   expect(() => renderTimeline({ ...options("broken"), capture: join(dir, "missing.mp4"), timeline })).toThrow();
   media(["-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono", "-t", "1", "-c:a", "pcm_s16le", join(dir, "silence.wav")]);
-  const silentClip = planTimeline([{ index: 0, narration: "voice", startMs: 0, actionEndMs: 100, endMs: 1500,
+  const silentClip = planTimeline([{ index: 0, comment: "voice", startMs: 0, actionEndMs: 100, endMs: 1500,
     audio: { file: "silence.wav", durationMs: 1000, sha256: "a".repeat(64) } }], { fps: 30, frames: 60, cutMs: 500 });
   expect(() => renderTimeline({ ...options("silent-clip"), timeline: silentClip })).toThrow(/no measurable audio/);
 });
 
-it("clears generated voice intermediates when a voiced demo is rerendered with blank narration", async () => {
+it("clears generated voice intermediates when a voiced demo is rerendered with blank comment", async () => {
   const { existsSync, writeFileSync } = await import("node:fs");
   const out = options("blank-rerun");
   writeFileSync(out.voice, "previous voice"); writeFileSync(out.voice + ".bus.wav", "previous bus");
@@ -109,9 +109,9 @@ it("keeps the full voice duration when normalization falls back to dynamic mode"
   media(["-f", "lavfi", "-i", "aevalsrc=0.002*sin(2*PI*440*t)+if(lt(mod(t\\,0.2)\\,0.0001)\\,0.9\\,0):s=24000:d=1",
     "-c:a", "pcm_s16le", join(dir, "transient.wav")]);
   const timeline = planTimeline([
-    { index: 0, narration: "transient", startMs: 500, actionEndMs: 600, endMs: 1700,
+    { index: 0, comment: "transient", startMs: 500, actionEndMs: 600, endMs: 1700,
       audio: { file: "transient.wav", durationMs: 1000, sha256: "a".repeat(64) } },
-    { index: 1, narration: "late", startMs: 3000, actionEndMs: 3100, endMs: 4000,
+    { index: 1, comment: "late", startMs: 3000, actionEndMs: 3100, endMs: 4000,
       audio: { file: "two.wav", durationMs: 600, sha256: "b".repeat(64) } },
   ], { fps: 30, frames: 180, cutMs: 500 });
   const out = { ...options("dynamic"), capture: join(dir, "audio-capture.mp4") };
@@ -128,9 +128,9 @@ it("keeps the full voice duration when normalization falls back to dynamic mode"
 
 it("places a later clip after prior holds while preserving the final speech tail", () => {
   const timeline = planTimeline([
-    { index: 0, narration: "one", startMs: 0, actionEndMs: 100, endMs: 300,
+    { index: 0, comment: "one", startMs: 0, actionEndMs: 100, endMs: 300,
       audio: { file: "one.wav", durationMs: 700, sha256: "a".repeat(64) } },
-    { index: 1, narration: "two", startMs: 1200, actionEndMs: 1300, endMs: 1500,
+    { index: 1, comment: "two", startMs: 1200, actionEndMs: 1300, endMs: 1500,
       audio: { file: "two.wav", durationMs: 600, sha256: "b".repeat(64) } },
   ], { fps: 30, frames: 60, cutMs: 500 });
   const out = options("held-audio");

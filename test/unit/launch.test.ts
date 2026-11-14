@@ -15,7 +15,7 @@ describe("imageFor", () => {
 describe("buildRunArgs", () => {
   it("passes muting into the container after the script", () => {
     expect(buildRunArgs({ ...base, engine: "docker", desktop: false, sfx: false }).slice(-3))
-      .toEqual(["record", "/work/demo.ts", "--no-sfx"]);
+      .toEqual(["compose", "/work/demo.ts", "--no-sfx"]);
   });
   it("Linux Docker: host network, the host's uid, the script's folder at /work", () => {
     expect(buildRunArgs({ ...base, engine: "docker", desktop: false })).toEqual([
@@ -23,7 +23,7 @@ describe("buildRunArgs", () => {
       "-v", "/home/me/app:/work", "-w", "/work",
       "--user", "1000:1000",
       "--network", "host",
-      "ghcr.io/codeonym-oss/flow-reel:0.1.0", "record", "/work/demo.ts",
+      "ghcr.io/codeonym-oss/flow-reel:0.1.0", "compose", "/work/demo.ts",
     ]);
   });
 

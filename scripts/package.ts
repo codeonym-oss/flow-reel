@@ -25,7 +25,10 @@ try {
     assert.equal(createHash("sha256").update(readFileSync(join(root, "docker/sfx", asset.file))).digest("hex"), asset.sha256);
   }
   const api = await import(pathToFileURL(join(root, "dist/index.js")).href);
-  assert.equal(typeof api.demo, "function");
+  assert.equal(typeof api.script, "function");
+  assert.equal(api.Sounds.feedback.SUCCESS, "success");
+  // The chained words' types reach scripts through Playwright's Locator.
+  assert.match(readFileSync(join(root, "dist/index.d.ts"), "utf8"), /declare module "playwright-core"/);
   const cli = spawnSync(join(consumer, "node_modules/.bin/flow-reel"), [], { encoding: "utf8" });
   assert.equal(cli.status, 2);
   assert.match(cli.stderr, /usage: flow-reel/);

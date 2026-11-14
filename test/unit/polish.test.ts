@@ -10,7 +10,7 @@ it("keeps camera lookahead and ripples unchanged when sound cues are interleaved
   const move: ComposerEvent = { t: 1200, type: "move", from: [960, 540], to: [1700, 900], durationMs: 450, easing: "easeInOutCubic" };
   const events: ComposerEvent[] = [click(1000), move, { ...click(1650, [1700, 900]), bounds: { x: 0, y: 0, width: 1900, height: 1000 } }];
   const base = planPolish(events, options);
-  const cues = planPolish([events[0], move, { t: 1400, type: "sfx", name: "open" }, events[2]], options);
+  const cues = planPolish([events[0], move, { t: 1400, type: "sound", name: "open" }, events[2]], options);
   for (let n = 0; n < options.frames; n++) expect(cues.frame(n)).toEqual(base.frame(n));
 });
 

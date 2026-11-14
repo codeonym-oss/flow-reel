@@ -6,8 +6,8 @@ script gives the same video, step for step.
 
 [`CONTEXT.md`](CONTEXT.md) defines the project's vocabulary.
 
-This release records narrated video with captions, fitted step timings, a smooth cursor, click ripples and
-automatic zoom, click/typing sounds and optional named action cues.
+This release composes commented video with captions, fitted step timings, a smooth cursor, click ripples and
+automatic zoom, click/typing sounds and optional named sounds.
 
 ## Requirements
 
@@ -30,22 +30,30 @@ The package and recording image use the same version. Each npm release has a mat
 Linux amd64 and arm64.
 See [release setup and verification](docs/releasing.md) for publication status requirements and contributor steps.
 
-## Write a demo
+## Write a script
 
-A demo is a TypeScript file whose default export is `demo(options, body)`. Each `step(narration, action)` is one unit
-of the demo: the sentence that will be spoken, and the Playwright actions it describes.
+A script is a TypeScript file whose default export is `script(options, body)`. The body is plain Playwright, plus
+flow-reel words: `comment` (a spoken line) and `sound`. Each word can stand alone, or be chained on the element it is
+about.
 
 ```ts
 // demos/settings.ts
-import { demo } from "flow-reel";
+import { script, Sounds } from "flow-reel";
 
-export default demo({ url: "http://localhost:4173" }, async ({ page, step }) => {
-  await step("Open the settings page.", () => page.getByRole("link", { name: "Settings" }).click());
-  await step("Turn on dark mode.", () => page.getByLabel("Dark mode").check());
+export default script({ url: "http://localhost:4173" }, async ({ page, comment }) => {
+  comment("Open the settings page.");
+  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByLabel("Dark mode")
+    .comment("Turn on dark mode.")
+    .sound(Sounds.controls.TOGGLE)
+    .check();
 });
 ```
 
-- `url`: where the demo starts. `localhost` reaches the app running on your machine.
+- A comment opens a step: the step starts with the next action, and takes in every action until the next comment.
+  `comment(text)` returns at once; don't await it. Two comments with no action between them are two steps, the
+  first with no action. Actions before the first comment form a step with no comment.
+- `url`: where the script starts. `localhost` reaches the app running on your machine.
 - `viewport`: whole CSS pixels, `[1920, 1080]` by default.
 - `page` is a Playwright `Page`. Clicks (including their `button` and `position` options), double-clicks, hovers,
   `check`, `fill`, `type`, `pressSequentially` and `selectOption` move the mouse visibly to their target, scrolling
@@ -58,49 +66,49 @@ export default demo({ url: "http://localhost:4173" }, async ({ page, step }) => 
   by the readable speed; `timeout`/`force` are kept.
 - Other calls that act on the page, such as `page.evaluate`, `locator.dispatchEvent`, `press`, `page.keyboard.press`
   or `page.frame()` (whose frames aren't animated), run as they are, without any mouse motion, and print a warning
-  once per method.
+  once per method. Like `page.goto`, `reload`, `goBack` and `goForward`, they still count as actions of their step.
 - Write erasable TypeScript only: no `enum`, `namespace` or parameter properties. Import only from `flow-reel` and
   from files in the same folder as the script.
 
-## Record
+## Compose
 
 ```sh
-npx flow-reel record demos/settings.ts
+npx flow-reel compose demos/settings.ts
 ```
 
 Next to the script:
 
 | File | What it is |
 |---|---|
-| `settings.mp4` | The polished narrated demo, 1920×1080, 30 fps, with AAC narration and interaction sounds. |
-| `settings.transcript.json` | Each step's original narration and `startMs`, `actionEndMs` and `endMs` on the video's timeline (schema version 1). |
-| `settings.events.json` | Every move, click, keystroke run, scroll and explicit sound cue, timed the same way (schema version 2). |
+| `settings.mp4` | The polished video, 1920×1080, 30 fps, with AAC speech and interaction sounds. |
+| `settings.transcript.json` | Each step's original `comment` and `startMs`, `actionEndMs` and `endMs` on the video's timeline (schema version 2). |
+| `settings.events.json` | Every move, click, keystroke run, scroll and sound, timed the same way (schema version 3). |
 | `settings.srt` | Captions for a subtitle-capable video player. |
 | `settings.vtt` | WebVTT captions for a browser's `<video>` / `<track>`. |
 | `settings.audio/000.wav` | Local speech clips, named by zero-based step index. |
 
-Each caption shows one step's narration from its `startMs` to its `endMs`. Caption whitespace is normalized and the
-player wraps the text; the transcript keeps the original narration. Blank narration and steps lasting zero
-milliseconds stay in the transcript but produce no caption. Narrated steps include the full speech clip and
+Each caption shows one step's comment from its `startMs` to its `endMs`. Caption whitespace is normalized and the
+player wraps the text; the transcript keeps the original comment. Blank comments and steps lasting zero
+milliseconds stay in the transcript but produce no caption. Commented steps include the full speech clip and
 at least 200 ms afterward.
 
-Narration uses Qwen3-TTS 0.6B CustomVoice, Ryan in English, through the official Python runtime on CPU. Model and
+The voice is Qwen3-TTS 0.6B CustomVoice, Ryan in English, through the official Python runtime on CPU. Model and
 tokenizer assets are pinned and downloaded when the image is built; synthesis runs offline without a key. Speech
 is generated after capture finishes. The transcript records the voice, seed, and each clip's relative file path,
 duration in milliseconds and complete-file SHA-256 hash. Copy the audio folder with its transcript when sharing it.
 
 Synthesis normalizes whitespace without interpreting caption escapes; the transcript preserves the original text.
-Blank narration produces no clip. Clip numbers retain step indexes, so skipped steps leave gaps. Rerunning replaces
-the generated numeric WAVs in this demo's audio folder; keep personal audio under other filenames or folders.
-Nonblank narration on a zero-duration action still produces speech. Each action runs once at normal speed.
-After its callback returns (`actionEndMs`), the recorder waits for network quiet (500 ms, bounded at 10 seconds),
-then captures another 100 ms. Scripts must still await the UI state they intend to show; network quiet does not
+A blank comment produces no clip. Clip numbers retain step indexes, so skipped steps leave gaps. Rerunning replaces
+the generated numeric WAVs in this script's audio folder; keep personal audio under other filenames or folders.
+A comment with no action still produces speech. Each action runs once at normal speed. After a step's last action
+returns (`actionEndMs`), the composer waits for network quiet (500 ms, bounded at 10 seconds), then captures another
+100 ms. Scripts must still await the UI state they intend to show; network quiet does not
 prove that an operation succeeded. A timeout prints a warning and continues.
 
 After capture and synthesis finish, the renderer adds only the whole frames needed to fit speech plus its tail,
-freezing the last frame of that settled window. Narration starts alongside its action at `startMs`. Longer actions
+freezing the last frame of that settled window. A comment starts alongside its step at `startMs`. Longer actions
 continue normally after speech finishes. Transcript windows, captions, events and the master all use this final
-timeline. Blank narration gets no speech padding; an all-blank demo can still have interaction sounds.
+timeline. A blank comment gets no speech padding; a script without comments can still have interaction sounds.
 If it has no effects, or `--no-sfx` is set, it has no audio stream.
 
 Visual polish is automatic: a white arrow with a dark outline follows logged pointer motion, and a blue ring
@@ -110,9 +118,9 @@ then eases out over 800 ms. Further activity extends the zoom. Hover and scrolli
 The camera follows the pointer and stays within the recorded page. Zoom is capped at 4/3 (about 1.33×), using
 the default 1440p master for sharp 1080p output; large targets reduce the zoom to keep their visible bounds
 framed with padding. Bounds are captured before the action, so they do not track subsequent layout changes.
-Partly off-screen elements can only show the portion captured in the master. Old version 1 event logs without
-bounds use click points instead, without a whole-element framing guarantee. Polish preserves every frame and
-all narration, transcript and caption times. Zoom animations end with the video and do not lengthen it.
+Partly off-screen elements can only show the portion captured in the master. Clicks logged without bounds use
+their click points instead, without a whole-element framing guarantee. Polish preserves every frame and
+all comment, transcript and caption times. Zoom animations end with the video and do not lengthen it.
 Polish runs after capture, without replaying actions or changing speed.
 
 The assembled voice and final voiced mix are normalized to -16 LUFS with a -1.5 dBTP peak ceiling, then encoded as 48 kHz stereo AAC-LC
@@ -126,7 +134,7 @@ On the tested Ryzen 5 3500U, one fresh process generated three short clips (6.4 
 with about 5.4 GiB peak process memory. Runtime varies with host load. A synthesis job has a 15-minute timeout;
 individual steps also fail if generation reaches its limit, rather than returning truncated speech.
 
-Captions escape `&`, `<` and `>` so narration is emitted without raw tags. WebVTT displays the literal text; some
+Captions escape `&`, `<` and `>` so comments are emitted without raw tags. WebVTT displays the literal text; some
 SRT players display escape sequences such as `&lt;` instead. Use WebVTT in a browser when literal symbols matter.
 
 In `.flow-reel/settings/`: `capture.mp4` is the original 2560×1440 recording (the viewport × 4/3, padded by one
@@ -142,36 +150,44 @@ To keep runs the same, the runner fixes the viewport, device scale, `prefers-red
 (`2026-01-05T09:00:00Z`) and `Math.random`'s seed, and waits for the network to go idle before each step. Two runs of
 a script have the same steps, each starting within ±150 ms.
 
-## Sound effects
+## Sounds
 
-Clicks and per-character typing taps are automatic. To mark a meaningful action, use `sfx` from the demo context:
+Clicks and per-character typing taps are automatic. To mark a meaningful moment, play one of the `Sounds`
+constants, chained on the element whose action it belongs to, or standalone from the script context:
 
 ```ts
-export default demo({ url: "http://localhost:4173" }, async ({ page, step, sfx }) => {
-  await step("Save your settings.", async () => {
-    await page.getByRole("button", { name: "Save" }).click();
-    await page.getByText("Settings saved").waitFor();
-    sfx("success");
-  });
+import { script, Sounds } from "flow-reel";
+
+export default script({ url: "http://localhost:4173" }, async ({ page, sound }) => {
+  await page.getByRole("button", { name: "Delete" }).sound(Sounds.navigation.OPEN).click();
+  await page.getByText("Deleted").waitFor();
+  sound(Sounds.feedback.SUCCESS);
 });
 ```
 
-The names are `success`, `error`, `notification`, `open`, `close`, `toggle`, `back` and `select`.
-`sfx(name)` marks the current time and returns immediately. It adds no pause, performs no browser action and does
-not infer whether the operation succeeded; call it after the state or assertion it describes. Unknown names fail
-clearly, including when effects are muted. Existing scripts need no changes.
+| Group | Sounds |
+|---|---|
+| `Sounds.feedback` | `SUCCESS`, `ERROR`, `NOTIFICATION` |
+| `Sounds.navigation` | `OPEN`, `CLOSE`, `BACK` |
+| `Sounds.controls` | `TOGGLE`, `SELECT` |
+
+A chained sound plays at the moment its element's action is logged (for a click, with the click). `sound(name)`
+marks the current time and returns immediately; it adds no pause, performs no browser action and does not infer
+whether the operation succeeded, so call it after the state or assertion it describes. A sound is named only by a
+`Sounds` constant: a bare string is a type error, and an unknown name fails at run time, including when sounds are
+muted.
 
 ```sh
-npx flow-reel record demos/settings.ts --no-sfx
+npx flow-reel compose demos/settings.ts --no-sfx
 ```
 
-`--no-sfx` also works before the script. It mutes all effects while retaining cue events, narration, captions and
-visuals. Sound effects never add frames, change narration holds or extend the recording; tails reaching the video
-end fade out and are trimmed. An explicit cue within ±150 ms inclusive replaces automatic click audio, while the
-visual ripple and logged click remain. Other explicit cues may overlap. Hover/scroll have no automatic sounds.
+`--no-sfx` also works before the script. It mutes all sounds while keeping them in the event log, with the
+comments, captions and visuals. Sounds never add frames, change speech holds or extend the video; tails reaching
+the video end fade out and are trimmed. A sound within ±150 ms inclusive replaces automatic click audio, while the
+visual ripple and logged click remain. Other sounds may overlap. Hover/scroll have no automatic sounds.
 
 The palette uses short, related DAEDAL CC0 UI sounds, with three quieter typing taps cycling deterministically.
-Effects sit beneath narration and duck another 6 dB over each speech clip, with a 30 ms lead-in and 250 ms recovery.
+Effects sit beneath speech and duck another 6 dB over each speech clip, with a 30 ms lead-in and 250 ms recovery.
 They remain ducked through pauses inside a clip. The combined effects bus has a -18 dBFS sample-peak ceiling before
 final mix processing. SFX-only demos retain quiet fixed levels instead of being normalized to speech loudness.
 Final AAC peak checks also apply. See [asset sources, licences and calibration](docker/sfx/README.md).
@@ -181,9 +197,8 @@ kept intact; non-US characters follow Playwright's delayed text insertion. Repea
 the same recording image produce identical decoded effect audio. The transcript comparison below still compares
 speech source hashes and step timing; it does not compare effects or prove final mixed-audio equality.
 
-New recordings write event schema version 2, adding `{ t, type: "sfx", name }`; updated readers also accept version 1
-action logs. Older tools that only understand v1 need upgrading for new logs. Transcript schema remains version 1.
-The selected sounds are bundled in the npm package/image and work offline. The full planning audition library is
+The event log records a sound as `{ t, type: "sound", name }`, `name` being the constant's lowercase value. The
+selected sounds are bundled in the npm package/image and work offline. The full planning audition library is
 not included in the runtime package.
 
 ## Compare recordings
@@ -193,7 +208,7 @@ npx flow-reel compare demos/a.transcript.json demos/b.transcript.json
 ```
 
 Comparison runs on the host without Docker or FFmpeg. It validates each transcript's schema and sync, then checks
-video dimensions/FPS, step order, exact original narration, voice identity, source audio hashes/durations and step
+video dimensions/FPS, step order, exact original comments, voice identity, source audio hashes/durations and step
 starts within ±150 ms inclusive. Script and output paths may differ. Legacy silent transcripts and blank-only
 recordings are supported. Exit status is 0 for a match, 1 for valid recordings that differ, and 2 for invalid input,
 failed sync or usage errors; diagnostics identify the file or step.
@@ -202,6 +217,20 @@ These checks read transcript data only. They do not open referenced audio, capti
 equality, or promise identical encoded MP4 bytes. Valid action/end/video durations may differ between recordings;
 only step starts have the 150 ms comparison tolerance. Recording automatically checks that all clips fit their
 step windows, including the speech tail, before publishing its transcript.
+
+## From 0.1 to 0.2
+
+0.2 replaces the 0.1 script words; a 0.1 script fails to load with a pointer here.
+
+| 0.1 | 0.2 |
+|---|---|
+| `import { demo } from "flow-reel"` | `import { script, Sounds } from "flow-reel"` |
+| `demo(options, async ({ page, step, sfx }) => …)` | `script(options, async ({ page, comment, sound }) => …)` |
+| `await step("Save.", () => button.click())` | `comment("Save."); await button.click()` or `await button.comment("Save.").click()` |
+| `sfx("success")` | `sound(Sounds.feedback.SUCCESS)` or `button.sound(Sounds.feedback.SUCCESS)` |
+| `npx flow-reel record demo.ts` | `npx flow-reel compose demo.ts` |
+| transcript version 1, step field `narration` | transcript version 2, step field `comment` |
+| event log versions 1 and 2, event `{ type: "sfx" }` | event log version 3, event `{ type: "sound" }` |
 
 ## Platforms
 
@@ -223,7 +252,7 @@ npm test            # unit tests
 npm run test:e2e    # builds the image, tests offline synthesis, and records twice (needs Docker and ffmpeg)
 ```
 
-`flow-reel record` always runs the runner inside the image for its package version. From a source checkout it
+`flow-reel compose` always runs the composer inside the image for its package version. From a source checkout it
 uses the released image of that version, not your local `src/`, and says so. To record with local changes, build
 the image under that tag first: `npm run build && docker build -t ghcr.io/codeonym-oss/flow-reel:$(node -p
 "require('./package.json').version") -f docker/Dockerfile .` (remove it afterwards with `docker rmi` to go back to

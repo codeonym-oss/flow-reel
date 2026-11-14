@@ -1,0 +1,136 @@
+# GH-30: implementation plan
+
+Planned 2026-11-14 against `main` @ `923ae57`. A breaking change to the public API: pull request type `feat!:`,
+branch `feat/30-comment-and-sound-words`. `main` may hold breaking changes until GH-34 releases 0.2.0 (story rule);
+merging this makes release-please propose 0.2.0 early, and that release PR is left open until GH-34.
+
+## Settled before this pass
+
+Story decisions 001 (tool's own script plus flow-reel words), 008 (replace 0.1 words, no aliases), 009
+(vocabulary, `flow-reel compose`). This ticket: 001 (`script`, `comment`, `sound`; a comment opens a step), 002
+(`comment()` is not awaited), 003 (rename output fields here, one version bump each), 004 and 005 (`Sounds`
+constants, grouped by purpose).
+
+## The script, after this ticket
+
+```ts
+import { script, Sounds } from "flow-reel";
+
+export default script({ url: "http://localhost:3000" }, async ({ page, comment, sound }) => {
+  comment("This is the settings page.");
+  await page.getByLabel("Name").fill("Ada");
+  await page.getByRole("button", { name: "Save" })
+    .comment("Save, and the change is applied at once.")
+    .sound(Sounds.feedback.SUCCESS)
+    .click();
+});
+```
+
+## How steps are timed
+
+`stepTimer` (`src/composer/steps.ts`) becomes a small state machine fed by the script and the wrapper:
+
+- `comment(text)` (sync) queues a step to open. Two queued comments with no action between them each become a step
+  with no action.
+- `beforeAction()` (async, called by the wrapper before every page action): first lays down each queued comment
+  that will get no action (wait idle, settle, start = action end = now, settle, end); then, if a comment is queued
+  or no step is open, opens a step (wait idle, settle, start = now). A step opened without a comment (actions
+  before the first comment) has no comment, as a 0.1 step with blank narration had.
+- `afterAction()` sets the open step's `actionEndMs`.
+- `finish()` (async, after the script body returns): lays down queued comments, then closes the open step (wait
+  idle, settle, end = now).
+- A new comment does not close the open step at once (it cannot wait); the step closes in the next
+  `beforeAction()` or `finish()`, with today's idle-and-settle before its end.
+
+Waiting, settling and the loading warning keep today's values and messages. Several actions inside one step run
+back to back, as inside a 0.1 step. The nested-step guard goes: steps can no longer nest.
+
+## Read first
+
+- `src/index.ts` (public API), `src/composer/ports.ts` (`Stage`), `src/composer/steps.ts`.
+- `src/adapters/playwright/wrap.ts`: `wrapLocator`, `act`, the page proxy; `integration.ts` `run()`; `load.ts`.
+- `src/composer/schema/{transcript,events,sync}.ts`, `voicing.ts`, `captions.ts`, `timeline.ts`, `sounds.ts`,
+  `media/render.ts`, `media/sound-mix.ts`, `compare.ts`.
+- `src/cli.ts`, `src/host/launch.ts` (passes `record` into the container).
+- `scripts/consumer.ts` (a script and `record` call used by CI and the publish workflow), `scripts/package.ts`
+  (asserts `api.demo`), `test/fixtures/demo.ts`, the e2e tests that write scripts, `README.md`, `CONTEXT.md`,
+  `docs/releasing.md` line 21.
+
+## Steps
+
+1. **Public API.** In `src/index.ts`: `script(options, body)` replaces `demo`; the body receives
+   `{ page, comment, sound }`; export `Sounds` (decision 005) and the `Sound` type (the union of its values).
+   Remove `demo`, `Step`, `Sfx`, `SfxName`. Augment Playwright's `Locator` type (module `playwright-core`, which
+   `playwright` re-exports) with `comment(text: string): Locator` and `sound(sound: Sound): Locator`.
+   → check: `test/unit/api.test.ts` rewritten: `script` returns options with the default viewport and does not run
+   the body; `Sounds.feedback.SUCCESS === "success"` and all eight names; `@ts-expect-error` on
+   `sound("success")` (a bare string is rejected), on `comment(42)`, and on `.sound("nope")` chained on a locator.
+2. **Step timer.** Rewrite `stepTimer` as above, with `comment`, `beforeAction`, `afterAction`, `finish`.
+   → check: `test/unit/steps.test.ts` rewritten with the fake clock: comment then action; several actions in one
+   step; actions before the first comment form a step without a comment; two comments in a row (held still);
+   a comment chained right before an action; a trailing comment with no action; the failure message names the step
+   and keeps its cause; the loading warning.
+3. **Stage port and wrapper.** `Stage` gets `comment`, `sound`, `beforeAction`, `afterAction` in place of `step`.
+   `wrapPage` calls `beforeAction`/`afterAction` around every covered action and every uncovered acting call that it
+   already warns about (they act on the page). Locators gain `comment(text)` (calls `stage.comment`, returns the
+   same locator) and `sound(sound)` (returns the locator carrying the pending sound, which is logged at the moment
+   the action is logged; a chain with no action before the step closes logs nothing and warns once).
+   → check: `test/unit/wrap.test.ts`: chained comment opens the step before the action; chained sound's event time
+   equals the click's; `.sound()` survives `.first()`/`.filter()`; unknown sound names are rejected at run time
+   too (scripts in plain JS); existing wrap tests pass with the new hooks.
+4. **Integration and loader.** `integration.ts` passes `{ page, comment, sound }`; `compose` calls `finish()` after
+   the body. `load.ts` checks for a `script(options, body)` default export; its error says so.
+   → check: `test/unit/load.test.ts` updated: messages name `script(...)`; a 0.1 `demo(...)` script fails with a
+   message that points to the README's 0.2 section.
+5. **Output words (decision 003).** Transcript version 2: step field `comment` (was `narration`). Event log
+   version 3: event `{ type: "sound", name }` (was `sfx`); version 3 is the only one accepted. Rename through
+   `voicing.ts`, `captions.ts`, `timeline.ts`, `sounds.ts`, `sound-mix.ts`, `render.ts`, `compare.ts`, schemas.
+   → check: `schema.test.ts`, `sync.test.ts`, `compare.test.ts`, `captions.test.ts`, `tts.test.ts`, `sfx.test.ts`
+   updated to the new names and versions; a version-1 transcript is rejected with "version must be 2".
+6. **Command.** `flow-reel compose <script> [--no-sfx]` replaces `record`; `launch.ts` passes `compose` into the
+   container. `flow-reel record` exits 2 with "`record` is now `compose` (flow-reel 0.2)".
+   → check: `cli.test.ts` and `launch.test.ts` updated; the `record` message is tested.
+7. **Scripts, fixtures, docs.** Rewrite `test/fixtures/demo.ts`, the e2e scripts and `scripts/consumer.ts` in the
+   new language (the consumer script uses one standalone comment, one chained comment and one chained sound);
+   `scripts/package.ts` asserts `api.script` and `api.Sounds`. README: the script section, sounds, `compose`, the
+   output field names, and a short "0.1 → 0.2" table (expanded in GH-34). `CONTEXT.md`: drop the "until #30"
+   note for the script words; keep it for the cassette (GH-31). `docs/releasing.md` line 21: `compose`.
+   → check: `grep -rnE "\bdemo\(|\bstep\(|\bsfx\b|narration|flow-reel record" src test scripts README.md docs`
+   finds nothing but the 0.1 → 0.2 table and the record-is-now-compose message.
+8. **Whole suite.** → check: `npm run typecheck`, `npm test` on Node 26 and 22.18.0, `npm run pack:check`; CI's
+   recording suite on amd64 and arm64.
+
+## Tests
+
+Unit: the API's types and values, the step timer's state machine, the wrapper's chained words, loader messages,
+schemas and compare at the new versions, the CLI. Recording (CI): the existing media checks on scripts rewritten in
+the new language, which proves timing, voicing, captions and sound mixing still work end to end.
+
+## Risks
+
+- **Step timing changes shape** (steps open at the first action, close lazily). The recording suite's sync and
+  reproducibility checks (step starts within 150 ms between two takes) cover regressions; the step timer's unit
+  tests pin the order of waits.
+- **Locator type augmentation** must target `playwright-core`; if it targets `playwright`, chained words type-fail
+  only in scripts, not in this repo. Step 1's `@ts-expect-error` tests and a typed chained call in
+  `test/fixtures/demo.ts` (typechecked) cover it.
+- **The publish workflow's consumer check** runs `scripts/consumer.ts` from the release commit against the new
+  package, so it must use the new language and `compose` (step 7). CI runs the same script on every PR.
+- **release-please** proposes 0.2.0 once this `feat!:` lands; leave that PR unmerged until GH-34.
+
+## Corrections during the build (2026-11-14)
+
+- **One `action` hook instead of `beforeAction`/`afterAction`.** `Stage.action(run)` opens the step when one is due,
+  runs the action and sets `actionEndMs`. Wrapping the action is what lets a failure name its step and keep its cause,
+  as 0.1 did; two separate hooks could not see the error.
+- **Navigation counts as an action.** `page.goto`, `reload`, `goBack` and `goForward` run through `Stage.action`, so a
+  comment written before a navigation is spoken with it rather than with the next click. Uncovered calls that return
+  a handle synchronously (`page.frame`, `frames`, `mainFrame`) stay outside steps.
+- **No warning for a chained sound whose locator never acts.** A locator carrying a sound can be stored and used
+  later, in another step, so "never acted" is only known at the end and the warning would mostly be noise. The sound
+  simply doesn't play. Covered in `test/unit/wrap.test.ts`.
+- **`Sound` is branded.** For `sound("success")` to be a type error (step 1's check), `Sound` is the union of names
+  intersected with a brand only the `Sounds` constants carry. The event log keeps the plain `SoundName`.
+- **`SOUND_NAMES` order follows the groups** (`back` before `toggle`). Only tests read the order.
+- **A 0.1 script fails with its own message.** Importing `demo` throws in Node before the loader sees the module;
+  `loadScript` turns that error into "is a flow-reel 0.1 script …; see …#from-01-to-02".

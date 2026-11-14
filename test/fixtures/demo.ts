@@ -1,6 +1,10 @@
-import { demo } from "flow-reel";
+import { script, Sounds } from "flow-reel";
 
-export default demo({ url: "http://localhost:4173" }, async ({ page, step }) => {
-  await step("Open the settings page.", () => page.getByRole("link", { name: "Settings" }).click());
-  await step("Turn on dark mode.", () => page.getByLabel("Dark mode").check());
+export default script({ url: "http://localhost:4173" }, async ({ page, comment }) => {
+  comment("Open the settings page.");
+  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByLabel("Dark mode")
+    .comment("Turn on dark mode.")
+    .sound(Sounds.controls.TOGGLE)
+    .check();
 });

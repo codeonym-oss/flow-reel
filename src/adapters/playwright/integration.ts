@@ -2,7 +2,7 @@
 // script body with a page that animates and logs what it does.
 import type { Integration } from "../../composer/ports.ts";
 import { launchBrowser } from "./browser.ts";
-import { loadDemo } from "./load.ts";
+import { loadScript } from "./load.ts";
 import { trackNetwork } from "./network.ts";
 import { wrapPage } from "./wrap.ts";
 
@@ -10,8 +10,8 @@ const MARK_ID = "__flow_reel_mark";
 
 export const playwright: Integration = {
   async load(scriptPath) {
-    const demo = await loadDemo(scriptPath);
-    const { viewport, url } = demo.options;
+    const script = await loadScript(scriptPath);
+    const { viewport, url } = script.options;
     return {
       viewport,
       async open() {
@@ -34,8 +34,9 @@ export const playwright: Integration = {
             async hideMarker() {
               await page.evaluate((id) => document.getElementById(id)?.remove(), MARK_ID);
             },
-            async run({ clock, events, fps, step, sound }) {
-              await demo.body({ page: wrapPage(page, { clock, events, fps, viewport }), step, sfx: sound });
+            async run(stage) {
+              const { clock, events, fps, comment, sound } = stage;
+              await script.body({ page: wrapPage(page, { clock, events, fps, viewport, stage }), comment, sound });
             },
             close: () => context.close(),
           };

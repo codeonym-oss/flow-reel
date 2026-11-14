@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Page } from "playwright";
-import type { ComposerEvent } from "../../src/composer/schema/events.ts";
+import { Sounds, type ComposerEvent, type Sound } from "../../src/composer/schema/events.ts";
 import { wrapPage } from "../../src/adapters/playwright/wrap.ts";
 
 // A fake of the Playwright surface the wrapper touches: the page, its mouse and locators. Every call lands in `calls`.
@@ -37,6 +37,7 @@ function fakePage(boxes: Record<string, Box>, boxLatencyMs = 0, clickLatencyMs =
       calls.push(`scrollIntoViewIfNeeded ${name}`);
     },
     first: () => locator(`${name}.first()`),
+    filter: () => locator(name),
     all: async () => [locator(`${name} >> nth=0`), locator(`${name} >> nth=1`)],
     dispatchEvent: async () => void calls.push(`dispatchEvent ${name}`),
   });
@@ -253,5 +254,62 @@ describe("wrapPage", () => {
       times.push({ events: events.map((e) => e.t), end: now });
     }
     expect(times[1]).toEqual(times[0]);
+  });
+});
+
+describe("wrapPage with a stage", () => {
+  // Records what the wrapper asks of the stage, in order.
+  const staged = (page: Page) => {
+    const log: string[] = [];
+    const stage = {
+      comment: (text: string) => void log.push(`comment ${text}`),
+      sound: (name: string) => { log.push(`sound ${name}`); events.push({ t: now, type: "sound", name: name as "success" }); },
+      async action<T>(run: () => Promise<T>) { log.push("action"); const result = await run(); log.push("done"); return result; },
+    };
+    return { log, p: wrapPage(page, { clock, events, sleep, warn: (m) => warnings.push(m), stage }) };
+  };
+  const save = { x: 900, y: 500, width: 120, height: 40 };
+  const boxes = () => ({ "button Save": save, "button Save.first()": save });
+
+  it("runs each action, and each uncovered call that returns a promise, as one action of its step", async () => {
+    const { page } = fakePage(boxes());
+    const { log, p } = staged(page);
+    await p.getByRole("button", { name: "Save" }).click();
+    await p.fill("button Save", "x");
+    await p.mouse.wheel(0, 10);
+    await p.keyboard.type("a");
+    await p.evaluate(() => 1);
+    expect(log).toEqual(Array(5).fill(["action", "done"]).flat());
+  });
+
+  it("opens a chained comment's step before the action it is chained on", async () => {
+    const { page } = fakePage(boxes());
+    const { log, p } = staged(page);
+    await p.getByRole("button", { name: "Save" }).comment("Save.").click();
+    expect(log).toEqual(["comment Save.", "action", "done"]);
+  });
+
+  it("plays a chained sound at the moment its click is logged, through first() and filter()", async () => {
+    const { page } = fakePage(boxes());
+    const { log, p } = staged(page);
+    await p.getByRole("button", { name: "Save" }).sound(Sounds.feedback.SUCCESS).filter({}).first().click();
+    const click = events.find((e) => e.type === "click")!;
+    expect(events.filter((e) => e.type === "sound")).toEqual([{ t: click.t, type: "sound", name: "success" }]);
+    expect(log).toEqual(["action", "sound success", "done"]);
+  });
+
+  it("plays nothing when the chained locator never acts, and keeps the sound on that locator only", async () => {
+    const { page } = fakePage(boxes());
+    const { log, p } = staged(page);
+    const save = p.getByRole("button", { name: "Save" });
+    void save.sound(Sounds.feedback.ERROR);
+    await save.click();
+    expect(log).toEqual(["action", "done"]);
+  });
+
+  it("rejects an unknown sound name at run time too", () => {
+    const { page } = fakePage(boxes());
+    const { p } = staged(page);
+    expect(() => p.getByRole("button", { name: "Save" }).sound("kaboom" as Sound)).toThrow(/unknown sound "kaboom"/);
   });
 });

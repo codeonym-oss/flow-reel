@@ -19,7 +19,7 @@ const adapter: Voice = { voice, async synthesize(jobs) {
   jobs.forEach((job) => writeFileSync(job.file, WAV));
 } };
 
-it("writes normalized narration as a clip with measured metadata, preserving the original step", async () => {
+it("writes normalized comment as a clip with measured metadata, preserving the original step", async () => {
   const texts: string[] = [];
   const adapter: Voice = {
     voice,
@@ -30,7 +30,7 @@ it("writes normalized narration as a clip with measured metadata, preserving the
       }
     },
   };
-  const steps = [{ index: 0, narration: "  Open\r\n <b>保存</b> & &lt;.\t ", startMs: 5, actionEndMs: 5, endMs: 5 }];
+  const steps = [{ index: 0, comment: "  Open\r\n <b>保存</b> & &lt;.\t ", startMs: 5, actionEndMs: 5, endMs: 5 }];
   const original = structuredClone(steps);
   const dir = join(directory(), "demo.audio");
   const result = await voiceSteps(steps, dir, adapter);
@@ -45,7 +45,7 @@ it("writes normalized narration as a clip with measured metadata, preserving the
 
 it("keeps blank and old steps without audio and does not need a worker for an all-blank demo", async () => {
   const steps = [
-    { index: 0, narration: " \r\n\t", startMs: 0, actionEndMs: 2, endMs: 2 },
+    { index: 0, comment: " \r\n\t", startMs: 0, actionEndMs: 2, endMs: 2 },
     { index: 1, startMs: 3, actionEndMs: 4, endMs: 4 },
   ];
   const result = await voiceSteps(steps, join(directory(), "blank.audio"), {
@@ -64,7 +64,7 @@ it("replaces only this demo's generated clips, retaining gaps, large indexes and
   mkdirSync(other);
   writeFileSync(join(dir, "notes.txt"), "keep");
   writeFileSync(join(other, "000.wav"), WAV);
-  const step = (index: number, narration: string) => ({ index, narration, startMs: 0, actionEndMs: 1, endMs: 1 });
+  const step = (index: number, comment: string) => ({ index, comment, startMs: 0, actionEndMs: 1, endMs: 1 });
   await voiceSteps([step(0, "First."), step(1, "Second.")], dir, adapter);
   const result = await voiceSteps([step(0, ""), step(2, "Third."), step(1000, "Last.")], dir, adapter);
   expect(result.steps.map((s) => s.audio?.file)).toEqual([undefined, "demo.audio/002.wav", "demo.audio/1000.wav"]);
@@ -76,7 +76,7 @@ it("replaces only this demo's generated clips, retaining gaps, large indexes and
 
 it("rejects invalid audio before replacing a previous successful clip set", async () => {
   const dir = join(directory(), "demo.audio");
-  const steps = [{ index: 0, narration: "Speak.", startMs: 0, actionEndMs: 1, endMs: 1 }];
+  const steps = [{ index: 0, comment: "Speak.", startMs: 0, actionEndMs: 1, endMs: 1 }];
   await voiceSteps(steps, dir, adapter);
   await expect(voiceSteps(steps, dir, { voice, async synthesize(jobs) {
     jobs.forEach((job) => writeFileSync(job.file, "not a WAV"));
@@ -87,7 +87,7 @@ it("rejects invalid audio before replacing a previous successful clip set", asyn
 
 it("keeps prior clips and removes partial work when synthesis fails", async () => {
   const dir = join(directory(), "demo.audio");
-  const steps = [{ index: 0, narration: "Speak.", startMs: 0, actionEndMs: 1, endMs: 1 }];
+  const steps = [{ index: 0, comment: "Speak.", startMs: 0, actionEndMs: 1, endMs: 1 }];
   await voiceSteps(steps, dir, adapter);
   await expect(voiceSteps(steps, dir, { voice, async synthesize(jobs) {
     writeFileSync(jobs[0].file, "partial");
