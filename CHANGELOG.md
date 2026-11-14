@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/codeonym-oss/flow-reel/compare/v0.1.1...v0.1.2) (2026-11-14)
+
+
+### Bug Fixes
+
+* make wrapped actions faithful and stop odd viewports hanging the recorder ([#1](https://github.com/codeonym-oss/flow-reel/issues/1)) ([#23](https://github.com/codeonym-oss/flow-reel/issues/23)) ([c54f921](https://github.com/codeonym-oss/flow-reel/commit/c54f921d8cd5f62aa03aa2f7c8753e3c8d963793))
+
 ## [0.1.1](https://github.com/codeonym-oss/flow-reel/compare/v0.1.0...v0.1.1) (2026-11-13)
 
 
