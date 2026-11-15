@@ -38,10 +38,10 @@ esac
   return { path: dir, log };
 }
 
-async function run(script: string, args: string[], path?: string) {
+async function run(script: string, args: string[], path?: string, env: NodeJS.ProcessEnv = {}) {
   try {
     const { stdout, stderr } = await promisify(execFile)(process.execPath, [script, ...args],
-      { encoding: "utf8", env: { ...process.env, ...(path ? { PATH: path } : {}) } });
+      { encoding: "utf8", env: { ...process.env, ...(path ? { PATH: path } : {}), ...env } });
     return { status: 0, stdout, stderr };
   } catch (error) {
     const e = error as { code: number; stdout: string; stderr: string };
@@ -105,6 +105,33 @@ describe("preflight.mjs", () => {
     expect(found.status).toBe(0);
     expect(checks(found.stdout).runtime.detail).toMatch(/^flow-reel 0\.2\.3/);
     expect(checks(found.stdout).script.status).toBe("ok");
+  });
+
+  it("checks a cloud voice's runtime and key variable, never its value (GH-49)", async () => {
+    const fake = fakePath("voices", { version: true, info: true, image: true });
+    const project = join(work, "voices");
+    mkdirSync(project, { recursive: true });
+    writeFileSync(join(project, "demo.ts"), "");
+    const voice = async (config: unknown, version: string, env: NodeJS.ProcessEnv = {}) => {
+      if (config === undefined) rmSync(join(project, "flow-reel.json"), { force: true });
+      else writeFileSync(join(project, "flow-reel.json"), JSON.stringify(config));
+      const result = await run(preflight, ["--script", join(project, "demo.ts"), "--version", version, "--json"], fake.path,
+        { OPENAI_API_KEY: "", MY_KEY: "", ...env });
+      return { ...checks(result.stdout).voice, exit: result.status };
+    };
+    expect(await voice(undefined, "0.2.0")).toMatchObject({ exit: 0, detail: expect.stringContaining("local voice") });
+    expect(await voice({ version: 1, voice: { adapter: "openai" } }, "0.2.0"))
+      .toMatchObject({ exit: 1, detail: "openai is a cloud voice; flow-reel 0.2.0 has none" });
+    expect(await voice({ version: 1, voice: { adapter: "openai" } }, "0.3.0"))
+      .toMatchObject({ exit: 1, detail: "openai needs OPENAI_API_KEY, which isn't set here" });
+    const secret = "sk-preflight-secret";
+    const ok = await voice({ version: 1, voice: { adapter: "openai", apiKeyEnv: "MY_KEY" } }, "0.3.0", { MY_KEY: secret });
+    expect(ok).toMatchObject({ exit: 0, detail: "openai, key in MY_KEY" });
+    expect(JSON.stringify(ok)).not.toContain(secret);
+    expect(await voice({ version: 1, voice: { adapter: "openai", apiKey: secret } }, "0.3.0"))
+      .toMatchObject({ exit: 1, detail: expect.stringContaining("voice.apiKey") });
+    expect(await voice({ version: 1, voice: { adapter: "openai-compatible", baseUrl: "http://localhost:8880/v1", model: "kokoro" } },
+      "0.3.0")).toMatchObject({ exit: 0, detail: "openai-compatible at http://localhost:8880/v1, with no key" });
   });
 
   it("fails an app that doesn't answer or answers an error, and notes a redirect", async () => {
