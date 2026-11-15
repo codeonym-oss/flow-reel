@@ -28,3 +28,10 @@ Planned 2026-11-15 against `main` at e7e5614 (214 unit tests pass). Decisions: t
   gives a `rate=`.
 - A runtime `feat:` makes release-please propose 0.3.0, outside the plugin's `>=0.2.0 <0.3.0`: the plugin needs its
   own pull request (range and cloud voices) before or with the release.
+
+## Corrections after release
+
+- 2026-11-15 (#56): 0.3.0 shipped `openrouter` with the default model `openai/gpt-4o-mini-tts-2025-12-15`, taken from
+  an example in OpenRouter's docs and not checked against its live list (`GET /api/v1/models?output_modalities=speech`),
+  which has no OpenAI speech model. The default is now `google/gemini-3.8-flash-tts` with `Kore`, both in that list.
+  Defaults not checked against a live list (they need a key): `openai`, `gemini`, `together`, `groq`, `elevenlabs`.

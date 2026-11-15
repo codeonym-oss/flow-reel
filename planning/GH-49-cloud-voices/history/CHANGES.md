@@ -5,3 +5,4 @@
 - 2026-11-15: #50 merged (runtime). The plugin's update split in three to keep its release plugin-only: #52 (the
   range test reads the plugin's range), #53 (plugin: references, `flow-reel@0.3`, a preflight voice check), and a
   test pull request for that check. Status done; released as runtime 0.3.0 and plugin 0.2.0 by #51.
+- 2026-11-15: the OpenRouter default model didn't exist (#56); corrected in impl.md.

@@ -63,7 +63,7 @@ it.each([
   ["openai", "/v1/audio/speech", { authorization: `Bearer ${KEY}` },
     { model: "gpt-4o-mini-tts", input: "Hello there.", voice: "coral", response_format: "pcm" }, () => pcm(500)],
   ["openrouter", "/v1/audio/speech", { authorization: `Bearer ${KEY}` },
-    { model: "openai/gpt-4o-mini-tts-2025-12-15", voice: "coral", response_format: "pcm" }, () => pcm(500)],
+    { model: "google/gemini-3.8-flash-tts", voice: "Kore", response_format: "pcm" }, () => pcm(500)],
   ["together", "/v1/audio/speech", { authorization: `Bearer ${KEY}` },
     { model: "canopylabs/orpheus-3b-0.1-ft", voice: "tara", response_format: "wav" }, () => wav(500)],
   ["groq", "/v1/audio/speech", { authorization: `Bearer ${KEY}` },

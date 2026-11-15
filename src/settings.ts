@@ -62,7 +62,7 @@ export const KNOWN: Known = {
     openai: cloud("coral", { model: "gpt-4o-mini-tts", apiKeyEnv: "OPENAI_API_KEY", baseUrl: "https://api.openai.com/v1" }),
     gemini: cloud("Kore", { model: "gemini-3.8-flash-tts", apiKeyEnv: "GEMINI_API_KEY",
       baseUrl: "https://generativelanguage.googleapis.com/v1beta" }),
-    openrouter: cloud("coral", { model: "openai/gpt-4o-mini-tts-2025-12-15", apiKeyEnv: "OPENROUTER_API_KEY",
+    openrouter: cloud("Kore", { model: "google/gemini-3.8-flash-tts", apiKeyEnv: "OPENROUTER_API_KEY",
       baseUrl: "https://openrouter.ai/api/v1" }),
     together: cloud("tara", { model: "canopylabs/orpheus-3b-0.1-ft", apiKeyEnv: "TOGETHER_API_KEY",
       baseUrl: "https://api.together.ai/v1" }),
