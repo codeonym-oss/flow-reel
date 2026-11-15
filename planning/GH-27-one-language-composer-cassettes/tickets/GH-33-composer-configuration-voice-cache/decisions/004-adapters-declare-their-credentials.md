@@ -17,3 +17,5 @@ proves that a credential's value is in none of the reel's files, the manifest, t
   into the container.
 - **Not chosen:** a user-listed `env` in `flow-reel.json` and `--env` flags (users must know the names, a missing one
   fails late inside the container, and anything listed is passed).
+
+**Superseded by GH-49 001** in part (2026-11-15): a cloud voice's file and flags may name its key's variable.

@@ -4,10 +4,10 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type SettingsFlags, resolveSettings } from "./settings.ts";
+import { KNOWN, type SettingsFlags, resolveSettings } from "./settings.ts";
 
 const USAGE = "usage: flow-reel compose <script.ts> [--no-sound] [--out <dir>] [--integration <name>] [--voice <name>] " +
-  "[--speaker <name>] [--language <name>] [--save-config] | flow-reel verify <reel> | flow-reel compare <a.reel> <b.reel>";
+  "[--speaker <name>] [--language <name>] [--model <id>] [--api-key-env <variable>] [--base-url <url>] [--save-config] | flow-reel verify <reel> | flow-reel compare <a.reel> <b.reel>";
 
 const readJson = (file: string): unknown => JSON.parse(readFileSync(file, "utf8"));
 
@@ -61,7 +61,8 @@ async function compare(args: string[]): Promise<number> {
   return 0;
 }
 
-const SETTING_FLAGS = { "--integration": "integration", "--voice": "voice", "--speaker": "speaker", "--language": "language" } as const;
+const SETTING_FLAGS = { "--integration": "integration", "--voice": "voice", "--speaker": "speaker", "--language": "language",
+  "--model": "model", "--api-key-env": "apiKeyEnv", "--base-url": "baseUrl" } as const;
 
 interface ComposeArgs { script: string; sound: boolean; outDir?: string; flags: SettingsFlags; saveConfig: boolean }
 
@@ -104,10 +105,12 @@ async function main(argv: string[]): Promise<number> {
     const settings = resolveSettings(undefined, options.flags);
     const { compose } = await import("./composer/compose.ts");
     const { playwright } = await import("./adapters/playwright/integration.ts");
-    const { qwenVoice } = await import("./adapters/qwen/voice.ts");
+    const voice = KNOWN.voices[settings.voice.adapter].cloud
+      ? (await import("./adapters/cloud/voice.ts")).cloudVoice(settings.voice)
+      : (await import("./adapters/qwen/voice.ts")).qwenVoice(settings.voice);
     const { folderStore } = await import("./adapters/folder/store.ts");
     const { version } = readJson(resolve(dirname(fileURLToPath(import.meta.url)), "../package.json")) as { version: string };
-    await compose(resolve(script), { integration: playwright, voice: qwenVoice(settings.voice), store: folderStore,
+    await compose(resolve(script), { integration: playwright, voice, store: folderStore,
       composerVersion: version, sound: options.sound, ...(options.outDir ? { outDir: resolve(options.outDir) } : {}) });
     return 0;
   }
