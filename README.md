@@ -287,7 +287,7 @@ npx flow-reel compose demos/settings.ts
 |---|---|---|---|
 | `openai` | `gpt-4o-mini-tts` | `coral` | `OPENAI_API_KEY` |
 | `gemini` | `gemini-3.8-flash-tts` | `Kore` | `GEMINI_API_KEY` |
-| `openrouter` | `openai/gpt-4o-mini-tts-2025-12-15` | `coral` | `OPENROUTER_API_KEY` |
+| `openrouter` | `google/gemini-3.8-flash-tts` | `Kore` | `OPENROUTER_API_KEY` |
 | `together` | `canopylabs/orpheus-3b-0.1-ft` | `tara` | `TOGETHER_API_KEY` |
 | `groq` | `canopylabs/orpheus-v1-english` | `troy` | `GROQ_API_KEY` |
 | `elevenlabs` | `eleven_multilingual_v2` | `JBFqnCBsd6RMkjVDRZzb` (a voice ID) | `ELEVENLABS_API_KEY` |
@@ -295,7 +295,8 @@ npx flow-reel compose demos/settings.ts
 
 - **Model and speaker:** any value the provider accepts. flow-reel passes them on unchecked, since each provider's
   lists change; a wrong one fails with the provider's own message. OpenRouter routes to many speech models
-  (OpenAI, Gemini, Mistral, ElevenLabs and others) behind one key.
+  (Gemini, ElevenLabs, Mistral, Deepgram and others) behind one key; its current list, with each model's voices:
+  `curl -s "https://openrouter.ai/api/v1/models?output_modalities=speech"`.
 - **Language:** `auto` by default: the provider detects it from the text. Together AI and ElevenLabs also take an ISO
   639-1 code (`"language": "fr"`); the others ignore it.
 - **Server:** `baseUrl` points a voice at another endpoint: a proxy, a regional host, or, with `openai-compatible`,
