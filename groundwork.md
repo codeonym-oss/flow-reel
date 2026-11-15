@@ -15,8 +15,8 @@ ticket-as: issue
 
 - Branches are named `<type>/<issue>-<slug>`, e.g. `feat/3-tts-adapter`.
 - Pull request titles are `<type>: <summary> (#issue)`, and pull requests are squash-merged.
-- `feat:`/`fix:` only for changes that reach the published npm package or image: release-please cuts a release for
-  them. Workflow, release-script, test and planning changes use `ci:`, `test:`, `docs:` or `chore:`.
+- `feat:`/`fix:` only for changes that reach the published npm package, the image or the plugin: release-please cuts
+  a release for them (the plugin, in `plugin/`, is its own component, `flow-reel-plugin`). Workflow, release-script, test and planning changes use `ci:`, `test:`, `docs:` or `chore:`.
 - Publishing workflows are dispatched from `main` only, never from an unmerged branch.
 - A pull request body says `Closes #N`, or `Part of #N` when the issue has more pull requests to come.
 - Commits and pull requests carry no Claude attribution: no `Co-Authored-By: Claude`, no `Claude-Session:` link, no "Generated with Claude Code" line.

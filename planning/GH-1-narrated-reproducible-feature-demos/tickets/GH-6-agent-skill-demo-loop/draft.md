@@ -1,66 +1,59 @@
-# Teach agents to create polished demos with a complete flow-reel skill suite
+# Teach agents to make polished reels with the flow-reel plugin
 
 ## Problem
 
-The recorder, offline narration, automatic camera/cursor polish and SFX are shipped, but an agent still needs to
-turn a feature request into a compelling, truthful and reproducible demo. A single command reference does not
-teach story selection, real app exploration, narration, pacing, result verification or feedback-driven repair.
+flow-reel 0.2 ships the language: scripts with comments, sounds and effects, settings for the voice, and a reel
+with a manifest. An agent still has to turn "show this feature" into a reel worth watching: pick the story, find the
+real path through the app, write the script, direct the picture and the sound, compose, and judge the result
+honestly. A command reference doesn't teach any of that.
 
 ## Change
 
-Ship one `flow-reel` plugin with eight focused skills:
+Ship one `flow-reel` plugin, in `plugin/`, with three skills (decisions 006, 007):
 
-- `demo`: route and complete an end-to-end demo request, resuming from existing work.
-- `plan-demo`: choose the audience, takeaway, opening/action/payoff and a concise narrated beat plan.
-- `explore-app`: inspect the actual UI and record reliable locators, starting state and visible results.
-- `write-demo`: turn observed behavior into a replayable TypeScript script using the public API.
-- `polish-demo`: improve narration, pacing, framing and SFX using the capabilities already shipped.
-- `record-demo`: check prerequisites, select a runtime version, record and preserve useful takes.
-- `review-demo`: inspect the real artifacts, review playback and distinguish each kind of verification.
-- `repair-demo`: diagnose concrete feedback, revise the affected beats and verify the new take.
+- **`reel`:** a request from start to finish: plan, explore the app, write the script, compose, review, hand over.
+  It picks up from an existing script or reel.
+- **`reshoot`:** feedback on an existing reel: change the script's comments, sounds and effects where the feedback
+  points, compose again, review.
+- **`screening`:** judge a finished reel without changing it: verify, compare, look at the picture, listen.
 
-Support the skills with shared workflow/API/editorial/quality/troubleshooting references, brief/script/review/
-handoff templates, three deterministic Node helpers and a runnable local sample. Helpers cover preflight,
-artifact inspection and preserving a take; they do not implement a second renderer or browser framework.
+The know-how sits in ten shared references (decision 008): the language, story, scenes, direction, comments, sound
+design, shots (worked recipes), exploring the app, screening and troubleshooting. Two helpers (decision 009):
+`preflight.mjs` checks what composing needs and changes nothing; `stills.mjs` pulls frames at each step's start and
+end into a contact sheet, so an agent can see the reel. A small sample app and templates complete the suite. The
+skills use the `CONTEXT.md` words; the plugin contains no composing logic.
 
-Follow groundwork's inspected manifests (`.claude-plugin/plugin.json` and portable `plugin.json`) inside a
-`plugin/` folder, released as its own release-please component so skill changes never cut a runtime release
-(decision 005). Publish through both Claude and Codex catalogs in `codeonym-oss/claude-plugins` with `git-subdir`
-sources, so clients install only `plugin/`. Keep the runtime in npm/image and agent guidance in `plugin/`.
+The plugin releases as its own release-please component, `flow-reel-plugin` (decision 005), so a plugin change cuts
+no npm or image release, and is listed in both catalogs of `codeonym-oss/claude-plugins` with `git-subdir` sources.
+It supports runtime `>=0.2.0 <0.3.0`, and a test ties that range to `package.json` (decision 010). It ships in three
+pull requests: plumbing, the suite, the listing (decision 011).
 
 ## Out of scope
 
-New camera/voice/music/export options, intro/outro cards, burned-in captions, a recording MCP server or hosted
-service, app redesign, paid assets, PR delivery, and dedicated integrations for other agents. Plain skill text is
-portable, but unsupported clients are not claimed as tested.
+New composer features (music, more voices, new effects or sounds, export formats), a hosted service or MCP server,
+editing the video file, and tested support for agents other than Claude Code and Codex.
 
 ## Done when
 
-- All eight skills are discoverable and their shared resources resolve from an installed plugin location without
-  access to the development checkout, planning tree or dev dependencies.
-- A fresh supported agent session explores the sample app, writes and records a meaningful narrated demo, inspects
-  the actual MP4/captions/transcript/events/audio and returns the script plus a concrete rerun command.
-- Examples use the actual public API and supported flags. Instructions distinguish observed app behavior from
-  guesses, wait for meaningful outcomes and never invent adjustable camera/voice controls.
-- Preflight reports missing prerequisites without silently changing the machine. Artifact inspection detects
-  corrupt/missing media and reuses public sync semantics. Snapshotting preserves complete take bytes/relative
-  paths and refuses conflicting destinations.
-- Automated helpers and plugin consistency are tested with meaningful fixtures. The shipped example records
-  through an existing matching image; playback/agent-evaluation evidence is recorded separately from file checks.
-- Same-platform two-take comparison is demonstrated when making a repeatability claim. Self-comparison, valid
-  metadata or matching source WAVs are not described as proof of perceptual quality or encoded MP4 identity.
-- Both manifests track the plugin component's version through release-please; a plugin release triggers no image
-  or npm publication, and runtime releases leave the plugin version alone. The suite release and both marketplace entries
-  are verified, with real clean-client installation checks where clients are available and explicit gaps otherwise.
-- Existing unit/type/package/media checks remain green; no unrelated runtime feature is added.
+- The three skills are discoverable, and their references, helpers and templates resolve from an installed copy of
+  `plugin/` alone, without the checkout.
+- A fresh agent session with the packaged plugin explores the sample app, writes a script that uses comments,
+  sounds and at least one effect, composes it, screens the reel (verify plus stills) and hands over the reel and the
+  command to compose it again.
+- Every example uses the 0.2 API and flags and typechecks against it; nothing teaches a flag or option the composer
+  doesn't have.
+- `preflight.mjs` reports missing prerequisites and an unsupported runtime without changing the machine;
+  `stills.mjs` writes stills for every step of a real reel and fails on a missing or broken video.
+- A `plugin/`-only change proposes only a plugin release, a runtime change only a runtime release, and a plugin
+  release doesn't run `publish.yml`.
+- Plugin 0.1.0 is released, both catalogs list it, and installs are checked in clean clients where available, with
+  any gap stated.
+- The existing unit, type, package and media checks stay green.
 
 ## Breakdown and evidence
 
-- [Skill inventory, resources, helper contracts and evaluation scenarios](skill-suite.md)
-- [Implementation slices, checks and risks](impl.md)
-- [Groundwork publishing research and cross-repository delivery](publishing.md)
-- Decisions 001–004 record the expanded scope and packaging choices. Inherited GH-1 decisions still apply.
-
-Planning baseline, 2026-11-13: 86 unit tests and type checking pass outside the sandbox; the three initial
-subprocess failures are sandbox EPERM restrictions, not code failures. GH-9's native media and registry consumers
-have already passed. This ticket is planned; the skill suite itself has not been implemented or published yet.
+- [Skills, references, helpers and scenarios](skill-suite.md)
+- [Implementation plan](impl.md)
+- [Publishing](publishing.md)
+- Decisions 005–011 (005 from the first plan; 006–011 from the 0.2 re-plan, which supersede 001, 003 and 004).
+  Inherited GH-1 and GH-27 decisions still apply.

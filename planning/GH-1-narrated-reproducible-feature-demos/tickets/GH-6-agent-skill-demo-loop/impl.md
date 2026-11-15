@@ -1,130 +1,117 @@
 # GH-6 implementation plan
 
-Baseline tests: main `691069a` (0.1.0 runtime), 2026-11-13. Release PR #19 then merged as `79837ca`, changing
-only release metadata to 0.1.1; use that current runtime version when implementation starts. All 86 unit tests and type checking pass outside the sandbox. The initial
-sandbox run failed three subprocess-dependent tests with EPERM; the same unchanged tests pass when permitted.
-No heavy media baseline was repeated just for this planning pass; GH-9's latest native suites/consumers passed.
+Re-planned 2026-11-15 against `main` at e79bde9 (runtime 0.2.0). Typecheck passes; unit tests: 181 pass. No
+`plugin/` folder exists yet. The marketplace (`codeonym-oss/claude-plugins` 4eadb33) and groundwork (aa6f5ea) are
+unchanged since the first plan read them. Decisions 005–011; the earlier plan is in `history/2026-11-15_1306_impl.md`.
 
 ## Read first
 
-- This ticket's decisions 001–004, `skill-suite.md`, `publishing.md` and inherited GH-1 decisions.
-- `src/index.ts`: only public authoring API (`demo`, `url`, `viewport`, `page`, `step`, `sfx`).
-- `src/cli.ts`, `src/host/launch.ts`: actual commands/exit codes, matching image, script-folder mount and network mapping.
-- `src/runner/wrap.ts`, `run.ts`, `load.ts`: supported visible actions, explicit UI waits, script loading/import limits.
-- `src/runner/polish.ts`, SFX modules and `docker/sfx/README.md`: current automatic motion and sound contracts.
-- `src/schema/{transcript,events,sync}.ts`, `src/compare.ts`: schema compatibility, speech tail and comparison limits.
-- `scripts/consumer.ts`, `test/e2e/image.ts`, existing record/media tests: reusable real-consumer/image checks.
-- `.github/workflows/{ci,publish,release-please}.yml`, `release-please-config.json`, `scripts/package.ts`.
-- The pinned groundwork/marketplace files listed in `publishing.md`, re-read at implementation time for drift.
+- `CONTEXT.md` (every word the plugin uses) and `README.md` sections Write a script, Direct the picture, Compose,
+  Configure the composer, Sounds, Verify a reel, Compare reels: the facts `language.md` restates.
+- `src/index.ts`: the public API (`script`, the context words, the chained `Locator` words, `Sounds`).
+- `src/composer/effects.ts` (effect options and limits), `src/composer/schema/events.ts` (`Sounds`),
+  `src/composer/schema/transcript.ts` (`startMs`, `endMs`), `src/settings.ts` (speakers, languages).
+- `src/host/launch.ts`: `imageFor`, the engine search, what is mounted, the `localhost` mapping.
+- `src/cli.ts`: `USAGE`, `verify` and `compare` exit codes.
+- `release-please-config.json`, `.release-please-manifest.json`, `.github/workflows/{release-please,publish,ci}.yml`.
+- `test/e2e/app/index.html`, `test/e2e/image.ts`: the existing local app and image preparation, for the sample check.
+- groundwork's `.claude-plugin/plugin.json`, `plugin.json` and `tests/test_repo.py` at main (re-read for drift).
 
-## Delivery breakdown
+## Steps
 
-One coordinated GH-6 outcome can use multiple reviewable PRs, all linked `Part of #6` until final verification.
-Do not create extra tracker issues or relabel GH-1 merely to mirror document sections. The marketplace change is
-a separate repository PR. If implementation finds a separately useful product feature, plan it separately.
+### Pull request 1: plumbing (`ci:` … `Part of #6`, branch `ci/6-plugin-component`)
 
-### 1. Package a minimal usable demo workflow
+1. **Plugin component:** `release-please-config.json` gets a second package `plugin` (`component:
+   flow-reel-plugin`, `release-type: simple`, `include-component-in-tag: true`, `changelog-path: CHANGELOG.md`,
+   `initial-version: 0.1.0`, `extra-files` updating `$.version` in `.claude-plugin/plugin.json` and `plugin.json`);
+   the manifest file lists `plugin`. The root package excludes `plugin/` (`exclude-paths`) so a plugin commit
+   doesn't count toward the runtime.
+   → check: `npx release-please release-pr --dry-run` (or the action's dry run) against a branch with a
+   `feat:` touching only `plugin/` proposes only `flow-reel-plugin`; with a `fix:` in `src/`, only the runtime.
+2. **Publish only runtime releases:** `release-please.yml` passes the root package's outputs to `publish`; check
+   which outputs v5 sets for path `.` with two packages, and use the per-path one if the unprefixed output can be
+   set by the plugin.
+   → check: the job condition reads the root release only; `actionlint` passes.
+3. **Manifests and the range:** `plugin/.claude-plugin/plugin.json` and `plugin/plugin.json` (name `flow-reel`,
+   version `0.0.0` until the first release sets it, MIT, the three skill paths; portable onboarding skill
+   `./skills/reel/SKILL.md`), `plugin/references/language.md` with only its range line for now, `plugin/
+   CHANGELOG.md` empty.
+4. **Consistency test** `test/unit/plugin.test.ts`, written first and seen to fail:
+   - both manifests agree on name and version, and list exactly the folders in `plugin/skills/`;
+   - every relative link in `plugin/**/*.md` resolves inside a temporary copy of `plugin/` alone;
+   - `package.json`'s version satisfies the range in `language.md` (decision 010);
+   - `npm pack --dry-run` lists nothing from `plugin/`.
+   → check: `npm test`, `npm run typecheck`, `npm run pack:check`.
+5. **`groundwork.md`** (only with a separate yes): the `feat:`/`fix:` rule names the plugin: "changes that reach the
+   published npm package, the image or the plugin".
+6. PR (after a yes): title `ci: release the agent plugin as its own component (#6)`, body `Part of #6`. Board: #6 In
+   Progress at the branch (board 6 has no In Review option), squash-merge after CI.
+   → check: CI green; no release PR for the runtime appears from this merge.
 
-Under `plugin/`, add the two plugin manifests, a concise `demo` entry point, the shared workflow/API references and
-the local sample app/script. Keep the runtime implementation untouched. Add a second release-please package for
-`plugin/` (decision 005: component `flow-reel-plugin`, its own changelog, `extra-files` for both manifests' `$.version`),
-keep `.` tagged `vX.Y.Z`, and make `release-please.yml` call `publish.yml` only when the `.` package was released.
+### Pull request 2: the suite (`feat:` … `Part of #6`, branch `feat/6-plugin-suite`)
 
-→ Check: first add failing repository-consistency tests for mismatched versions, missing declared skills, broken
-resource links and invalid portable onboarding paths. Make them pass with actual files. Copy only plugin runtime
-`plugin/` into a temporary installation (what a `git-subdir` install contains) and resolve its references there.
-Check the npm package allowlist still excludes plugin assets and model weights. In a release-please dry run, check
-that a `plugin/`-only `feat:` proposes only a plugin release (both manifests updated, no package/lock change), a
-runtime `fix:` proposes only a runtime release, and a plugin release does not start `publish.yml`.
+7. **`language.md`** in full, every fact taken from `src/` and the README, with a typechecked example per word.
+   → check: the examples are extracted by the consistency test into a temporary folder and typechecked against
+   `src/index.ts` (a `.ts` file per example).
+8. **Craft references:** `story.md`, `scenes.md`, `direction.md`, `comments.md`, `sound-design.md`, `shots.md`
+   (decision 008). Each shot recipe is a typechecked fragment, checked like step 7. No flag or option outside
+   `language.md`.
+   → check: a test lists every `--flag` and every context word used in `plugin/**` and fails on one not in
+   `src/cli.ts`'s `USAGE` or `src/index.ts`.
+9. **`exploring.md`, `screening.md`, `troubleshooting.md`.**
+10. **The three skills:** `plugin/skills/{reel,reshoot,screening}/SKILL.md` (decision 007), each with a description
+    whose triggers don't overlap, steps naming the references they load, and the stopping point. `reshoot` keeps
+    `<name>.reel.before/` by copying and verifying.
+11. **`preflight.mjs`** (decision 009), tests first in `test/unit/plugin-helpers.test.ts` with fake `docker`/
+    `podman` executables on `PATH` and a local HTTP server: missing engine, daemon down, image absent (no pull is
+    attempted), version out of range, URL unreachable or redirecting, a path with spaces, `--json`.
+12. **`stills.mjs`**, tests first: a reel fixture made once by the e2e run (or a tiny generated MP4 with a matching
+    transcript and manifest), stills and contact sheet for each step, `verify` failing stops it, a broken video →
+    1, no ffmpeg → 2, `--to` inside the reel refused, no image pull attempted.
+13. **Templates and sample:** `plugin/assets/{brief.md,script.ts,handoff.md}`, `plugin/examples/saved-views/`.
+    → check: `test/e2e/plugin.test.ts` composes the sample script with the candidate image (reusing `image.ts`),
+    then `flow-reel verify` and `stills.mjs` on the reel pass.
+14. **Agent trial:** a fresh Claude Code session with only the packaged `plugin/` installed (from a local copy), in
+    a temporary folder holding the served sample app, given "make a short reel showing how to save a view". Record
+    the client version, what it ran, the script it wrote, the verify and stills results, and the scenarios from
+    `skill-suite.md` that ran. Not a role-play: an actual session.
+    → check: the reel exists and verifies; the script uses comments, a sound and an effect; the notes are added
+    to this ticket.
+15. PR (after a yes): title `feat: add the flow-reel agent plugin with reel, reshoot and screening (#6)`, body
+    `Part of #6`, no line starting with `word(`. Squash-merge after CI; then a release PR for `flow-reel-plugin`
+    0.1.0 only; merge it (after a separate yes).
+    → check: tag `flow-reel-plugin-v0.1.0`, both manifests say 0.1.0, no `publish.yml` run, no npm or image release.
 
-### 2. Teach planning, exploration and scripting
+### Pull request 3: the listing (`codeonym-oss/claude-plugins`)
 
-Add `plan-demo`, `explore-app`, `write-demo`, their selected references and brief/script templates. The brief records
-audience, payoff, approximate time budget, runtime version and observed route. Teach real locator discovery and
-visible-result waits. Document that exploration cookies/storage are not automatically transferred to the fresh
-runner and that only the script folder is mounted; account-dependent demos need a supported replayable setup.
+16. Follow `publishing.md`: add `flow-reel` to `.claude-plugin/marketplace.json` and `.agents/plugins/
+    marketplace.json` with `git-subdir` sources, re-reading both clients' source docs first. PR after a yes, with
+    links to the release and the trial notes; `Closes codeonym-oss/flow-reel#6` isn't possible across
+    repositories, so #6 is closed by hand after the checks below.
+    → check: both JSON files validate; in Claude Code, `/plugin marketplace add codeonym-oss/claude-plugins` and
+    `/plugin install flow-reel@codeonym-oss` show the three skills and their references resolve; Codex the same where
+    available, otherwise the gap is stated. Then close #6 (Done on board 6) and set this ticket `done`.
 
-→ Check: exercise the instructions against the local sample app using an available browser tool. Produce a script
-that reaches the actual expected states and imports only public API/same-folder resources. Typecheck the example
-against the selected runtime API and run it through the existing recording path. Do not test wording with regexes.
+## Tests
 
-### 3. Teach visual, narration and sound direction
+- Unit (`plugin.test.ts`): manifests, skill list, links from a copy of `plugin/` alone, the range against
+  `package.json`, no plugin files in the npm package, every flag and word used exists, examples typecheck.
+- Unit (`plugin-helpers.test.ts`): both helpers at their process and filesystem boundaries, with fake engines and a
+  local server; nothing installed, pulled or started.
+- E2E (`plugin.test.ts`): the sample composes with the candidate image; verify and stills pass on its reel.
+- Release: a dry run of each component; the plugin release runs no publish.
+- Agent: one real fresh-session trial, written up.
 
-Add `polish-demo`, storytelling/narration/visual/sound references and the useful review/handoff templates. Include
-concrete before/after editorial examples: a long form fill shortened to readable input, a result awaited before
-success, a paragraph split into two meaningful beats, and repeated cues reduced to a single semantic cue.
+## Risks
 
-→ Check: a realistic revision scenario improves the intended beat while preserving unrelated app actions. The
-script uses only shipped options/cues, does not fabricate camera controls or new voices, and waits for the result
-described in narration. Replay the reference example and inspect/listen to its full payoff. If playback cannot be
-performed, record that gap and request focused human review instead of claiming premium quality by inspection.
-
-### 4. Add and test the three deterministic helpers
-
-Implement `plugin/scripts/preflight.mjs`, `inspect-recording.mjs` and `snapshot-take.mjs` to the contracts in
-`skill-suite.md`. Keep each helper independent of dev dependencies; share code only for substantial duplicated
-mechanics. Use the public compare CLI for transcript semantics rather than exposing or copying private validators.
-Resolve bundle-relative references safely and reject references that escape the bundle when preserving a take.
-
-→ Check: write red-to-green tests at the external process/filesystem boundaries. Cover missing engine/daemon,
-unreachable app, invalid URL/version, spaces in paths, no side-effectful setup during preflight, explicit package
-selection, absent/corrupt WAVs, mismatched hashes, absent captions/video, invalid sync, known event versions and
-unsupported versions, ffprobe stream/duration failures, unavailable probe, valid blank narration and preservation
-of bytes/relative paths. Snapshot tests cover existing destination, missing source and out-of-bundle references;
-an unsuccessful snapshot must not be presented as a completed take. Use fixture tools only to isolate tool
-availability; confirm actual subprocess behavior once with a real recorded sample.
-
-### 5. Close the record/review/repair loop
-
-Add `record-demo`, `review-demo`, `repair-demo`, troubleshooting and quality-review references. Route from `demo`
-according to current artifacts. Record with a selected package/image version; preserve a baseline before reruns
-when comparison matters. Distinguish valid media, app correctness, perceptual quality and reproducibility.
-Keep retries evidence-driven: do not replay a state-changing scenario repeatedly without a reset plan.
-
-→ Check: the packaged plugin's example records a complete narrated MP4 with captions and inspectable artifacts
-using the existing prebuilt image support. Inspect the actual bundle. Preserve two takes on the same platform and
-run public comparison; explain what a mismatch means. Run the scenarios in `skill-suite.md` with special attention
-to stale output after a failed run and authenticated apps without reusable setup. No silent success on old files.
-
-### 6. Validate the installed agent experience
-
-Add light repository/helper checks to ordinary CI and a focused shipped-example check to the native media path,
-reusing the existing built/candidate image rather than starting another independent build. Confirm resources are
-available from plugin-cache paths and the npm tarball has no newly required plugin files.
-
-→ Check: `npm test`, `npm run typecheck`, package verification and workflow linting pass. Run each helper with
-`--help` from the minimal plugin copy. Use a fresh supported agent session on the local sample, supplying the
-request and installed plugin without feeding it the intended solution. Evaluate the generated script/artifacts
-and resulting choices, not just its prose. Document client/version/tool access and which scenarios actually ran.
-An independent evaluating agent is appropriate when available and authorized; do not substitute a role-play of
-the agent's answer for execution. Scope any such trial to the local example and temporary output directories.
-
-### 7. Publish the verified suite through the existing marketplace
-
-Follow `publishing.md`: reviewed flow-reel PR(s), a plugin release from the `flow-reel-plugin` component (no runtime
-release needed), then a separate PR adding flow-reel to both organization catalogs with `git-subdir` sources. Document install/update paths and a complete
-example invocation. Preserve the existing catalogs and plugin entries.
-
-→ Check: released manifests agree with the plugin tag, the supported runtime range covers the published npm version,
-and all resource paths exist under `plugin/`.
-Both catalogs validate and point to flow-reel. Perform actual clean-client installs where available; in each
-verified client, discover all eight skills and run the main workflow against the sample. Report any unavailable
-client/platform check explicitly. Close GH-6 only after the agreed deliverables and publication evidence exist;
-GH-1 can then be evaluated for completion rather than closed early.
-
-## Scope and risks
-
-- **Eight skills can become repetitive.** Keep entry points short, use focused trigger descriptions and central
-  facts in shared references. A rich suite means useful capabilities, not a large default prompt.
-- **Plugin and runtime may update independently on a user's machine.** Record a selected version and use only
-  supported API/flags. Explain mismatches before recording rather than silently changing the project dependency.
-- **The recording container has a fresh browser and limited mounts.** Do not assume a human login, an agent's
-  exploration session, parent-folder imports or arbitrary host paths are available inside it.
-- **A good report is not a good demo.** Mechanical checks must open the real artifacts, and visual/audio quality
-  needs playback. Do not manufacture a passing review from transcript metadata.
-- **Runtime controls are intentionally limited.** No new voice/camera/export options, rendering features, hosted
-  service, MCP server, PR posting or paid asset dependency is part of this ticket.
-- **Documentation is code-adjacent.** Keep examples typechecked/executed and version/schema claims checked against
-  source; examples must reflect the shipped 1440p master, event schema 2 and transcript schema 1.
-- **Publication spans repositories and services.** Record exact release/PR links and install evidence. Do not
-  replace existing tags or republish conflicting versions to get a green status.
+- **release-please with two packages:** the root package must not take plugin commits, and the publish condition
+  must read only the root release. Both are checked by dry run in pull request 1, before any content depends on it.
+- **Drift between plugin and runtime:** the range test (decision 010) and the flags-and-words test catch the
+  mechanical part; editorial advice about timings (650 ms, 2 s, 800 ms, 4/3) is checked against `src/composer/
+  polish.ts` by hand in review.
+- **Typechecking examples** needs `flow-reel` resolvable from the temporary folder; the test points it at `src/
+  index.ts` through `paths`, without publishing.
+- **The trial depends on the client** and its browser tool; what it couldn't do is written down, not smoothed over.
+- **The composer image is ~7 GB:** the e2e sample reuses the image the e2e run already builds.
+- **Not changed:** `docker/sfx/` and `assembleSfx` keep the old word (internal); no runtime source changes in this
+  ticket. Anything the agent trial shows missing from the composer becomes a follow-up, not part of GH-6.
