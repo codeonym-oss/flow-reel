@@ -103,7 +103,7 @@ export default script({ url: "http://localhost:${port}/", viewport: [960, 540] }
   try {
     await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g", "--network", "host",
       "--user", `${process.getuid!()}:${process.getgid!()}`, "-v", `${dir}:/work`, image,
-      "compose", "/work/demo.ts", "--no-sfx"], { timeout: 90_000 });
+      "compose", "/work/demo.ts", "--no-sound"], { timeout: 90_000 });
   } finally {
     spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
   }
@@ -113,7 +113,7 @@ export default script({ url: "http://localhost:${port}/", viewport: [960, 540] }
   expect(log.events.every((e: { t: number }, i: number) => i === 0 || e.t > log.events[i - 1].t)).toBe(true);
   const { streams } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_streams", "-of", "json", join(dir, "demo.reel/video.mp4")], { encoding: "utf8" }));
   expect(streams.map((s: { codec_type: string }) => s.codec_type)).toEqual(["video"]);
-  expect(existsSync(join(dir, "demo.reel/work/sfx.wav"))).toBe(false);
+  expect(existsSync(join(dir, "demo.reel/work/sound.wav"))).toBe(false);
 }, 120_000);
 
 describe("effect words in a composed reel (GH-32)", () => {

@@ -298,6 +298,13 @@ describe("wrapPage with a stage", () => {
     expect(log).toEqual(["action", "sound success", "done"]);
   });
 
+  it("plays a chained sound on an action it can't animate, when the action happens (GH-34 decision 002)", async () => {
+    const { page } = fakePage(boxes());
+    const { log, p } = staged(page);
+    await p.getByRole("button", { name: "Save" }).sound(Sounds.feedback.SUCCESS).press("Enter");
+    expect(log).toEqual(["action", "sound success", "done"]);
+  });
+
   it("plays nothing when the chained locator never acts, and keeps the sound on that locator only", async () => {
     const { page } = fakePage(boxes());
     const { log, p } = staged(page);

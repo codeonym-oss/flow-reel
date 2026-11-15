@@ -18,7 +18,7 @@ export interface RunArgsInput {
   script: string;
   uid: number;
   gid: number;
-  sfx?: boolean;
+  sound?: boolean;
   /** An absolute folder for the reel, mounted at /out. */
   outDir?: string;
   /** The resolved settings, passed to the composer as flags. */
@@ -37,7 +37,7 @@ export function buildRunArgs(i: RunArgsInput): string[] {
     ...(i.engine === "podman" ? ["--userns=keep-id"] : ["--user", `${i.uid}:${i.gid}`]),
     ...(i.desktop ? ["-e", "FLOW_REEL_HOST_MAP=1"] : ["--network", "host"]),
     ...(i.credentials ?? []).flatMap((name) => ["-e", name]),
-    i.image, "compose", `/work/${i.script}`, ...(i.sfx === false ? ["--no-sfx"] : []),
+    i.image, "compose", `/work/${i.script}`, ...(i.sound === false ? ["--no-sound"] : []),
     ...(i.outDir ? ["--out", "/out"] : []), ...settingsFlags(i.settings),
   ];
 }
@@ -90,7 +90,7 @@ function ensureImage(engine: Engine, image: string) {
   if (built.status !== 0) throw new Error(`building ${image} failed`);
 }
 
-export interface LaunchOptions { sfx?: boolean; outDir?: string; flags?: SettingsFlags; saveConfig?: boolean }
+export interface LaunchOptions { sound?: boolean; outDir?: string; flags?: SettingsFlags; saveConfig?: boolean }
 
 /**
  * Writes the settings to the script folder's flow-reel.json after a successful compose, when there is none or with
@@ -122,7 +122,7 @@ export function launch(scriptPath: string, options: LaunchOptions = {}): number 
   if (outDir) mkdirSync(outDir, { recursive: true });
   const args = buildRunArgs({
     engine, desktop, image, workDir: dirname(script), script: basename(script),
-    uid: process.getuid?.() ?? 1000, gid: process.getgid?.() ?? 1000, sfx: options.sfx, outDir, settings, credentials,
+    uid: process.getuid?.() ?? 1000, gid: process.getgid?.() ?? 1000, sound: options.sound, outDir, settings, credentials,
   });
   const status = run(command, args, true).status ?? 1;
   saveSettings(status, dirname(script), settings, !config || Boolean(options.saveConfig));

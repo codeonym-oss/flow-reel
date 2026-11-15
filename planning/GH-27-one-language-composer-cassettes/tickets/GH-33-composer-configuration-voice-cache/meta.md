@@ -3,7 +3,7 @@ kind: ticket
 title: Configure the composer's voice and integration, and cache voiced comments
 key: GH-33
 parent: GH-27
-status: in-review
+status: done
 branch: feat/33-composer-configuration-voice-cache
 tracker-url: https://github.com/codeonym-oss/flow-reel/issues/33
 mr: https://github.com/codeonym-oss/flow-reel/pull/41

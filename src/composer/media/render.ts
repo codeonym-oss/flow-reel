@@ -124,17 +124,17 @@ interface RenderOptions {
   viewport: [number, number];
   timeline: Timeline;
   events?: readonly ComposerEvent[];
-  sfx?: boolean;
+  sound?: boolean;
   /** False when the script turned automatic zoom off. */
   autoZoom?: boolean;
 }
 
-export function renderTimeline({ capture, master, video, voice, audioDir, viewport: [width, height], timeline, events = [], sfx = true, autoZoom = true }: RenderOptions): void {
+export function renderTimeline({ capture, master, video, voice, audioDir, viewport: [width, height], timeline, events = [], sound = true, autoZoom = true }: RenderOptions): void {
   if (!timeline.insertions.length) copyFileSync(capture, master);
   else renderMaster(capture, master, timeline);
   if (videoFrames(master) !== timeline.frames) throw new Error("rendered master frame count disagrees with timeline");
   const hasVoice = assembleVoice(voice, audioDir, timeline);
-  const effects = assembleSfx(events, timeline, hasVoice ? voice : undefined, dirname(voice), sfx);
+  const effects = assembleSfx(events, timeline, hasVoice ? voice : undefined, dirname(voice), sound);
   let audio = hasVoice ? voice : effects;
   if (hasVoice && effects) {
     audio = join(dirname(voice), "mix.wav");

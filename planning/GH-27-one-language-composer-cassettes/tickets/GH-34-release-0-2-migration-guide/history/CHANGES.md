@@ -1,2 +1,7 @@
 - 2026-11-14: drafted by the story's global pass.
 - 2026-11-14: tracker issue #34 created, sub-issue of #27.
+- 2026-11-15: ticket pass: decisions 001 (`--no-sound`) and 002 (chained sound on uncovered actions); impl.md written; status planned.
+- 2026-11-15: draft.md updated with decisions 001 and 002.
+- 2026-11-15: issue #34's description updated from draft.md.
+- 2026-11-15: building on feat/34-release-0-2.
+- 2026-11-15: impl.md: corrections during the build.
