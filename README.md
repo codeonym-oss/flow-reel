@@ -34,6 +34,26 @@ The package and recording image use the same version. Each npm release has a mat
 Linux amd64 and arm64.
 See [release setup and verification](docs/releasing.md) for publication status requirements and contributor steps.
 
+## Make reels with an agent
+
+The flow-reel **plugin** teaches a coding agent the language and the craft: planning the story, exploring the app,
+writing the script with comments, sounds and effects, composing it and screening the reel. It has three skills:
+`reel` (from a request to a finished reel), `reshoot` (change a reel from feedback) and `screening` (judge a reel
+without changing it).
+
+```text
+# Claude Code
+/plugin marketplace add codeonym-oss/claude-plugins
+/plugin install flow-reel@codeonym-oss
+
+# Codex
+codex plugin marketplace add codeonym-oss/claude-plugins
+codex plugin add flow-reel@codeonym-oss
+```
+
+The plugin lives in [`plugin/`](plugin/) and is released separately (`flow-reel-plugin-v*` tags); it states the
+flow-reel versions it supports, and its `preflight.mjs` checks your project's.
+
 ## Write a script
 
 A script is a TypeScript file whose default export is `script(options, body)`. The body is plain Playwright, plus

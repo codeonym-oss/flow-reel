@@ -1,8 +1,9 @@
 // The agent plugin's consistency (GH-6 decisions 005, 010, 011): its manifests, skills and links agree, it
 // resolves from a copy of plugin/ alone, and it claims the runtime version this package is.
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 import { afterAll, describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "../..");
@@ -86,6 +87,7 @@ describe("an installed copy of plugin/ alone", () => {
       const targets = [
         ...[...text.matchAll(/\]\(([^)\s#]+)(?:#[^)]*)?\)/g)].map(m => m[1]).filter(t => !/^[a-z]+:/i.test(t)),
         ...[...text.matchAll(/<skill-dir>\/([\w./-]+)/g)].map(m => m[1]),
+        ...[...text.matchAll(/`(\.\.?\/[\w./-]+)`/g)].map(m => m[1]),
       ];
       for (const target of targets) {
         const path = resolve(dirname(file), target);
@@ -93,6 +95,50 @@ describe("an installed copy of plugin/ alone", () => {
       }
     }
     expect(broken).toEqual([]);
+  });
+});
+
+describe("what the plugin teaches", () => {
+  const docs = files(plugin).filter(f => f.endsWith(".md")).map(f => ({ file: relative(plugin, f), text: readFileSync(f, "utf8") }));
+
+  it("typechecks every script it shows against flow-reel's API", () => {
+    // TypeScript 7 has no JavaScript API: write the scripts and a tsconfig extending the repository's, then run tsc.
+    const dir = join(root, "node_modules/.cache/flow-reel-plugin-scripts");
+    rmSync(dir, { recursive: true, force: true });
+    mkdirSync(dir, { recursive: true });
+    try {
+      const roots = files(plugin).filter(f => f.endsWith(".ts"));
+      for (const { file, text } of docs) {
+        [...text.matchAll(/```ts\n([\s\S]*?)```/g)].forEach((m, i) => {
+          const path = join(dir, `${file.replace(/[/.]/g, "_")}_${i}.ts`);
+          writeFileSync(path, m[1]);
+          roots.push(path);
+        });
+      }
+      expect(roots.length).toBeGreaterThan(8);
+      writeFileSync(join(dir, "tsconfig.json"), JSON.stringify({ extends: join(root, "tsconfig.json"), include: [], files: roots }));
+      const result = spawnSync(process.execPath, [join(root, "node_modules/typescript/bin/tsc"), "-p", join(dir, "tsconfig.json"), "--noEmit"], { encoding: "utf8" });
+      expect(result.stdout + result.stderr).toBe("");
+      expect(result.status).toBe(0);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  }, 60_000);
+
+  it("uses only the commands and flags the CLI has", () => {
+    const usage = readFileSync(join(root, "src/cli.ts"), "utf8").match(/const USAGE = ([\s\S]*?);\n/)![1];
+    const flags = new Set(usage.match(/--[a-z-]+/g));
+    const wrong: string[] = [];
+    for (const { file, text } of docs) {
+      for (const [line] of text.matchAll(/npx flow-reel (\S+)[^\n`]*/g)) {
+        if (!["compose", "verify", "compare"].includes(line.split(" ")[2])) wrong.push(`${file}: ${line}`);
+        for (const flag of line.match(/--[a-z-]+/g) ?? []) if (!flags.has(flag)) wrong.push(`${file}: ${flag}`);
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it("doesn't teach the 0.1 words", () => {
+    const old = docs.filter(({ text }) => /\b(demo|step|sfx)\(|--no-sfx|flow-reel record|\.transcript\.json/.test(text)).map(d => d.file);
+    expect(old).toEqual([]);
   });
 });
 

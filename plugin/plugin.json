@@ -18,5 +18,19 @@
     "playwright",
     "walkthrough",
     "video"
-  ]
+  ],
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/reel/SKILL.md",
+      "interface": {
+        "displayName": "flow-reel",
+        "shortDescription": "Narrated reels of your app's features",
+        "longDescription": "Turn \"show this feature\" into a reel worth sharing: plan the story, explore the running app, write a flow-reel script with comments, sounds and effects, compose it into a narrated video, and screen the result honestly.",
+        "developerName": "codeonym",
+        "category": "Productivity",
+        "websiteURL": "https://github.com/codeonym-oss/flow-reel",
+        "defaultPrompt": "Use flow-reel's reel skill to make a short narrated reel of a feature."
+      }
+    }
+  }
 }

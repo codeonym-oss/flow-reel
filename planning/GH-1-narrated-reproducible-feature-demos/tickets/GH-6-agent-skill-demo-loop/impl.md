@@ -115,3 +115,28 @@ unchanged since the first plan read them. Decisions 005–011; the earlier plan 
 - **The composer image is ~7 GB:** the e2e sample reuses the image the e2e run already builds.
 - **Not changed:** `docker/sfx/` and `assembleSfx` keep the old word (internal); no runtime source changes in this
   ticket. Anything the agent trial shows missing from the composer becomes a follow-up, not part of GH-6.
+
+## Corrections during the build
+
+- Step 2: `release-please.yml` needed no change. release-please-action sets the unprefixed `release_created` and
+  `tag_name` only for path `.`; the plugin's are `plugin--…`. Dry runs on throwaway branches confirmed a
+  `plugin/`-only `feat:` proposes only `flow-reel-plugin` 0.1.0 and a `src/` `fix:` only runtime 0.2.1. With two
+  packages the release pull request is titled `chore: release main`.
+- Step 1: the plugin package is `release-type: simple`; its `version.txt` is not created (`createIfMissing: false`),
+  so no version file is needed. The manifest file lists no `plugin` entry; `initial-version` gives 0.1.0.
+- Step 3: pull request 1's manifests listed no skills and no onboarding extension (the skill didn't exist yet);
+  pull request 2 added both.
+- Step 4: no separate "no plugin files in npm" test: `pack:check` already rejects any published path outside
+  `dist/` and `docker/`.
+- Step 7: TypeScript 7 has no JavaScript API, so the test writes every `ts` fence of `plugin/**/*.md` (each a whole
+  script) and runs `tsc` on a tsconfig extending the repository's; `plugin/` is also in `tsconfig.json`'s include.
+- Step 12: `stills.mjs` takes the end still a frame and a half before a step's end, so it lands inside the video.
+- Step 13, found by composing the example: a standalone `zoomOut()` written after a step's last action (even after
+  the next `comment`) happens before that step's hold, and a zoom held at the end eases out before the last
+  comment finishes. The references teach chaining `.zoomOut()` on the next scene's first action and ending on a
+  click or the wide shot; the composer behaviour is a project follow-up
+  (`planning/follow-ups/2026-11-15_1330_zoom-ends-before-the-last-comment.md`).
+- The CLI unit test that spawns 18 processes timed out at 10 s beside the new plugin tests; it has its own 30 s
+  timeout now.
+- Step 14: the trial session uses `claude -p --setting-sources project --plugin-dir <copy of plugin/>`, an allowlist
+  of tools (edits, `npx flow-reel`, `node`, `curl`, `ls`, `cat`, `mkdir`, `cp`) rather than skipped permissions.
