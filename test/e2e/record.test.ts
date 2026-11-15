@@ -1,6 +1,6 @@
 import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { type Server, createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join, resolve } from "node:path";
@@ -253,7 +253,7 @@ describe("flow-reel compose", () => {
 
   it("writes portable Qwen clips with measured metadata and the same audio on both runs", () => {
     for (const run of [a, b]) {
-      expect(run.transcript.voice).toEqual({ adapter: "qwen3-tts-0.6b", voice: "Ryan", seed: 0 });
+      expect(run.transcript.voice).toEqual({ adapter: "qwen3-tts-0.6b", voice: "Ryan", seed: 0, language: "english" });
       run.transcript.steps.forEach((step, index) => {
         expect(step.audio?.file).toBe(`audio/${String(index).padStart(3, "0")}.wav`);
         const file = join(run.dir, "demo.reel", step.audio!.file);
@@ -329,7 +329,7 @@ describe("flow-reel compose", () => {
 
   it("writes one reel beside the script, whole according to its manifest (GH-31 decisions 001-003)", () => {
     for (const run of [a, b]) {
-      expect(readdirSync(run.dir).filter((f) => !["record.log", "captions.png"].includes(f)).sort()).toEqual(["demo.reel", "demo.ts"]);
+      expect(readdirSync(run.dir).filter((f) => !["record.log", "captions.png"].includes(f)).sort()).toEqual(["demo.reel", "demo.ts", "flow-reel.json"]);
       expect(readdirSync(join(run.dir, "demo.reel")).sort()).toEqual([
         "audio", "captions.srt", "captions.vtt", "events.json", "manifest.json", "transcript.json", "video.mp4", "work",
       ]);
@@ -342,6 +342,24 @@ describe("flow-reel compose", () => {
       });
     }
   });
+
+  it("recomposes an unchanged script without voicing, reusing every clip, and keeps an existing flow-reel.json (GH-33)", async () => {
+    // The first compose saved its settings beside the script (GH-33 decisions 001 and 005).
+    expect(JSON.parse(readFileSync(join(b.dir, "flow-reel.json"), "utf8"))).toEqual({ version: 1, integration: "playwright",
+      voice: { adapter: "qwen3-tts-0.6b", speaker: "Ryan", language: "english" } });
+    const dir = join(OUT, "recompose");
+    rmSync(dir, { recursive: true, force: true });
+    cpSync(b.dir, dir, { recursive: true });
+    writeFileSync(join(dir, "flow-reel.json"), '{ "version": 1 }\n');
+    const { stderr } = await promisify(execFile)(process.execPath, ["dist/cli.js", "compose", join(dir, "demo.ts")]);
+    writeFileSync(join(dir, "record.log"), stderr);
+    expect(stderr).toContain("flow-reel: voiced 0 of 3 comments (3 reused)");
+    expect(readFileSync(join(dir, "flow-reel.json"), "utf8")).toBe('{ "version": 1 }\n');
+    const transcript: Transcript = JSON.parse(readFileSync(join(dir, "demo.reel/transcript.json"), "utf8"));
+    expect(transcript.voice).toEqual(b.transcript.voice);
+    expect(transcript.steps.map((s) => s.audio)).toEqual(b.transcript.steps.map((s) => s.audio));
+    expect(verifyReel(join(dir, "demo.reel"))).toMatchObject({ errors: [], differences: [] });
+  }, 900_000);
 
   it("gives the same steps on two runs, every start within ±150 ms (story decision 009)", () => {
     expect(compareTranscripts(a.transcript, b.transcript)).toEqual({ errors: [], differences: [] });

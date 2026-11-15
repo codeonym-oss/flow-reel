@@ -5,7 +5,7 @@ import type { Transcript } from "../../src/composer/schema/transcript.ts";
 
 const transcript = (): Transcript => ({ version: 2, script: "demo.ts",
   video: { file: "demo.mp4", width: 960, height: 540, fps: 30, durationMs: 4000 },
-  voice: { adapter: "qwen", voice: "Ryan", seed: 0 },
+  voice: { adapter: "qwen", voice: "Ryan", seed: 0, language: "english" },
   steps: [{ index: 0, comment: "Hello", startMs: 500, actionEndMs: 700, endMs: 1700,
     audio: { file: "a/000.wav", durationMs: 1000, sha256: "a".repeat(64) } }],
 });

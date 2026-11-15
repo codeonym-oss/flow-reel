@@ -4,3 +4,4 @@
 - 2026-11-14: building on feat/32-effect-words; In Progress on board 6.
 - 2026-11-14: built; corrections noted in impl.md.
 - 2026-11-14: pull request #40 opened.
+- 2026-11-14: pull request #40 merged (0c6018f); #32 closed and Done on board 6.

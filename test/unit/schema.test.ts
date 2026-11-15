@@ -8,7 +8,7 @@ const transcript = {
   version: 2,
   script: "demo.ts",
   video: { file: "demo.mp4", width: 1920, height: 1080, fps: 30, durationMs: 14820 },
-  voice: { adapter: "kokoro", voice: "af_heart", seed: 0 },
+  voice: { adapter: "kokoro", voice: "af_heart", seed: 0, language: "english" },
   steps: [
     {
       index: 0, comment: "Open the settings page.",
@@ -126,7 +126,7 @@ describe("validateManifest", () => {
   const manifest = {
     version: 1, script: { file: "settings.ts", sha256: "a".repeat(64) },
     composer: { version: "0.2.0", platform: "linux/amd64" }, integration: "playwright",
-    voice: { adapter: "qwen3-tts-0.6b", voice: "Ryan", seed: 0 },
+    voice: { adapter: "qwen3-tts-0.6b", voice: "Ryan", seed: 0, language: "english" },
     files: [file("audio/000.wav"), file("transcript.json"), file("video.mp4")],
   };
 

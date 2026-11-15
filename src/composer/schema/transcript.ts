@@ -6,7 +6,7 @@ export interface Transcript {
   version: 2;
   script: string;
   video: { file: string; width: number; height: number; fps: number; durationMs: number };
-  voice?: { adapter: string; voice: string; seed: number };
+  voice?: { adapter: string; voice: string; seed: number; language: string };
   steps: TranscriptStep[];
 }
 
@@ -36,6 +36,7 @@ export function validateTranscript(value: unknown): Errors {
     else {
       text(errors, "voice.", value.voice, "adapter");
       text(errors, "voice.", value.voice, "voice");
+      text(errors, "voice.", value.voice, "language");
       nonNegative(errors, "voice.", value.voice, "seed");
     }
   }

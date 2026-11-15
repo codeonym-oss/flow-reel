@@ -122,7 +122,10 @@ export async function compose(scriptPath: string, { integration, voice, store, c
   }
 
   // CPU synthesis starts only after capture, browser and display have finished.
-  const voiced = await voiceSteps(steps, reel.audioDir, voice);
+  const voiced = await voiceSteps(steps, reel.audioDir, voice, reel.previous);
+  if (voiced.voiced + voiced.reused) {
+    console.error(`flow-reel: voiced ${voiced.voiced} of ${voiced.voiced + voiced.reused} comments (${voiced.reused} reused)`);
+  }
   const images = events.flatMap((e) => e.type === "frame" ? [e] : []).map((e, i) =>
     ({ t: e.t, durationMs: e.durationMs, file: imageFiles[i], fit: e.fit, background: e.background }));
   const timeline = planTimeline(voiced.steps, { fps: FPS, frames: videoFrames(out.capture), cutMs: deliveryCutMs, images });

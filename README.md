@@ -140,9 +140,10 @@ player wraps the text; the transcript keeps the original comment. Blank comments
 milliseconds stay in the transcript but produce no caption. Commented steps include the full speech clip and
 at least 200 ms afterward.
 
-The voice is Qwen3-TTS 0.6B CustomVoice, Ryan in English, through the official Python runtime on CPU. Model and
-tokenizer assets are pinned and downloaded when the image is built; synthesis runs offline without a key. Speech
-is generated after capture finishes. The transcript records the voice, seed, and each clip's relative file path,
+The voice is Qwen3-TTS 0.6B CustomVoice, Ryan in English unless [configured](#configure-the-composer), through the
+official Python runtime on CPU. Model and tokenizer assets are pinned and downloaded when the image is built;
+synthesis runs offline without a key. Speech is generated after capture finishes. The transcript records the voice
+(adapter, speaker, seed and language), and each clip's relative file path,
 duration in milliseconds and complete-file SHA-256 hash. Share the whole reel folder.
 
 Synthesis normalizes whitespace without interpreting caption escapes; the transcript preserves the original text.
@@ -196,6 +197,48 @@ the rest of the reel is yours to commit or not.
 To keep runs the same, the runner fixes the viewport, device scale, `prefers-reduced-motion`, the page's clock
 (`2026-01-05T09:00:00Z`) and `Math.random`'s seed, and waits for the network to go idle before each step. Two runs of
 a script have the same steps, each starting within ±150 ms.
+
+## Configure the composer
+
+The composer's settings are the integration that runs the script and the voice that speaks its comments. They come
+from flags, then from `flow-reel.json` in the script's folder, then from the defaults: a flag wins over the file, and
+the file over the default.
+
+```json
+{
+  "version": 1,
+  "integration": "playwright",
+  "voice": { "adapter": "qwen3-tts-0.6b", "speaker": "Aiden", "language": "french" }
+}
+```
+
+```sh
+npx flow-reel compose demos/settings.ts --speaker Serena --language english
+```
+
+| Flag | File | Values | Default |
+|---|---|---|---|
+| `--integration` | `integration` | `playwright` | `playwright` |
+| `--voice` | `voice.adapter` | `qwen3-tts-0.6b` | `qwen3-tts-0.6b` |
+| `--speaker` | `voice.speaker` | `Aiden`, `Dylan`, `Eric`, `Ono_Anna`, `Ryan`, `Serena`, `Sohee`, `Uncle_Fu`, `Vivian` | `Ryan` |
+| `--language` | `voice.language` | `chinese`, `english`, `french`, `german`, `italian`, `japanese`, `korean`, `portuguese`, `russian`, `spanish` | `english` |
+
+Every key of the file is optional except `version`. An unknown name fails before the composer starts, with the list
+of known ones. When `--voice` picks another voice than the file's, the file's speaker and language are ignored.
+
+The first successful compose in a folder without `flow-reel.json` writes one with the settings it used, so the next
+compose, and everyone sharing the scripts, uses the same ones. An existing file is rewritten only with
+`--save-config`, and only when the compose succeeds. Commit the file with the scripts.
+
+**Reused speech.** The reel already on disk is the voice's cache. A comment with the same text (whitespace
+normalized) and the same voice settings reuses the previous reel's clip, as long as the clip still matches the hash
+in its transcript; every other comment is spoken again. Recomposing an unchanged script speaks nothing and gives the
+same audio and transcript; the compose says how many comments it voiced and reused. Deleting the reel deletes its
+cache.
+
+**Credentials.** The shipped voice runs locally and needs none. A voice that needs one (a cloud voice, later)
+declares its environment variable: the host checks it is set, and passes it into the container by name, so its
+value is never written to the reel, the manifest, `flow-reel.json` or the command line.
 
 ## Sounds
 
@@ -289,7 +332,8 @@ step windows, including the speech tail, before publishing its transcript.
 | `await step("Save.", () => button.click())` | `comment("Save."); await button.click()` or `await button.comment("Save.").click()` |
 | `sfx("success")` | `sound(Sounds.feedback.SUCCESS)` or `button.sound(Sounds.feedback.SUCCESS)` |
 | `npx flow-reel record demo.ts` | `npx flow-reel compose demo.ts` |
-| transcript version 1, step field `narration` | transcript version 2, step field `comment` |
+| transcript version 1, step field `narration` | transcript version 2, step field `comment`; `voice.language` |
+| the voice was always Ryan in English | `--speaker`, `--language` or `flow-reel.json` (see [Configure the composer](#configure-the-composer)) |
 | event log versions 1 and 2, event `{ type: "sfx" }` | event log version 4, event `{ type: "sound" }`, plus effect events and `autoZoom` |
 | `demo.mp4`, `demo.transcript.json`, … beside the script, work files in `.flow-reel/` | one folder, `demo.reel/` (delete old `.flow-reel/` folders) |
 | `flow-reel compare a.transcript.json b.transcript.json` | `flow-reel compare a.reel b.reel` |

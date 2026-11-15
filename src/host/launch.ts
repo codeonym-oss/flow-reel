@@ -4,6 +4,8 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CONFIG_FILE, type Settings, type SettingsFlags, credentialsFor, readConfig, resolveSettings, settingsFlags,
+  writeConfig } from "../settings.ts";
 
 export type Engine = "docker" | "podman";
 
@@ -19,6 +21,10 @@ export interface RunArgsInput {
   sfx?: boolean;
   /** An absolute folder for the reel, mounted at /out. */
   outDir?: string;
+  /** The resolved settings, passed to the composer as flags. */
+  settings: Settings;
+  /** Environment variables the adapters need: passed by name, so the engine reads each value from this environment. */
+  credentials?: string[];
 }
 
 export const imageFor = (version: string) => `ghcr.io/codeonym-oss/flow-reel:${version}`;
@@ -30,8 +36,9 @@ export function buildRunArgs(i: RunArgsInput): string[] {
     ...(i.outDir ? ["-v", `${i.outDir}:/out`] : []),
     ...(i.engine === "podman" ? ["--userns=keep-id"] : ["--user", `${i.uid}:${i.gid}`]),
     ...(i.desktop ? ["-e", "FLOW_REEL_HOST_MAP=1"] : ["--network", "host"]),
+    ...(i.credentials ?? []).flatMap((name) => ["-e", name]),
     i.image, "compose", `/work/${i.script}`, ...(i.sfx === false ? ["--no-sfx"] : []),
-    ...(i.outDir ? ["--out", "/out"] : []),
+    ...(i.outDir ? ["--out", "/out"] : []), ...settingsFlags(i.settings),
   ];
 }
 
@@ -83,8 +90,25 @@ function ensureImage(engine: Engine, image: string) {
   if (built.status !== 0) throw new Error(`building ${image} failed`);
 }
 
+export interface LaunchOptions { sfx?: boolean; outDir?: string; flags?: SettingsFlags; saveConfig?: boolean }
+
+/**
+ * Writes the settings to the script folder's flow-reel.json after a successful compose, when there is none or with
+ * --save-config (GH-33 decisions 001 and 005). Returns whether it wrote.
+ */
+export function saveSettings(status: number, dir: string, settings: Settings, rewrite: boolean): boolean {
+  if (status !== 0 || !rewrite) return false;
+  writeConfig(dir, settings);
+  console.error(`flow-reel: saved the settings in ${CONFIG_FILE}`);
+  return true;
+}
+
 /** Runs the recording in the container; resolves to its exit code. */
-export function launch(scriptPath: string, options: { sfx?: boolean; outDir?: string } = {}): number {
+export function launch(scriptPath: string, options: LaunchOptions = {}): number {
+  const script = resolve(scriptPath);
+  const config = readConfig(dirname(script));
+  const settings = resolveSettings(config, options.flags);
+  const credentials = credentialsFor(settings, process.env);
   const { command, engine } = detectEngine();
   const { version } = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8")) as { version: string };
   const image = imageFor(version);
@@ -93,13 +117,14 @@ export function launch(scriptPath: string, options: { sfx?: boolean; outDir?: st
   ensureImage(command, image);
   const desktop = process.platform !== "linux"
     || run(command, ["info", "--format", "{{.OperatingSystem}}"]).stdout.includes("Docker Desktop");
-  const script = resolve(scriptPath);
   // Created here, so the engine doesn't create the mount point as root.
   const outDir = options.outDir === undefined ? undefined : resolve(options.outDir);
   if (outDir) mkdirSync(outDir, { recursive: true });
   const args = buildRunArgs({
     engine, desktop, image, workDir: dirname(script), script: basename(script),
-    uid: process.getuid?.() ?? 1000, gid: process.getgid?.() ?? 1000, sfx: options.sfx, outDir,
+    uid: process.getuid?.() ?? 1000, gid: process.getgid?.() ?? 1000, sfx: options.sfx, outDir, settings, credentials,
   });
-  return run(command, args, true).status ?? 1;
+  const status = run(command, args, true).status ?? 1;
+  saveSettings(status, dirname(script), settings, !config || Boolean(options.saveConfig));
+  return status;
 }

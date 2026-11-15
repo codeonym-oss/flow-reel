@@ -1,12 +1,15 @@
-// The local voice (GH-4 decision 002): Qwen3-TTS in a Python worker, offline, with a fixed seed.
+// The local voice (GH-4 decision 002): Qwen3-TTS in a Python worker, offline, with a fixed seed, speaking as any of
+// the model's speakers in any of its languages (GH-33 decision 003). The adapter's name is part of the reel cache's
+// key (GH-33 decision 002): change it whenever the worker's generation settings change, or old clips are reused.
 import { spawn } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Voice } from "../../composer/ports.ts";
+import type { VoiceSettings } from "../../settings.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-export const qwen: Voice = {
-  voice: { adapter: "qwen3-tts-0.6b", voice: "Ryan", seed: 0 },
+export const qwenVoice = ({ adapter, speaker, language }: VoiceSettings): Voice => ({
+  voice: { adapter, voice: speaker, seed: 0, language },
   synthesize(jobs) {
     return new Promise<void>((resolve, reject) => {
       const child = spawn(join(root, "tts-venv/bin/python"), [join(root, "docker/tts/worker.py")], {
@@ -24,8 +27,8 @@ export const qwen: Voice = {
           resolve();
         }
       });
-      child.stdin.end(JSON.stringify(jobs));
+      child.stdin.end(JSON.stringify({ speaker, language, jobs }));
     });
   },
-};
+});
 

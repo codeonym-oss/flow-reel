@@ -49,6 +49,11 @@ _Avoid:_ driver.
 The speech model that speaks comments. It may be local or a cloud service.
 _Avoid:_ TTS, transcription model.
 
+**Settings**
+Which integration and voice the composer uses, and the voice's speaker and language. They come from flags, then
+`flow-reel.json` beside the scripts, then the defaults.
+_Avoid:_ options (a script's own options, such as `url` and `autoZoom`).
+
 **Recording**
 The raw screen capture the composer makes while the integration replays the script. It is an intermediate, not the
 result.
@@ -92,7 +97,8 @@ Polish and effects are rendered from it.
 
 **Reel cache**
 The voiced comments kept with a reel, so composing an unchanged comment again reuses its audio instead of
-asking the voice for it.
+asking the voice for it. It is the previous reel's clips: one is reused when its comment and the voice's settings
+are the same and the clip still matches its hash.
 
 ## What teaches it
 

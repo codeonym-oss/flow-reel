@@ -3,8 +3,12 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildRunArgs, detectEngine, imageFor, sourceCheckoutWarning } from "../../src/host/launch.ts";
+import { resolveSettings } from "../../src/settings.ts";
 
-const base = { image: "ghcr.io/codeonym-oss/flow-reel:0.1.0", workDir: "/home/me/app", script: "demo.ts", uid: 1000, gid: 1000 };
+const settings = resolveSettings(undefined);
+const SETTINGS = ["--integration", "playwright", "--voice", "qwen3-tts-0.6b", "--speaker", "Ryan", "--language", "english"];
+const base = { image: "ghcr.io/codeonym-oss/flow-reel:0.1.0", workDir: "/home/me/app", script: "demo.ts", uid: 1000, gid: 1000,
+  settings };
 
 describe("imageFor", () => {
   it("tags the image with the package version", () => {
@@ -14,13 +18,13 @@ describe("imageFor", () => {
 
 describe("buildRunArgs", () => {
   it("passes muting into the container after the script", () => {
-    expect(buildRunArgs({ ...base, engine: "docker", desktop: false, sfx: false }).slice(-3))
-      .toEqual(["compose", "/work/demo.ts", "--no-sfx"]);
+    expect(buildRunArgs({ ...base, engine: "docker", desktop: false, sfx: false }).slice(-11))
+      .toEqual(["compose", "/work/demo.ts", "--no-sfx", ...SETTINGS]);
   });
   it("mounts --out at /out and passes it on", () => {
     const args = buildRunArgs({ ...base, engine: "docker", desktop: false, outDir: "/home/me/reels" });
     expect(args).toEqual(expect.arrayContaining(["-v", "/home/me/reels:/out"]));
-    expect(args.slice(-4)).toEqual(["compose", "/work/demo.ts", "--out", "/out"]);
+    expect(args.slice(-12)).toEqual(["compose", "/work/demo.ts", "--out", "/out", ...SETTINGS]);
   });
   it("Linux Docker: host network, the host's uid, the script's folder at /work", () => {
     expect(buildRunArgs({ ...base, engine: "docker", desktop: false })).toEqual([
@@ -28,7 +32,7 @@ describe("buildRunArgs", () => {
       "-v", "/home/me/app:/work", "-w", "/work",
       "--user", "1000:1000",
       "--network", "host",
-      "ghcr.io/codeonym-oss/flow-reel:0.1.0", "compose", "/work/demo.ts",
+      "ghcr.io/codeonym-oss/flow-reel:0.1.0", "compose", "/work/demo.ts", ...SETTINGS,
     ]);
   });
 
@@ -43,6 +47,15 @@ describe("buildRunArgs", () => {
     expect(args).toContain("--userns=keep-id");
     expect(args).not.toContain("--user");
     expect(args).toEqual(expect.arrayContaining(["--network", "host"]));
+  });
+
+  it("passes the resolved settings to the composer, and credentials by name only (GH-33 decision 004)", () => {
+    const voice = resolveSettings(undefined, { speaker: "Aiden", language: "french" });
+    const args = buildRunArgs({ ...base, settings: voice, engine: "docker", desktop: false, credentials: ["FAKE_TOKEN"] });
+    expect(args.slice(-8)).toEqual(["--integration", "playwright", "--voice", "qwen3-tts-0.6b", "--speaker", "Aiden",
+      "--language", "french"]);
+    expect(args.slice(args.indexOf("-e"), args.indexOf("-e") + 2)).toEqual(["-e", "FAKE_TOKEN"]);
+    expect(args.indexOf("-e")).toBeLessThan(args.indexOf(base.image));
   });
 });
 

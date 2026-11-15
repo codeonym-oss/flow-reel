@@ -10,7 +10,8 @@ it("accepts --no-sfx on either side of the script, and rejects malformed compose
     encoding: "utf8", env: { ...process.env, FLOW_REEL_IN_CONTAINER: "1" },
   });
   for (const args of [["compose", "--no-sfx", "missing.ts"], ["compose", "missing.ts", "--no-sfx"],
-    ["compose", "missing.ts", "--out", "reels"]]) {
+    ["compose", "missing.ts", "--out", "reels"],
+    ["compose", "missing.ts", "--integration", "playwright", "--voice", "qwen3-tts-0.6b", "--speaker", "Aiden", "--language", "french"]]) {
     const result = run(args);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("missing.ts");
@@ -19,9 +20,19 @@ it("accepts --no-sfx on either side of the script, and rejects malformed compose
   for (const args of [["compose", "--no-sfx"], ["compose", "demo.ts", "--no-sfx", "--no-sfx"],
     ["compose", "demo.ts", "--wat"], ["compose", "a.ts", "b.ts"], ["compare", "a.reel", "b.reel", "--no-sfx"],
     ["compose", "demo.ts", "--out"], ["compose", "demo.ts", "--out", "--no-sfx"], ["compose", "demo.ts", "--out", "a", "--out", "b"],
+    ["compose", "demo.ts", "--speaker"], ["compose", "demo.ts", "--speaker", "--no-sfx"],
+    ["compose", "demo.ts", "--speaker", "Ryan", "--speaker", "Aiden"], ["compose", "demo.ts", "--save-config", "--save-config"],
     ["verify"], ["verify", "a.reel", "b.reel"]]) {
     expect(run(args).status).toBe(2);
   }
+});
+
+it("checks the settings in the container before any adapter loads (GH-33)", () => {
+  const result = spawnSync(process.execPath, ["src/cli.ts", "compose", "missing.ts", "--speaker", "Nobody"], {
+    encoding: "utf8", env: { ...process.env, FLOW_REEL_IN_CONTAINER: "1" },
+  });
+  expect(result.status).toBe(1);
+  expect(result.stderr).toMatch(/^flow-reel: unknown speaker "Nobody"; known speakers: Aiden, /);
 });
 
 it("says that record is now compose", () => {

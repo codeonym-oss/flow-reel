@@ -12,7 +12,7 @@ export function compareTranscripts(left: unknown, right: unknown): { errors: str
   for (const key of ["width", "height", "fps"] as const) compare(`video.${key}`, a.video[key], b.video[key]);
   compare("voice presence", Boolean(a.voice), Boolean(b.voice));
   if (a.voice && b.voice) {
-    for (const key of ["adapter", "voice", "seed"] as const) compare(`voice.${key}`, a.voice[key], b.voice[key]);
+    for (const key of ["adapter", "voice", "seed", "language"] as const) compare(`voice.${key}`, a.voice[key], b.voice[key]);
   }
   compare("step count", a.steps.length, b.steps.length);
   a.steps.forEach((s, i) => {
