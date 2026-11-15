@@ -94,7 +94,8 @@ describe("preflight.mjs", () => {
     const fake = fakePath("range", { version: true, info: true, image: true });
     const old = await run(preflight, ["--version", "0.1.2", "--json"], fake.path);
     expect(old.status).toBe(1);
-    expect(checks(old.stdout).runtime.detail).toMatch(/0\.1\.2 .*supports >=0\.2\.0 <0\.3\.0/);
+    const range = /^\*\*Supported runtime:\*\* `([^`]+)`$/m.exec(readFileSync(join(root, "plugin/references/language.md"), "utf8"))![1];
+    expect(checks(old.stdout).runtime.detail).toBe(`flow-reel 0.1.2 (--version); this plugin supports ${range}`);
     const project = join(work, "a project", "demos");
     mkdirSync(project, { recursive: true });
     mkdirSync(join(project, "../node_modules/flow-reel"), { recursive: true });
