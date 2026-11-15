@@ -64,9 +64,10 @@ export default script({ url: "http://localhost:${port}/", viewport: [960, 540] }
   const first = await compose();
   writeFileSync(join(dir, "compose.log"), first.stderr);
   expect(first.stderr).toContain("voiced 2 of 2 comments (0 reused)");
-  expect(requests).toEqual([
-    { auth: `Bearer ${KEY}`, body: { model: "gpt-4o-mini-tts", input: "Type a name.", voice: "nova", response_format: "pcm" } },
+  // Comments are voiced concurrently, so their requests arrive in either order.
+  expect([...requests].sort((a, b) => a.body.input.localeCompare(b.body.input))).toEqual([
     { auth: `Bearer ${KEY}`, body: { model: "gpt-4o-mini-tts", input: "Save it.", voice: "nova", response_format: "pcm" } },
+    { auth: `Bearer ${KEY}`, body: { model: "gpt-4o-mini-tts", input: "Type a name.", voice: "nova", response_format: "pcm" } },
   ]);
   const transcript = JSON.parse(readFileSync(join(dir, "demo.reel/transcript.json"), "utf8"));
   expect(transcript.voice).toEqual({ adapter: "openai:gpt-4o-mini-tts", voice: "nova", seed: 0, language: "auto" });
