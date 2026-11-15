@@ -1,7 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { buildRunArgs, saveSettings } from "../../src/host/launch.ts";
 import { KNOWN, type Known, credentialsFor, readConfig, resolveSettings, validateConfig, writeConfig } from "../../src/settings.ts";
 
@@ -48,7 +48,7 @@ it("checks flow-reel.json", () => {
   expect(validateConfig([])).toEqual(["must be a JSON object"]);
   expect(validateConfig({ version: 2 })).toEqual(["version must be 1"]);
   expect(validateConfig({ version: 1, env: ["KEY"] })).toEqual(['unknown key "env"; it takes version, integration, voice']);
-  expect(validateConfig({ version: 1, voice: { seed: 1 } })).toEqual(['voice: unknown key "seed"; it takes adapter, speaker, language']);
+  expect(validateConfig({ version: 1, voice: { seed: 1 } })).toEqual(['voice: unknown key "seed"; it takes adapter, speaker, language, model, apiKeyEnv, baseUrl']);
   expect(validateConfig({ version: 1, integration: 1, voice: { speaker: 2 } }))
     .toEqual(["integration must be a string", "voice.speaker must be a string"]);
   const dir = folder();
@@ -86,4 +86,55 @@ it("needs each credential an adapter declares, and keeps its value out of everyt
   for (const written of [args.join(" "), readFileSync(join(dir, "flow-reel.json"), "utf8"), JSON.stringify(voiceRecord)]) {
     expect(written).not.toContain(secret);
   }
+});
+
+describe("cloud voices (GH-49)", () => {
+  it("fills in the provider's model, speaker, key variable and server", () => {
+    expect(resolveSettings({ version: 1, voice: { adapter: "openai" } }).voice).toEqual({ adapter: "openai", speaker: "coral",
+      language: "auto", model: "gpt-4o-mini-tts", apiKeyEnv: "OPENAI_API_KEY", baseUrl: "https://api.openai.com/v1" });
+    expect(resolveSettings(undefined, { voice: "gemini", model: "gemini-3.8-flash-lite-tts", speaker: "Puck" }).voice)
+      .toMatchObject({ adapter: "gemini", model: "gemini-3.8-flash-lite-tts", speaker: "Puck", apiKeyEnv: "GEMINI_API_KEY" });
+  });
+
+  it("passes any speaker and language on, since the provider's lists change", () => {
+    expect(resolveSettings(undefined, { voice: "elevenlabs", speaker: "a-voice-id", language: "fr" }).voice)
+      .toMatchObject({ speaker: "a-voice-id", language: "fr" });
+  });
+
+  it("takes the key's variable from the file or a flag, and refuses a key in the file", () => {
+    const file = { version: 1 as const, voice: { adapter: "groq", apiKeyEnv: "MY_GROQ_KEY" } };
+    expect(resolveSettings(file).voice.apiKeyEnv).toBe("MY_GROQ_KEY");
+    expect(resolveSettings(file, { apiKeyEnv: "OTHER" }).voice.apiKeyEnv).toBe("OTHER");
+    expect(() => resolveSettings(file, { apiKeyEnv: "sk-abc123-def" })).toThrow("voice.apiKeyEnv must name an environment variable");
+    expect(validateConfig({ version: 1, voice: { adapter: "openai", apiKey: "sk-123" } })).toEqual([
+      'voice.apiKey: keys don\'t go in flow-reel.json; put the key in an environment variable and name it with "apiKeyEnv"']);
+  });
+
+  it("needs a model and a server for an OpenAI-compatible server, and no key unless named", () => {
+    expect(() => resolveSettings(undefined, { voice: "openai-compatible" })).toThrow("voice openai-compatible needs a model");
+    expect(() => resolveSettings(undefined, { voice: "openai-compatible", model: "kokoro" }))
+      .toThrow("voice openai-compatible needs a server: set voice.baseUrl");
+    const settings = resolveSettings(undefined, { voice: "openai-compatible", model: "kokoro", baseUrl: "http://localhost:8880/v1" });
+    expect(credentialsFor(settings, {})).toEqual([]);
+    expect(() => resolveSettings(undefined, { voice: "openai", baseUrl: "api.openai.com" })).toThrow("must start with http");
+  });
+
+  it("refuses cloud settings for the local voice", () => {
+    expect(() => resolveSettings(undefined, { model: "x" })).toThrow("voice qwen3-tts-0.6b runs locally and takes no model (--model)");
+  });
+
+  it("needs the key's variable set, passes it by name, and writes no key anywhere", () => {
+    const settings = resolveSettings(undefined, { voice: "openai" });
+    expect(() => credentialsFor(settings, {})).toThrow("voice openai needs OPENAI_API_KEY: set it in the environment");
+    const secret = "sk-live-secret-value";
+    expect(credentialsFor(settings, { OPENAI_API_KEY: secret })).toEqual(["OPENAI_API_KEY"]);
+    const args = buildRunArgs({ engine: "docker", desktop: false, image: "image", workDir: "/w", script: "demo.ts", uid: 1, gid: 1,
+      settings, credentials: ["OPENAI_API_KEY"] });
+    expect(args.slice(-6)).toEqual(["--model", "gpt-4o-mini-tts", "--api-key-env", "OPENAI_API_KEY", "--base-url",
+      "https://api.openai.com/v1"]);
+    const dir = folder();
+    writeConfig(dir, settings);
+    expect(readConfig(dir)).toEqual({ version: 1, ...settings });
+    for (const written of [args.join(" "), readFileSync(join(dir, "flow-reel.json"), "utf8")]) expect(written).not.toContain(secret);
+  });
 });

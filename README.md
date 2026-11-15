@@ -3,8 +3,9 @@
 flow-reel turns a **script** into a **reel**. A person or a coding agent writes the script as an ordinary
 Playwright script, plus flow-reel words: **comments** to speak, **sounds** to play and **effects** for the picture,
 each standalone or chained on the element it is about. The **composer**, a container image,
-replays the script on a virtual display and records the screen. It speaks the comments with a local voice and
-polishes the picture with a smooth cursor, click ripples and zoom. The result is the reel: one folder holding the
+replays the script on a virtual display and records the screen. It speaks the comments with a local voice, or with a
+[cloud voice](#cloud-voices) (OpenAI, Gemini, OpenRouter, Together AI, Groq, ElevenLabs or any OpenAI-compatible
+server) when you'd rather not wait for the CPU, and polishes the picture with a smooth cursor, click ripples and zoom. The result is the reel: one folder holding the
 video, the transcript, the captions, the event log, the audio and a manifest. Composing the same script again gives
 a matching reel, which `flow-reel compare` checks.
 
@@ -162,7 +163,7 @@ at least 200 ms afterward.
 
 The voice is Qwen3-TTS 0.6B CustomVoice, Ryan in English unless [configured](#configure-the-composer), through the
 official Python runtime on CPU. Model and tokenizer assets are pinned and downloaded when the image is built;
-synthesis runs offline without a key. Speech is generated after capture finishes. The transcript records the voice
+synthesis runs offline without a key. A [cloud voice](#cloud-voices) is faster, and needs a key and a network. Speech is generated after capture finishes. The transcript records the voice
 (adapter, speaker, seed and language), and each clip's relative file path,
 duration in milliseconds and complete-file SHA-256 hash. Share the whole reel folder.
 
@@ -242,6 +243,9 @@ npx flow-reel compose demos/settings.ts --speaker Serena --language english
 | `--voice` | `voice.adapter` | `qwen3-tts-0.6b` | `qwen3-tts-0.6b` |
 | `--speaker` | `voice.speaker` | `Aiden`, `Dylan`, `Eric`, `Ono_Anna`, `Ryan`, `Serena`, `Sohee`, `Uncle_Fu`, `Vivian` | `Ryan` |
 | `--language` | `voice.language` | `chinese`, `english`, `french`, `german`, `italian`, `japanese`, `korean`, `portuguese`, `russian`, `spanish` | `english` |
+| `--model` | `voice.model` | a cloud voice's model ([cloud voices](#cloud-voices)) | the provider's |
+| `--api-key-env` | `voice.apiKeyEnv` | the environment variable holding a cloud voice's key | the provider's |
+| `--base-url` | `voice.baseUrl` | a cloud voice's server | the provider's |
 
 Every key of the file is optional except `version`. An unknown name fails before the composer starts, with the list
 of known ones. When `--voice` picks another voice than the file's, the file's speaker and language are ignored.
@@ -256,9 +260,54 @@ in its transcript; every other comment is spoken again. Recomposing an unchanged
 same audio and transcript; the compose says how many comments it voiced and reused. Deleting the reel deletes its
 cache.
 
-**Credentials.** The shipped voice runs locally and needs none. A voice that needs one (a cloud voice, later)
-declares its environment variable: the host checks it is set, and passes it into the container by name, so its
-value is never written to the reel, the manifest, `flow-reel.json` or the command line.
+**Credentials.** The local voice needs none. A cloud voice reads its API key from an environment variable: the host
+checks it is set, and passes it into the container by name, so its value is never written to the reel, the manifest,
+`flow-reel.json` or the command line. `flow-reel.json` names the variable (`apiKeyEnv`), never the key: a file with
+`apiKey` in it is refused.
+
+### Cloud voices
+
+The local voice runs on the CPU, which is slow for long scripts. A cloud voice sends each comment to a provider's
+speech API, four at a time, and is usually done in seconds. Pick one with `voice.adapter`, set its key in the
+environment, and compose as usual:
+
+```json
+{
+  "version": 1,
+  "voice": { "adapter": "openai", "model": "gpt-4o-mini-tts", "speaker": "coral", "apiKeyEnv": "OPENAI_API_KEY" }
+}
+```
+
+```sh
+export OPENAI_API_KEY=sk-...
+npx flow-reel compose demos/settings.ts
+```
+
+| `voice.adapter` | Default model | Default speaker | Key variable |
+|---|---|---|---|
+| `openai` | `gpt-4o-mini-tts` | `coral` | `OPENAI_API_KEY` |
+| `gemini` | `gemini-3.8-flash-tts` | `Kore` | `GEMINI_API_KEY` |
+| `openrouter` | `openai/gpt-4o-mini-tts-2025-12-15` | `coral` | `OPENROUTER_API_KEY` |
+| `together` | `canopylabs/orpheus-3b-0.1-ft` | `tara` | `TOGETHER_API_KEY` |
+| `groq` | `canopylabs/orpheus-v1-english` | `troy` | `GROQ_API_KEY` |
+| `elevenlabs` | `eleven_multilingual_v2` | `JBFqnCBsd6RMkjVDRZzb` (a voice ID) | `ELEVENLABS_API_KEY` |
+| `openai-compatible` | none: set `model` | `alloy` | none: set `apiKeyEnv` if the server needs a key |
+
+- **Model and speaker:** any value the provider accepts. flow-reel passes them on unchecked, since each provider's
+  lists change; a wrong one fails with the provider's own message. OpenRouter routes to many speech models
+  (OpenAI, Gemini, Mistral, ElevenLabs and others) behind one key.
+- **Language:** `auto` by default: the provider detects it from the text. Together AI and ElevenLabs also take an ISO
+  639-1 code (`"language": "fr"`); the others ignore it.
+- **Server:** `baseUrl` points a voice at another endpoint: a proxy, a regional host, or, with `openai-compatible`,
+  any server that implements OpenAI's `/audio/speech` (a self-hosted Kokoro or another local server, for example).
+  From inside the container, `localhost` is the machine running the compose.
+- **Retries:** rate limits (HTTP 429) and server errors are retried with backoff; a rejected key fails at once and
+  names the variable to check.
+- **Repeatability:** a cloud voice may not say a line the same way twice. The reel cache keeps that from mattering:
+  unchanged comments reuse their clips, so a recompose sends only new or changed comments and doesn't pay for the
+  rest. Changing the provider, the model, the speaker or the language voices everything again. The transcript
+  records the voice as `<adapter>:<model>`.
+- Claude isn't a voice: Anthropic has no speech API.
 
 ## Sounds
 
