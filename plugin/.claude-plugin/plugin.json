@@ -9,6 +9,18 @@
   "homepage": "https://github.com/codeonym-oss/flow-reel",
   "repository": "https://github.com/codeonym-oss/flow-reel",
   "license": "MIT",
-  "keywords": ["demo", "reel", "screen-recording", "narration", "playwright", "walkthrough", "video"],
-  "skills": []
+  "keywords": [
+    "demo",
+    "reel",
+    "screen-recording",
+    "narration",
+    "playwright",
+    "walkthrough",
+    "video"
+  ],
+  "skills": [
+    "./skills/reel",
+    "./skills/reshoot",
+    "./skills/screening"
+  ]
 }

@@ -25,7 +25,7 @@ it("accepts --no-sound on either side of the script, and rejects malformed compo
     ["verify"], ["verify", "a.reel", "b.reel"]]) {
     expect(run(args).status).toBe(2);
   }
-});
+}, 30_000); // 18 CLI processes in a row, beside the other unit files' processes: 10 s isn't enough on a busy runner.
 
 it("checks the settings in the container before any adapter loads (GH-33)", () => {
   const result = spawnSync(process.execPath, ["src/cli.ts", "compose", "missing.ts", "--speaker", "Nobody"], {

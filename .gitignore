@@ -2,3 +2,5 @@ node_modules/
 dist/
 test/e2e/out/
 release/
+plugin/examples/*/*.reel/
+plugin/examples/*/*.reel.partial/
