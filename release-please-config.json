@@ -4,5 +4,18 @@
   "include-component-in-tag": false,
   "include-v-in-tag": true,
   "bump-minor-pre-major": true,
-  "packages": { ".": { "changelog-path": "CHANGELOG.md", "initial-version": "0.1.0" } }
+  "packages": {
+    ".": { "changelog-path": "CHANGELOG.md", "initial-version": "0.1.0", "exclude-paths": ["plugin"] },
+    "plugin": {
+      "release-type": "simple",
+      "component": "flow-reel-plugin",
+      "include-component-in-tag": true,
+      "changelog-path": "CHANGELOG.md",
+      "initial-version": "0.1.0",
+      "extra-files": [
+        { "type": "json", "path": ".claude-plugin/plugin.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "plugin.json", "jsonpath": "$.version" }
+      ]
+    }
+  }
 }

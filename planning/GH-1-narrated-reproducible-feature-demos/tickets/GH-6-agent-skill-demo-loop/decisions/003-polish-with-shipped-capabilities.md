@@ -1,5 +1,7 @@
 # 003: Premium demos come from editorial control over shipped capabilities
 
+**Superseded by 008.**
+
 **Date:** 2026-11-13 (requested: "creating fancy demos using our tool"; implementation choice within the user's delegated approval)
 
 **Question:** add new rendering features, or teach agents to direct the existing tool well?

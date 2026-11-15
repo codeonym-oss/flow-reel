@@ -1,5 +1,7 @@
 # 004: Three helpers support verification without duplicating the recorder
 
+**Superseded by 009** (the helper set).
+
 **Date:** 2026-11-13 (requested: "scripts and references and evrything needed"; implementation choice within the user's delegated approval)
 
 **Decision:** plan three Node standard-library helpers: `preflight.mjs`, `inspect-recording.mjs`, and `snapshot-take.mjs`. Their contracts, exit codes, fixtures and tests are detailed in `skill-suite.md` and `impl.md`.

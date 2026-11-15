@@ -1,5 +1,7 @@
 # 001: A coordinated suite teaches the full demo-making workflow
 
+**Superseded in part by 006** (the eight-skill split).
+
 **Date:** 2026-11-13 (requested: "build the full break down of the agents skill for creating fancy demos using our tool! must be a reach set of skills, with scripts and references and evrything needed!")
 
 **Question:** retain the original one-skill draft, or expand the agent-facing capability?

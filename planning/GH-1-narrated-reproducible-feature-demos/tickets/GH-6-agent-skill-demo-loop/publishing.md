@@ -1,99 +1,69 @@
-# GH-6: Plugin packaging and publication
+# GH-6: Publishing the plugin
 
-## What the reference repositories actually do
+Re-planned 2026-11-15 for 0.2 (decisions 005, 010, 011). The first version is in
+`history/2026-11-15_1306_publishing.md`.
 
-Inspected 2026-11-13:
+## What the reference repositories do
+
+Re-read 2026-11-15; unchanged since the first plan:
 
 - [groundwork Claude manifest](https://github.com/codeonym-oss/groundwork/blob/aa6f5eab73bbb94ff00f4dacd8f0f323e4fc5a8a/.claude-plugin/plugin.json):
-  plugin metadata and explicit `./skills/<name>` entries.
+  metadata and explicit `./skills/<name>` entries.
 - [groundwork portable manifest](https://github.com/codeonym-oss/groundwork/blob/aa6f5eab73bbb94ff00f4dacd8f0f323e4fc5a8a/plugin.json):
-  the agent-plugins schema, shared plugin metadata and `extensions.com.openai` onboarding/interface metadata.
+  the agent-plugins schema and `extensions.com.openai` onboarding metadata.
 - [groundwork consistency tests](https://github.com/codeonym-oss/groundwork/blob/aa6f5eab73bbb94ff00f4dacd8f0f323e4fc5a8a/tests/test_repo.py):
-  listed skill folders, valid entry points, version agreement, portable metadata and referenced-resource existence.
-- [groundwork release configuration](https://github.com/codeonym-oss/groundwork/blob/aa6f5eab73bbb94ff00f4dacd8f0f323e4fc5a8a/release-please-config.json):
-  updates both plugin JSON versions along with its own `VERSION` file.
-- [Claude marketplace](https://github.com/codeonym-oss/claude-plugins/blob/4eadb33293e067353bfa13ff30fa06b73c7ca706/.claude-plugin/marketplace.json):
-  `groundwork` and `design-skills`, each referring to its GitHub repository.
-- [Codex marketplace](https://github.com/codeonym-oss/claude-plugins/blob/4eadb33293e067353bfa13ff30fa06b73c7ca706/.agents/plugins/marketplace.json):
-  the same plugin names, repository Git URLs, availability policies and categories.
+  listed skills exist, versions agree, referenced files exist.
+- [Claude catalog](https://github.com/codeonym-oss/claude-plugins/blob/4eadb33293e067353bfa13ff30fa06b73c7ca706/.claude-plugin/marketplace.json)
+  and [Codex catalog](https://github.com/codeonym-oss/claude-plugins/blob/4eadb33293e067353bfa13ff30fa06b73c7ca706/.agents/plugins/marketplace.json):
+  `groundwork` and `design-skills`, tracking the default branch.
 
-These are implementation precedents, not a reason to copy unrelated dependencies, approval policies, icons or
-groundwork's separate version-file release strategy.
+They are precedents, not things to copy wholesale (groundwork's `VERSION` file, its icons, its policies).
 
-## Changes in flow-reel
+## In flow-reel (pull requests 1 and 2)
 
-Decision 005 places everything installable under `plugin/` and versions it separately; paths below are relative
-to `plugin/`.
+Paths are relative to `plugin/`.
 
-1. Add `.claude-plugin/plugin.json` with name `flow-reel`, the plugin component's version, MIT metadata and exactly the
-   eight skill paths. Every path must exist in the installed plugin, including shared references/scripts/assets.
-2. Add root `plugin.json` following the portable schema. Match shared identity/version fields. Its OpenAI
-   onboarding skill is `./skills/demo/SKILL.md`; interface text describes narrated feature demos and routes to the
-   demo workflow. Use a supported category following the reference catalog. Do not declare authentication or
-   browser-tool dependencies the plugin does not need, or add unrequested generated branding.
-3. Add a second release-please package `plugin` (component `flow-reel-plugin`, `include-component-in-tag: true`,
-   `plugin/CHANGELOG.md`, `extra-files` for `$.version` in both manifests). The root `.` package keeps its `vX.Y.Z`
-   tags and `package.json`/lock authority. `release-please.yml` must call `publish.yml` only for a `.` release (use
-   the action's per-path outputs), never for a plugin release. No `VERSION` file or second workflow is needed.
-4. Keep the npm allowlist (`dist`, `docker`, package metadata/docs) and recording image scope unchanged. Plugin
-   scripts and references execute from the installed `plugin/` folder, not internal npm imports. Test plugin
-   resources from a copy of `plugin/` alone, which is what a `git-subdir` install contains.
-5. Add installation/use documentation and manifest/resource/helper tests to the existing Node test workflow.
-   Avoid a separate Python dependency solely to copy groundwork's unittest implementation.
+1. `.claude-plugin/plugin.json`: name `flow-reel`, the component's version, MIT, the skills `./skills/reel`,
+   `./skills/reshoot`, `./skills/screening`.
+2. `plugin.json`: the portable schema, the same name and version; onboarding skill `./skills/reel/SKILL.md`;
+   interface text about narrated reels of a web app's features. No authentication or tool dependencies declared.
+3. release-please: package `plugin`, component `flow-reel-plugin`, tags `flow-reel-plugin-vX.Y.Z`,
+   `CHANGELOG.md`, `extra-files` for both manifests' `$.version`, `initial-version: 0.1.0`. The root package keeps
+   `vX.Y.Z` and `package.json`, excludes `plugin/`, and is the only one that runs `publish.yml`.
+4. The npm `files` allowlist (`dist`, `docker`) and the image stay as they are; a test proves no plugin file is in
+   the package.
+5. `references/language.md` holds the supported range `>=0.2.0 <0.3.0`; a unit test ties it to `package.json`.
 
-The first suite release is the plugin component's initial release (set `initial-version` explicitly, as GH-9 did
-for the runtime), generated by release-please. It cuts no npm or image release. `references/demo-api.md` states the
-supported runtime range, and preflight checks it.
+## In `codeonym-oss/claude-plugins` (pull request 3)
 
-## Marketplace changes
+- `.claude-plugin/marketplace.json`: a `flow-reel` entry with source
+  `{ "source": "git-subdir", "url": "codeonym-oss/flow-reel", "path": "plugin" }`.
+- `.agents/plugins/marketplace.json`: a `flow-reel` entry with source
+  `{ "source": "git-subdir", "url": "https://github.com/codeonym-oss/flow-reel.git", "path": "./plugin" }`, and
+  the catalog's availability and category fields as the other entries have them.
+- Both source forms are re-checked in the clients' docs before the pull request. Existing entries and the
+  marketplace name `codeonym-oss` are kept; groundwork itself is not touched.
 
-In a separate reviewed PR in `codeonym-oss/claude-plugins`:
+## Order and checks
 
-- Add a `flow-reel` entry to `.claude-plugin/marketplace.json` with source
-  `{ "source": "git-subdir", "url": "codeonym-oss/flow-reel", "path": "plugin" }` (Claude Code's `github` source has
-  no `path`), a concise capability description and relevant keywords, following the existing entry structure.
-- Add a `flow-reel` entry to `.agents/plugins/marketplace.json` with source
-  `{ "source": "git-subdir", "url": "https://github.com/codeonym-oss/flow-reel.git", "path": "./plugin" }`, following
-  the catalog's supported availability/category fields. Both source forms were read from the client docs on
-  2026-11-13; recheck them at implementation time.
-  Inspect schema/client behavior before copying an authentication policy from an unrelated plugin.
-- Preserve the `codeonym-oss` marketplace name and existing entries. Do not edit or release groundwork itself.
-- The reference catalogs follow the default branch rather than a pinned `ref`. Match that convention: clients pick
-  up a new plugin version when the release PR bumps the manifest `version`. Document that the plugin and a
-  project's installed npm runtime update independently, and that preflight reports an unsupported pairing.
+1. Pull request 1 merged; dry runs show each component releases alone.
+2. Pull request 2 merged after its tests, the e2e sample and the agent trial; the `flow-reel-plugin` 0.1.0 release
+   PR merged. Check: the tag, both manifests at 0.1.0, no `publish.yml` run.
+3. Pull request 3 opened with links to the release and the trial; merged after review.
+4. Clean installs:
 
-## Publication order and checks
+   ```text
+   # Claude Code
+   /plugin marketplace add codeonym-oss/claude-plugins
+   /plugin install flow-reel@codeonym-oss
 
-1. Merge the reviewed suite implementation only after manifest/resource tests, helper tests, example recording
-   and scoped agent evaluations pass.
-2. Review/merge its generated runtime/plugin release PR. Verify both npm and multi-architecture image publication
-   and native consumers, then confirm plugin manifests match that released package version.
-3. Open the two-catalog marketplace registration PR with links to the release and test evidence. Validate both
-   catalog JSON documents and ensure the source repository/entrypoint paths resolve. Merge after review.
-4. In clean supported clients, add/refresh the marketplace and install the plugin; confirm all eight skills can
-   discover shared resources from their installed/cache location. Record the client/version used and which
-   executable behaviors were exercised. A manifest schema check alone is not an installation test.
-5. Perform a fresh-session end-to-end demo on the local example. Record the artifact paths, selected runtime/image
-   version, mechanical checks, playback status and any platform limitations. Stop on a publication mismatch rather
-   than redirecting an existing version tag or rebuilding a published artifact.
+   # Codex CLI
+   codex plugin marketplace add codeonym-oss/claude-plugins
+   codex plugin add flow-reel@codeonym-oss
+   ```
 
-Expected install commands, subject to verification against the clients available at implementation time:
+   In each client available: the three skills listed, a reference opened from the installed cache, `preflight.mjs
+   --help` run from there. A client not available is named as untested.
+5. Close #6 by hand (a pull request in another repository can't close it), Done on board 6, ticket `done`.
 
-```text
-# Claude Code
-/plugin marketplace add codeonym-oss/claude-plugins
-/plugin install flow-reel@codeonym-oss
-
-# Codex CLI with plugin support
-codex plugin marketplace add codeonym-oss/claude-plugins
-codex plugin add flow-reel@codeonym-oss
-```
-
-The shared source does not require a new npm package, a plugin-specific npm credential, or a browser MCP server.
-Browser tools are discovered in the active client. Unsupported or unavailable client installation testing must
-be reported explicitly, with install steps documented instead of an invented successful test.
-
-## Boundaries of this planning pass
-
-This pass plans publication; it does not register an unfinished plugin or modify the marketplace repository.
-Implementation and marketplace delivery are separate reviewable changes. Release PR #19 is handled independently of the suite's later implementation and release.
+The plugin and a project's runtime update separately; `preflight.mjs` reports a pairing outside the range.
