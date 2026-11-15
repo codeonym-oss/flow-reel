@@ -28,11 +28,15 @@ A comment is spoken by the voice and shown as a caption. It is the viewer's guid
 
 ## The voice
 
-The local voice (`qwen3-tts-0.6b`) speaks nine speakers in ten languages (`language.md`). Pick once per project, in
-`flow-reel.json`, and keep it: changing the speaker or language re-speaks every comment.
+The local voice (`qwen3-tts-0.6b`) speaks nine speakers in ten languages, offline but slowly. A cloud voice (OpenAI,
+Gemini, OpenRouter, Together AI, Groq, ElevenLabs or an OpenAI-compatible server; `language.md`) is fast, and needs a
+key in an environment variable. Ask the person which they want; offer a cloud voice when a long script would take the
+local one many minutes, or when a key for one is already set. Pick once per project, in `flow-reel.json`, and keep
+it: changing the voice, model, speaker or language re-speaks every comment.
 
-- Match the language to the comments' language. A French reel: `--language french`, comments in French.
-- Ryan is the default. Speakers differ in how natural they sound in each language: before a long reel, compose a
+- Match the language to the comments' language. A French reel: `--language french`, comments in French (a cloud
+  voice detects the language from the text).
+- Ryan is the local default. Speakers differ in how natural they sound in each language: before a long reel, compose a
   one-comment script with two speakers and listen to both.
 
 ## Rewriting after a compose

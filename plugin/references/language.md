@@ -1,10 +1,11 @@
 # The flow-reel language
 
-**Supported runtime:** `>=0.2.0 <0.3.0`
+**Supported runtime:** `>=0.2.0 <0.4.0`
 
 Everything a script can say, and every command, for the runtime versions above. If a word, option or flag is not
 on this page, flow-reel doesn't have it: say so instead of inventing it. The plugin's `scripts/preflight.mjs`
-reports the project's version and whether it is in this range.
+reports the project's version and whether it is in this range. Cloud voices need 0.3.0 or later; everything else
+works on 0.2.
 
 ## The words
 
@@ -123,12 +124,14 @@ npx flow-reel compose demos/settings.ts            # writes demos/settings.reel/
 npx flow-reel compose demos/settings.ts --out reels # writes reels/settings.reel/
 npx flow-reel compose demos/settings.ts --no-sound  # mutes every sound; they stay in the event log
 npx flow-reel compose demos/settings.ts --speaker Serena --language english
+npx flow-reel compose demos/settings.ts --voice openai --speaker nova   # a cloud voice; needs OPENAI_API_KEY set
 npx flow-reel verify demos/settings.reel
 npx flow-reel compare demos/a.reel demos/b.reel
 ```
 
 - `compose` flags: `--no-sound`, `--out <dir>`, `--integration <name>`, `--voice <name>`, `--speaker <name>`,
-  `--language <name>`, `--save-config`. Nothing else: no duration, music, camera or export flags.
+  `--language <name>`, `--model <id>`, `--api-key-env <variable>`, `--base-url <url>`, `--save-config`. Nothing
+  else: no duration, music, camera or export flags.
 - A failed compose leaves the previous reel untouched and its attempt in `<name>.reel.partial/`.
 - `verify`: 0 when the reel matches its manifest, 1 naming each missing, extra or changed file, 2 when it isn't a
   reel. No Docker needed.
@@ -147,13 +150,41 @@ existing file is rewritten only with `--save-config`.
 | Setting | Values | Default |
 |---|---|---|
 | integration | `playwright` | `playwright` |
-| voice | `qwen3-tts-0.6b` (local, CPU, no key) | `qwen3-tts-0.6b` |
-| speaker | `Aiden`, `Dylan`, `Eric`, `Ono_Anna`, `Ryan`, `Serena`, `Sohee`, `Uncle_Fu`, `Vivian` | `Ryan` |
-| language | `chinese`, `english`, `french`, `german`, `italian`, `japanese`, `korean`, `portuguese`, `russian`, `spanish` | `english` |
+| voice | `qwen3-tts-0.6b` (local, CPU, no key), or a cloud voice (below) | `qwen3-tts-0.6b` |
+| speaker | local: `Aiden`, `Dylan`, `Eric`, `Ono_Anna`, `Ryan`, `Serena`, `Sohee`, `Uncle_Fu`, `Vivian`; cloud: any of the provider's | `Ryan`; cloud: below |
+| language | local: `chinese`, `english`, `french`, `german`, `italian`, `japanese`, `korean`, `portuguese`, `russian`, `spanish`; cloud: `auto` or an ISO 639-1 code | `english`; cloud: `auto` |
+| model | cloud only: any of the provider's | below |
+| apiKeyEnv | cloud only: the environment variable holding the key | below |
+| baseUrl | cloud only: the provider's endpoint, a proxy, or an OpenAI-compatible server | the provider's |
 
-Speech runs on the CPU: expect about a minute per short comment on a laptop, and several GB of memory. An
-unchanged comment with unchanged voice settings reuses its clip from the previous reel (the reel cache), so
-recomposing after a small change speaks only the changed lines. Deleting the reel deletes its cache.
+The local voice runs on the CPU: expect about a minute per short comment on a laptop, and several GB of memory. A
+cloud voice (runtime 0.3.0 or later) speaks a whole script in seconds, and needs a key and a network:
+
+| voice | Default model | Default speaker | Key variable |
+|---|---|---|---|
+| `openai` | `gpt-4o-mini-tts` | `coral` | `OPENAI_API_KEY` |
+| `gemini` | `gemini-3.8-flash-tts` | `Kore` | `GEMINI_API_KEY` |
+| `openrouter` | `openai/gpt-4o-mini-tts-2025-12-15` | `coral` | `OPENROUTER_API_KEY` |
+| `together` | `canopylabs/orpheus-3b-0.1-ft` | `tara` | `TOGETHER_API_KEY` |
+| `groq` | `canopylabs/orpheus-v1-english` | `troy` | `GROQ_API_KEY` |
+| `elevenlabs` | `eleven_multilingual_v2` | `JBFqnCBsd6RMkjVDRZzb` (a voice ID) | `ELEVENLABS_API_KEY` |
+| `openai-compatible` | none: set `model` and `baseUrl` | `alloy` | none: set `apiKeyEnv` if the server needs a key |
+
+```json
+{ "version": 1, "voice": { "adapter": "openai", "model": "gpt-4o-mini-tts", "speaker": "coral", "apiKeyEnv": "OPENAI_API_KEY" } }
+```
+
+- **The key never goes in a file.** `flow-reel.json` names the variable (`apiKeyEnv`); a file with `apiKey` is
+  refused. The person sets the variable in their shell (`export OPENAI_API_KEY=...`); don't ask them to paste the
+  key into the conversation, and don't print it.
+- flow-reel passes a cloud voice's model, speaker and language on unchecked: a wrong one fails with the provider's
+  own message. Only Together AI and ElevenLabs use the language; the others detect it from the text.
+- Comments go four at a time; rate limits and server errors are retried. A rejected key fails at once, naming the
+  variable. Claude isn't a voice: Anthropic has no speech API.
+
+An unchanged comment with unchanged voice settings (adapter, model, speaker, language) reuses its clip from the
+previous reel (the reel cache), so recomposing after a small change speaks only the changed lines, and a cloud voice
+bills only those. Deleting the reel deletes its cache.
 
 ## The reel
 
