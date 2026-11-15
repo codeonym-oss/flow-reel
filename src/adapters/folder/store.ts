@@ -1,6 +1,6 @@
 // The reel store as a local folder (GH-31 decisions 001, 002 and 005): `<name>.reel/` beside the script or in
 // outDir, built in `<name>.reel.partial/` and swapped in only once it is complete.
-import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import type { ReelStore } from "../../composer/ports.ts";
 import type { Manifest } from "../../composer/schema/manifest.ts";
@@ -27,6 +27,7 @@ export const folderStore: ReelStore = {
       },
       audioDir: join(partial, "audio"),
       audioRoot: partial,
+      ...(existsSync(join(reel, "transcript.json")) ? { previous: reel } : {}),
       videoFile,
       commit({ transcript, events, captions, about }) {
         renameSync(stagedVideo, join(partial, videoFile));

@@ -3,7 +3,7 @@ kind: ticket
 title: Direct the picture with effect words that override automatic polish
 key: GH-32
 parent: GH-27
-status: in-review
+status: done
 branch: feat/32-effect-words
 tracker-url: https://github.com/codeonym-oss/flow-reel/issues/32
 mr: https://github.com/codeonym-oss/flow-reel/pull/40

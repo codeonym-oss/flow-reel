@@ -14,9 +14,9 @@ beforeAll(() => {
   image = prepareImage();
 }, 900_000);
 
-it("synthesizes identical playable WAVs in fresh offline processes with a reset seed per clip", async () => {
+it("synthesizes identical playable WAVs in fresh offline processes with a reset seed per clip, as any speaker", async () => {
   const hashes: string[][] = [];
-  for (const run of ["a", "b"]) {
+  for (const [run, speaker, language] of [["a", "Ryan", "english"], ["b", "Ryan", "english"], ["c", "Aiden", "french"]]) {
     const dir = join(OUT, run);
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(dir, { recursive: true });
@@ -24,11 +24,11 @@ it("synthesizes identical playable WAVs in fresh offline processes with a reset 
       "--user", `${process.getuid!()}:${process.getgid!()}`, "-v", `${dir}:/work`,
       "--entrypoint", "/opt/flow-reel/tts-venv/bin/python", image, "/opt/flow-reel/docker/tts/worker.py"],
     { timeout: 600_000, maxBuffer: 1 << 20 });
-    worker.child.stdin!.end(JSON.stringify([
+    worker.child.stdin!.end(JSON.stringify({ speaker, language, jobs: [
       { index: 0, text: "Open the settings.", file: "/work/000.wav" },
       { index: 1, text: "Scroll down and save.", file: "/work/001.wav" },
       { index: 2, text: "Open the settings.", file: "/work/002.wav" },
-    ]));
+    ] }));
     const { stdout, stderr } = await worker;
     writeFileSync(join(dir, "synthesis.log"), stderr);
     expect(JSON.parse(stdout)).toEqual({ clips: 3 });
@@ -42,7 +42,9 @@ it("synthesizes identical playable WAVs in fresh offline processes with a reset 
   }
   expect(hashes[0]).toEqual(hashes[1]);
   expect(hashes[0][0]).toBe(hashes[0][2]);
-}, 1_200_000);
+  // Another speaker and language is another voice.
+  expect(hashes[2][0]).not.toBe(hashes[0][0]);
+}, 1_800_000);
 
 it("fails clearly when bundled assets are missing, with no network fallback or successful output", async () => {
   const empty = join(OUT, "missing-assets");
@@ -50,6 +52,7 @@ it("fails clearly when bundled assets are missing, with no network fallback or s
   const worker = promisify(execFile)("docker", ["run", "--rm", "--init", "--network", "none", "-i",
     "-v", `${empty}:/opt/flow-reel/tts-model:ro`, "--entrypoint", "/opt/flow-reel/tts-venv/bin/python",
     image, "/opt/flow-reel/docker/tts/worker.py"], { timeout: 60_000 });
-  worker.child.stdin!.end(JSON.stringify([{ index: 0, text: "Speak.", file: "/tmp/never.wav" }]));
+  worker.child.stdin!.end(JSON.stringify({ speaker: "Ryan", language: "english",
+    jobs: [{ index: 0, text: "Speak.", file: "/tmp/never.wav" }] }));
   await expect(worker).rejects.toMatchObject({ code: 1, stdout: "", stderr: expect.stringContaining("Qwen TTS:") });
 }, 60_000);

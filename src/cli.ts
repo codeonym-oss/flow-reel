@@ -4,9 +4,10 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { type SettingsFlags, resolveSettings } from "./settings.ts";
 
-const USAGE = "usage: flow-reel compose <script.ts> [--no-sfx] [--out <dir>] | flow-reel verify <reel> | " +
-  "flow-reel compare <a.reel> <b.reel>";
+const USAGE = "usage: flow-reel compose <script.ts> [--no-sfx] [--out <dir>] [--integration <name>] [--voice <name>] " +
+  "[--speaker <name>] [--language <name>] [--save-config] | flow-reel verify <reel> | flow-reel compare <a.reel> <b.reel>";
 
 const readJson = (file: string): unknown => JSON.parse(readFileSync(file, "utf8"));
 
@@ -60,21 +61,34 @@ async function compare(args: string[]): Promise<number> {
   return 0;
 }
 
-/** `compose` arguments: one script, `--no-sfx` at most once, `--out <dir>` at most once. */
-function parseCompose(args: string[]): { script: string; sfx: boolean; outDir?: string } | undefined {
+const SETTING_FLAGS = { "--integration": "integration", "--voice": "voice", "--speaker": "speaker", "--language": "language" } as const;
+
+interface ComposeArgs { script: string; sfx: boolean; outDir?: string; flags: SettingsFlags; saveConfig: boolean }
+
+/** `compose` arguments: one script; `--no-sfx`, `--save-config` and each flag with a value at most once. */
+function parseCompose(args: string[]): ComposeArgs | undefined {
   const positionals: string[] = [];
-  let sfx = true; let outDir: string | undefined;
+  let sfx = true; let outDir: string | undefined; let saveConfig = false;
+  const flags: SettingsFlags = {};
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === "--no-sfx") { if (!sfx) return undefined; sfx = false; }
-    else if (arg === "--out") {
+    else if (arg === "--save-config") { if (saveConfig) return undefined; saveConfig = true; }
+    else if (arg === "--out" || arg in SETTING_FLAGS) {
       const value = args[++i];
-      if (outDir !== undefined || value === undefined || value.startsWith("-")) return undefined;
-      outDir = value;
+      if (value === undefined || value.startsWith("-")) return undefined;
+      if (arg === "--out") {
+        if (outDir !== undefined) return undefined;
+        outDir = value;
+      } else {
+        const key = SETTING_FLAGS[arg as keyof typeof SETTING_FLAGS];
+        if (flags[key] !== undefined) return undefined;
+        flags[key] = value;
+      }
     } else if (arg.startsWith("-")) return undefined;
     else positionals.push(arg);
   }
-  return positionals.length === 1 ? { script: positionals[0], sfx, outDir } : undefined;
+  return positionals.length === 1 ? { script: positionals[0], sfx, outDir, flags, saveConfig } : undefined;
 }
 
 async function main(argv: string[]): Promise<number> {
@@ -86,13 +100,15 @@ async function main(argv: string[]): Promise<number> {
   if (!parsed) { console.error(USAGE); return 2; }
   const { script, ...options } = parsed;
   if (process.env.FLOW_REEL_IN_CONTAINER === "1") {
+    // The host resolved the settings; they are checked again before any adapter loads.
+    const settings = resolveSettings(undefined, options.flags);
     const { compose } = await import("./composer/compose.ts");
     const { playwright } = await import("./adapters/playwright/integration.ts");
-    const { qwen } = await import("./adapters/qwen/voice.ts");
+    const { qwenVoice } = await import("./adapters/qwen/voice.ts");
     const { folderStore } = await import("./adapters/folder/store.ts");
     const { version } = readJson(resolve(dirname(fileURLToPath(import.meta.url)), "../package.json")) as { version: string };
-    await compose(resolve(script), { integration: playwright, voice: qwen, store: folderStore, composerVersion: version,
-      sfx: options.sfx, ...(options.outDir ? { outDir: resolve(options.outDir) } : {}) });
+    await compose(resolve(script), { integration: playwright, voice: qwenVoice(settings.voice), store: folderStore,
+      composerVersion: version, sfx: options.sfx, ...(options.outDir ? { outDir: resolve(options.outDir) } : {}) });
     return 0;
   }
   const { launch } = await import("./host/launch.ts");

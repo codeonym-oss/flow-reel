@@ -8,7 +8,7 @@ export interface Manifest {
   script: { file: string; sha256: string };
   composer: { version: string; platform: string };
   integration: string;
-  voice?: { adapter: string; voice: string; seed: number };
+  voice?: { adapter: string; voice: string; seed: number; language: string };
   /** Every file of the reel except manifest.json and work/, sorted by path. */
   files: ManifestFile[];
 }
@@ -42,6 +42,7 @@ export function validateManifest(value: unknown): Errors {
     else {
       text(errors, "voice.", value.voice, "adapter");
       text(errors, "voice.", value.voice, "voice");
+      text(errors, "voice.", value.voice, "language");
       nonNegative(errors, "voice.", value.voice, "seed");
     }
   }

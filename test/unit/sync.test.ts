@@ -4,7 +4,7 @@ import type { Transcript } from "../../src/composer/schema/transcript.ts";
 
 export const voiced = (): Transcript => ({ version: 2, script: "demo.ts",
   video: { file: "demo.mp4", width: 960, height: 540, fps: 30, durationMs: 3000 },
-  voice: { adapter: "qwen3-tts-0.6b", voice: "Ryan", seed: 0 },
+  voice: { adapter: "qwen3-tts-0.6b", voice: "Ryan", seed: 0, language: "english" },
   steps: [{ index: 0, comment: "Hello", startMs: 500, actionEndMs: 700, endMs: 1700,
     audio: { file: "demo.audio/000.wav", durationMs: 1000, sha256: "a".repeat(64) } }],
 });
@@ -34,7 +34,7 @@ it("keeps legacy silent and blank-only transcripts valid, but rejects invalid di
   delete t.voice;
   delete t.steps[0].audio;
   expect(validateSync(t)).toEqual([]);
-  t.voice = { adapter: "qwen", voice: "Ryan", seed: 0 };
+  t.voice = { adapter: "qwen", voice: "Ryan", seed: 0, language: "english" };
   t.steps[0].comment = " \n ";
   expect(validateSync(t)).toEqual([]);
   t.video.fps = 0;

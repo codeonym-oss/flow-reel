@@ -10,7 +10,7 @@ START = time.monotonic()
 MAX_TOKENS = 1024
 
 
-def synthesize(jobs):
+def synthesize(speaker, language, jobs):
     # Upstream prints optional-dependency notices to stdout; keep our JSON channel clean.
     with contextlib.redirect_stdout(sys.stderr):
         import numpy as np
@@ -43,7 +43,7 @@ def synthesize(jobs):
                 np.random.seed(0)
                 torch.manual_seed(0)
                 wavs, rate = model.generate_custom_voice(
-                    text=job["text"], speaker="Ryan", language="English", non_streaming_mode=True,
+                    text=job["text"], speaker=speaker, language=language, non_streaming_mode=True,
                     do_sample=True, top_k=50, top_p=1.0, temperature=0.9, repetition_penalty=1.05,
                     subtalker_dosample=True, subtalker_top_k=50, subtalker_top_p=1.0,
                     subtalker_temperature=0.9, max_new_tokens=MAX_TOKENS,
@@ -57,8 +57,9 @@ def synthesize(jobs):
 
 if __name__ == "__main__":
     try:
-        jobs = json.load(sys.stdin)
-        synthesize(jobs)
+        request = json.load(sys.stdin)
+        jobs = request["jobs"]
+        synthesize(request["speaker"], request["language"], jobs)
         print(json.dumps({"clips": len(jobs)}))
         print(json.dumps({"ttsSeconds": round(time.monotonic() - START, 3),
                           "peakMemoryKiB": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}), file=sys.stderr)

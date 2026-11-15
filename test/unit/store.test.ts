@@ -18,7 +18,7 @@ const transcript = { version: 2 as const, script: "settings.ts", steps: [],
   video: { file: "video.mp4", width: 1920, height: 1080, fps: 30, durationMs: 0 } };
 const events = { version: 4 as const, autoZoom: true, events: [] };
 const about = { script: { file: "settings.ts", sha256: "a".repeat(64) }, composer: { version: "0.2.0", platform: "linux/amd64" },
-  integration: "playwright", voice: { adapter: "qwen3-tts-0.6b", voice: "Ryan", seed: 0 } };
+  integration: "playwright", voice: { adapter: "qwen3-tts-0.6b", voice: "Ryan", seed: 0, language: "english" } };
 
 /** What compose does: stage a video and a clip, then commit. */
 const compose = (reel: Reel, video = "video") => {
@@ -27,6 +27,13 @@ const compose = (reel: Reel, video = "video") => {
   writeFileSync(join(reel.audioDir, "000.wav"), "clip");
   reel.commit({ transcript, events, captions: { srt: "srt", vtt: "vtt" }, about });
 };
+
+it("points at the reel already on disk, whose clips are the reel cache", () => {
+  const { dir, script } = scriptIn();
+  expect(folderStore.open(script).previous).toBeUndefined();
+  compose(folderStore.open(script));
+  expect(folderStore.open(script).previous).toBe(join(dir, "settings.reel"));
+});
 
 it("builds the reel in a partial folder, with self-ignoring work files and the audio inside", () => {
   const { dir, script } = scriptIn();

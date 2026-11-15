@@ -72,6 +72,8 @@ export interface Reel {
   audioDir: string;
   /** The folder a clip's transcript path (`audio/000.wav`) is relative to. */
   audioRoot: string;
+  /** The reel already on disk for this script, if any: its clips are the reel cache (GH-33 decision 002). */
+  previous?: string;
   /** The finished video's file name, as the transcript records it. */
   videoFile: string;
   /** Writes the transcript, captions, event log and manifest, and replaces the previous reel with this one. */
