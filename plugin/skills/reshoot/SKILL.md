@@ -14,7 +14,7 @@ Map each piece of feedback to the steps it concerns: read the script, the brief 
 (each step's comment and times) and `events.json`. If the feedback is vague ("make it better"), screen the reel first
 with the `screening` skill (`<skill-dir>/../screening/SKILL.md`) and propose concrete changes.
 
-If the feedback asks for something flow-reel doesn't have (music, another voice provider, a set duration, a new
+If the feedback asks for something flow-reel doesn't have (music, a voice provider not in language.md, a set duration, a new
 effect), check `<skill-dir>/../../references/language.md` and say so; offer what it can do.
 
 ## 2. Keep the reel before
