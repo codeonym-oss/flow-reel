@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/codeonym-oss/flow-reel/compare/flow-reel-plugin-v0.1.0...flow-reel-plugin-v0.2.0) (2026-11-15)
+
+
+### Features
+
+* teach cloud voices and check their keys before composing ([#49](https://github.com/codeonym-oss/flow-reel/issues/49)) ([#53](https://github.com/codeonym-oss/flow-reel/issues/53)) ([f153a31](https://github.com/codeonym-oss/flow-reel/commit/f153a31386472a1ea0385902730ef0bb343978eb))
+
 ## 0.1.0 (2026-11-15)
 
 

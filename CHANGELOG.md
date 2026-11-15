@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/codeonym-oss/flow-reel/compare/v0.2.0...v0.3.0) (2026-11-15)
+
+
+### Features
+
+* speak comments with a cloud voice ([#49](https://github.com/codeonym-oss/flow-reel/issues/49)) ([#50](https://github.com/codeonym-oss/flow-reel/issues/50)) ([d9475c4](https://github.com/codeonym-oss/flow-reel/commit/d9475c459d1a3eceadee2470dfba7e05f8309842))
+
 ## [0.2.0](https://github.com/codeonym-oss/flow-reel/compare/v0.1.2...v0.2.0) (2026-11-15)
 
 
