@@ -5,3 +5,6 @@
 - 2026-11-15: issue #34's description updated from draft.md.
 - 2026-11-15: building on feat/34-release-0-2.
 - 2026-11-15: impl.md: corrections during the build.
+- 2026-11-15: pull request #42 opened.
+- 2026-11-15: pull request #42 opened.
+- 2026-11-15: done: #42 merged (e26042b), 0.2.0 released by #38 (fbf2b04); npm 0.2.0 with provenance, GHCR 0.2.0 amd64 and arm64, 0.1.2 still installable.
