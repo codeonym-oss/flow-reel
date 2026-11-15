@@ -164,7 +164,7 @@ cloud voice (runtime 0.3.0 or later) speaks a whole script in seconds, and needs
 |---|---|---|---|
 | `openai` | `gpt-4o-mini-tts` | `coral` | `OPENAI_API_KEY` |
 | `gemini` | `gemini-3.8-flash-tts` | `Kore` | `GEMINI_API_KEY` |
-| `openrouter` | `openai/gpt-4o-mini-tts-2025-12-15` | `coral` | `OPENROUTER_API_KEY` |
+| `openrouter` | `google/gemini-3.8-flash-tts` | `Kore` | `OPENROUTER_API_KEY` |
 | `together` | `canopylabs/orpheus-3b-0.1-ft` | `tara` | `TOGETHER_API_KEY` |
 | `groq` | `canopylabs/orpheus-v1-english` | `troy` | `GROQ_API_KEY` |
 | `elevenlabs` | `eleven_multilingual_v2` | `JBFqnCBsd6RMkjVDRZzb` (a voice ID) | `ELEVENLABS_API_KEY` |
