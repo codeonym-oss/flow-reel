@@ -8,6 +8,12 @@ Use the browser tool available in this session (a browser automation tool, Playw
 person for screenshots and the page's HTML). No particular tool is required. If there is none, write the plan with
 the locators marked as unverified, and verify them through a first compose.
 
+Playwright comes with flow-reel, but its browsers live in the composer image, not on the host: a host script that
+launches Chromium may fail with "Executable doesn't exist". Point it at a browser already installed
+(`chromium.launch({ executablePath: "/usr/bin/chromium" })`, or Chrome's path), or ask the person before running
+`npx playwright install chromium`, which downloads a browser. Keep exploration scripts outside the script's folder:
+only the reel's script belongs there.
+
 ## What to collect, scene by scene
 
 For each scene in the brief:
