@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/codeonym-oss/flow-reel/compare/flow-reel-plugin-v0.2.0...flow-reel-plugin-v0.2.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* give the OpenRouter voice's real default model ([#56](https://github.com/codeonym-oss/flow-reel/issues/56)) ([#58](https://github.com/codeonym-oss/flow-reel/issues/58)) ([8b0b48e](https://github.com/codeonym-oss/flow-reel/commit/8b0b48ea51f7c7462039642db95476015b7a28d8))
+
 ## [0.2.0](https://github.com/codeonym-oss/flow-reel/compare/flow-reel-plugin-v0.1.0...flow-reel-plugin-v0.2.0) (2026-11-15)
 
 
