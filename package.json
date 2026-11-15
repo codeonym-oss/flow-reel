@@ -1,6 +1,6 @@
 {
   "name": "flow-reel",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Turn an E2E script into a narrated, captioned demo video: deterministic, in a container, with a local voice.",
   "license": "MIT",
   "repository": {

@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.0](https://github.com/codeonym-oss/flow-reel/compare/v0.1.2...v0.2.0) (2026-11-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* the mute flag is now --no-sound; --no-sfx is rejected as an unknown option.
+* the event log is version 4; flow-reel compare reads only reels with a version 4 event log.
+* results are no longer written as loose files beside the script, .flow-reel/ is no longer used, and compare takes reel folders instead of transcript files.
+* demo, step and sfx are replaced by script, comment and sound; `flow-reel record` is now `flow-reel compose`; transcript version 2 and event log version 3.
+
+### Features
+
+* compose each script into a reel folder with a manifest ([#31](https://github.com/codeonym-oss/flow-reel/issues/31)) ([#39](https://github.com/codeonym-oss/flow-reel/issues/39)) ([745eb95](https://github.com/codeonym-oss/flow-reel/commit/745eb950b7550d11c4053f27b2148053426e3d82))
+* configure the composer's voice and integration, and reuse voiced comments ([#33](https://github.com/codeonym-oss/flow-reel/issues/33)) ([#41](https://github.com/codeonym-oss/flow-reel/issues/41)) ([6aa66c4](https://github.com/codeonym-oss/flow-reel/commit/6aa66c4cd55262c27567fa832ea73f2decfb2e72))
+* direct the picture with effect words that override automatic polish ([#32](https://github.com/codeonym-oss/flow-reel/issues/32)) ([#40](https://github.com/codeonym-oss/flow-reel/issues/40)) ([0c6018f](https://github.com/codeonym-oss/flow-reel/commit/0c6018fec6a3f0ee2ac134a7edac70f37de9ade1))
+* name the mute flag --no-sound and play chained sounds on every action ([#34](https://github.com/codeonym-oss/flow-reel/issues/34)) ([#42](https://github.com/codeonym-oss/flow-reel/issues/42)) ([e26042b](https://github.com/codeonym-oss/flow-reel/commit/e26042b750d5253c271e0de7b9fe14ec5a1d84a7))
+* write scripts with comment and sound words ([#30](https://github.com/codeonym-oss/flow-reel/issues/30)) ([516774d](https://github.com/codeonym-oss/flow-reel/commit/516774d4a445ca6c48a498e0b258937088ee5a67))
+
 ## [0.1.2](https://github.com/codeonym-oss/flow-reel/compare/v0.1.1...v0.1.2) (2026-11-14)
 
 
