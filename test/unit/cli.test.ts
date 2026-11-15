@@ -5,11 +5,11 @@ import { join } from "node:path";
 import { expect, it } from "vitest";
 import { hashFiles } from "../../src/reel.ts";
 
-it("accepts --no-sfx on either side of the script, and rejects malformed compose options before Docker", () => {
+it("accepts --no-sound on either side of the script, and rejects malformed compose options before Docker", () => {
   const run = (args: string[]) => spawnSync(process.execPath, ["src/cli.ts", ...args], {
     encoding: "utf8", env: { ...process.env, FLOW_REEL_IN_CONTAINER: "1" },
   });
-  for (const args of [["compose", "--no-sfx", "missing.ts"], ["compose", "missing.ts", "--no-sfx"],
+  for (const args of [["compose", "--no-sound", "missing.ts"], ["compose", "missing.ts", "--no-sound"],
     ["compose", "missing.ts", "--out", "reels"],
     ["compose", "missing.ts", "--integration", "playwright", "--voice", "qwen3-tts-0.6b", "--speaker", "Aiden", "--language", "french"]]) {
     const result = run(args);
@@ -17,10 +17,10 @@ it("accepts --no-sfx on either side of the script, and rejects malformed compose
     expect(result.stderr).toContain("missing.ts");
     expect(result.stderr).not.toContain("usage:");
   }
-  for (const args of [["compose", "--no-sfx"], ["compose", "demo.ts", "--no-sfx", "--no-sfx"],
-    ["compose", "demo.ts", "--wat"], ["compose", "a.ts", "b.ts"], ["compare", "a.reel", "b.reel", "--no-sfx"],
-    ["compose", "demo.ts", "--out"], ["compose", "demo.ts", "--out", "--no-sfx"], ["compose", "demo.ts", "--out", "a", "--out", "b"],
-    ["compose", "demo.ts", "--speaker"], ["compose", "demo.ts", "--speaker", "--no-sfx"],
+  for (const args of [["compose", "--no-sound"], ["compose", "demo.ts", "--no-sound", "--no-sound"],
+    ["compose", "demo.ts", "--no-sfx"], ["compose", "a.ts", "b.ts"], ["compare", "a.reel", "b.reel", "--no-sound"],
+    ["compose", "demo.ts", "--out"], ["compose", "demo.ts", "--out", "--no-sound"], ["compose", "demo.ts", "--out", "a", "--out", "b"],
+    ["compose", "demo.ts", "--speaker"], ["compose", "demo.ts", "--speaker", "--no-sound"],
     ["compose", "demo.ts", "--speaker", "Ryan", "--speaker", "Aiden"], ["compose", "demo.ts", "--save-config", "--save-config"],
     ["verify"], ["verify", "a.reel", "b.reel"]]) {
     expect(run(args).status).toBe(2);

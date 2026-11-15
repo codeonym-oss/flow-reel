@@ -39,12 +39,12 @@ export interface ComposeOptions {
   composerVersion: string;
   /** Where the reel goes; beside the script when omitted. */
   outDir?: string;
-  sfx?: boolean;
+  sound?: boolean;
 }
 
 const ARCH: Record<string, string> = { x64: "amd64", arm64: "arm64" };
 
-export async function compose(scriptPath: string, { integration, voice, store, composerVersion, outDir, sfx }: ComposeOptions): Promise<void> {
+export async function compose(scriptPath: string, { integration, voice, store, composerVersion, outDir, sound }: ComposeOptions): Promise<void> {
   const script = await integration.load(scriptPath);
   const reel = store.open(scriptPath, outDir);
   const out = reel.work;
@@ -133,7 +133,7 @@ export async function compose(scriptPath: string, { integration, voice, store, c
   const eventErrors = validateEvents(log);
   if (eventErrors.length) throw new Error(`recording events are invalid:\n  ${eventErrors.join("\n  ")}`);
   renderTimeline({ capture: out.capture, master: out.master, video: out.stagedVideo,
-    voice: out.voiceBus, audioDir: reel.audioRoot, viewport, timeline, events: log.events, sfx, autoZoom: script.autoZoom });
+    voice: out.voiceBus, audioDir: reel.audioRoot, viewport, timeline, events: log.events, sound, autoZoom: script.autoZoom });
   const transcript: Transcript = {
     version: 2,
     script: basename(scriptPath),

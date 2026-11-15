@@ -18,8 +18,8 @@ describe("imageFor", () => {
 
 describe("buildRunArgs", () => {
   it("passes muting into the container after the script", () => {
-    expect(buildRunArgs({ ...base, engine: "docker", desktop: false, sfx: false }).slice(-11))
-      .toEqual(["compose", "/work/demo.ts", "--no-sfx", ...SETTINGS]);
+    expect(buildRunArgs({ ...base, engine: "docker", desktop: false, sound: false }).slice(-11))
+      .toEqual(["compose", "/work/demo.ts", "--no-sound", ...SETTINGS]);
   });
   it("mounts --out at /out and passes it on", () => {
     const args = buildRunArgs({ ...base, engine: "docker", desktop: false, outDir: "/home/me/reels" });

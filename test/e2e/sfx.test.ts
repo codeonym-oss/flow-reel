@@ -38,11 +38,11 @@ it("ducks effects over whole comment clips with 30 ms attack and 250 ms recovery
   execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=3", voice]);
   const events: ComposerEvent[] = [{ t: 900, type: "sound", name: "notification" }, { t: 1950, type: "sound", name: "notification" }];
   assembleSfx(events, timeline, voice, dir);
-  const baseline = decode(join(dir, "sfx.wav"));
+  const baseline = decode(join(dir, "sound.wav"));
   const withSpeech = { ...timeline, steps: [{ index: 0, startMs: 1000, actionEndMs: 1100, endMs: 2200,
     audio: { file: "reference.wav", durationMs: 1000, sha256: "a".repeat(64) } }] };
   assembleSfx(events, withSpeech, voice, dir);
-  const ducked = decode(join(dir, "sfx.wav"));
+  const ducked = decode(join(dir, "sound.wav"));
   const ratio = (ms: number) => {
     let n = Math.round(ms * 48);
     while (Math.abs(baseline.readFloatLE(n * 4)) < 0.00001) n++;
@@ -55,12 +55,12 @@ it("ducks effects over whole comment clips with 30 ms attack and 250 ms recovery
   expect(ratio(2260)).toBeCloseTo(1, 3);
   assembleSfx(events, { ...withSpeech, steps: [...withSpeech.steps,
     { ...withSpeech.steps[0], index: 1, startMs: 2100 }] }, voice, dir);
-  const overlapping = decode(join(dir, "sfx.wav"));
+  const overlapping = decode(join(dir, "sound.wav"));
   let n = 2125 * 48;
   while (Math.abs(baseline.readFloatLE(n * 4)) < 0.00001) n++;
   expect(overlapping.readFloatLE(n * 4) / baseline.readFloatLE(n * 4)).toBeCloseTo(10 ** (-6 / 20), 3);
   expect(assembleSfx(events, withSpeech, voice, dir, false)).toBeUndefined();
-  expect(existsSync(join(dir, "sfx.wav"))).toBe(false);
+  expect(existsSync(join(dir, "sound.wav"))).toBe(false);
   expect(existsSync(join(dir, "mix.bus.wav"))).toBe(false);
 });
 
@@ -94,10 +94,10 @@ it("muxes all named cues and automatic typing, preserves frames, and fully mutes
   expect(videoFrames(options.video)).toBe(90);
   expect(Number(measureLoudness(options.video).input_tp)).toBeLessThan(-17);
   expect(decode(options.video).some((v) => v !== 0)).toBe(true);
-  renderTimeline({ ...options, sfx: false });
+  renderTimeline({ ...options, sound: false });
   const probe = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_streams", "-of", "json", options.video], { encoding: "utf8" }));
   expect(probe.streams.map((s: { codec_type: string }) => s.codec_type)).toEqual(["video"]);
-  expect(existsSync(join(dir, "sfx.wav"))).toBe(false);
+  expect(existsSync(join(dir, "sound.wav"))).toBe(false);
   expect(videoFrames(options.video)).toBe(90);
   expect(() => renderTimeline({ ...options, events: [{ t: 2999.9, type: "sound", name: "error" }] })).not.toThrow();
 });

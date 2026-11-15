@@ -16,7 +16,7 @@ it("shows a ripple on its first delivery frame despite fractional timestamp roun
   execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "color=black:s=320x180:r=30:d=10", "-c:v", "libx264", capture]);
   const video = join(dir, "demo.mp4");
   renderTimeline({ capture, master: join(dir, "master.mp4"), video, voice: join(dir, "voice.wav"), audioDir: dir,
-    viewport: [320, 180], timeline: planTimeline([], { fps: 30, frames: 300, cutMs: 0 }), sfx: false,
+    viewport: [320, 180], timeline: planTimeline([], { fps: 30, frames: 300, cutMs: 0 }), sound: false,
     events: [{ t: 8766.419892333333, type: "click", at: [160, 90], button: "left", target: "center" }] });
   const pixels = execFileSync("ffmpeg", ["-v", "error", "-i", video, "-vf", "select=eq(n\\,263),crop=64:64:128:58",
     "-frames:v", "1", "-pix_fmt", "rgb24", "-an", "-fps_mode", "passthrough", "-f", "rawvideo", "-"]);

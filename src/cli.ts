@@ -6,7 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type SettingsFlags, resolveSettings } from "./settings.ts";
 
-const USAGE = "usage: flow-reel compose <script.ts> [--no-sfx] [--out <dir>] [--integration <name>] [--voice <name>] " +
+const USAGE = "usage: flow-reel compose <script.ts> [--no-sound] [--out <dir>] [--integration <name>] [--voice <name>] " +
   "[--speaker <name>] [--language <name>] [--save-config] | flow-reel verify <reel> | flow-reel compare <a.reel> <b.reel>";
 
 const readJson = (file: string): unknown => JSON.parse(readFileSync(file, "utf8"));
@@ -63,16 +63,16 @@ async function compare(args: string[]): Promise<number> {
 
 const SETTING_FLAGS = { "--integration": "integration", "--voice": "voice", "--speaker": "speaker", "--language": "language" } as const;
 
-interface ComposeArgs { script: string; sfx: boolean; outDir?: string; flags: SettingsFlags; saveConfig: boolean }
+interface ComposeArgs { script: string; sound: boolean; outDir?: string; flags: SettingsFlags; saveConfig: boolean }
 
-/** `compose` arguments: one script; `--no-sfx`, `--save-config` and each flag with a value at most once. */
+/** `compose` arguments: one script; `--no-sound`, `--save-config` and each flag with a value at most once. */
 function parseCompose(args: string[]): ComposeArgs | undefined {
   const positionals: string[] = [];
-  let sfx = true; let outDir: string | undefined; let saveConfig = false;
+  let sound = true; let outDir: string | undefined; let saveConfig = false;
   const flags: SettingsFlags = {};
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === "--no-sfx") { if (!sfx) return undefined; sfx = false; }
+    if (arg === "--no-sound") { if (!sound) return undefined; sound = false; }
     else if (arg === "--save-config") { if (saveConfig) return undefined; saveConfig = true; }
     else if (arg === "--out" || arg in SETTING_FLAGS) {
       const value = args[++i];
@@ -88,7 +88,7 @@ function parseCompose(args: string[]): ComposeArgs | undefined {
     } else if (arg.startsWith("-")) return undefined;
     else positionals.push(arg);
   }
-  return positionals.length === 1 ? { script: positionals[0], sfx, outDir, flags, saveConfig } : undefined;
+  return positionals.length === 1 ? { script: positionals[0], sound, outDir, flags, saveConfig } : undefined;
 }
 
 async function main(argv: string[]): Promise<number> {
@@ -108,7 +108,7 @@ async function main(argv: string[]): Promise<number> {
     const { folderStore } = await import("./adapters/folder/store.ts");
     const { version } = readJson(resolve(dirname(fileURLToPath(import.meta.url)), "../package.json")) as { version: string };
     await compose(resolve(script), { integration: playwright, voice: qwenVoice(settings.voice), store: folderStore,
-      composerVersion: version, sfx: options.sfx, ...(options.outDir ? { outDir: resolve(options.outDir) } : {}) });
+      composerVersion: version, sound: options.sound, ...(options.outDir ? { outDir: resolve(options.outDir) } : {}) });
     return 0;
   }
   const { launch } = await import("./host/launch.ts");

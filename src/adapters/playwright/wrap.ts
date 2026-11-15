@@ -249,7 +249,7 @@ export function wrapScript(page: Page, options: WrapOptions) {
         if (LOCATOR_UNCOVERED.has(prop)) {
           return (...args: unknown[]) => {
             warnOnce(`locator.${prop}`);
-            if (!chain.zoomIn && !chain.flash && !chain.zoomOut) return stage.action(() => original(...args));
+            if (!chain.sound && !chain.zoomIn && !chain.flash && !chain.zoomOut) return stage.action(() => original(...args));
             // No pointer move to start a zoom with: it starts with the action, framing the element's box.
             return stage.action(() => zoomOutAfter(async () => {
               if (chain.zoomIn) {
@@ -258,6 +258,8 @@ export function wrapScript(page: Page, options: WrapOptions) {
                 events.push(zoomInEvent(clock.now(), at, box ?? undefined, chain.zoomIn));
               }
               const result = await original(...args);
+              // The action happens when it returns: a chained sound plays then, with the flash (GH-34 decision 002).
+              if (chain.sound) stage.sound(chain.sound);
               if (chain.flash) events.push({ t: clock.now(), type: "flash", ...chain.flash });
               return result;
             }));

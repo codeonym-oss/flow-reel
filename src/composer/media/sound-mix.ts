@@ -53,7 +53,7 @@ function writeStereo(file: string, pcm: Float32Array): void {
 /** Quiet effects, plus an unnormalized mix bus when voice exists. Originals are never changed. */
 export function assembleSfx(events: readonly ComposerEvent[], timeline: Timeline, voice: string | undefined,
   work: string, enabled = true): string | undefined {
-  const sfx = join(work, "sfx.wav"), mix = join(work, "mix.bus.wav");
+  const sfx = join(work, "sound.wav"), mix = join(work, "mix.bus.wav");
   for (const file of [sfx, mix, join(work, "mix.wav")]) rmSync(file, { force: true });
   const samples = Math.round((timeline.frames - timeline.cutFrames) * SAMPLE_RATE / timeline.fps);
   const placements = enabled ? planSfx(events, samples / 48) : [];

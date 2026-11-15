@@ -1,0 +1,12 @@
+---
+kind: ticket
+title: Release 0.2.0 with a guide for moving from 0.1
+key: GH-34
+parent: GH-27
+status: tracked
+branch:
+tracker-url: https://github.com/codeonym-oss/flow-reel/issues/34
+mr:
+created: 2026-11-14
+updated: 2026-11-14
+---

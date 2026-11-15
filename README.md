@@ -157,7 +157,7 @@ After capture and synthesis finish, the renderer adds only the whole frames need
 freezing the last frame of that settled window. A comment starts alongside its step at `startMs`. Longer actions
 continue normally after speech finishes. Transcript windows, captions, events and the master all use this final
 timeline. A blank comment gets no speech padding; a script without comments can still have interaction sounds.
-If it has no effects, or `--no-sfx` is set, it has no audio stream.
+Without sounds either, or with `--no-sound`, it has no audio stream.
 
 Visual polish is automatic, unless the script [directs the picture](#direct-the-picture): a white arrow with a dark outline follows logged pointer motion, and a blue ring
 expands and fades for 400 ms at each click. The cursor and rings keep their screen size while the page zooms.
@@ -190,8 +190,8 @@ black pixel when that is odd, as for 1280×720); `master.mp4` is the clean recor
 with added holds and shown images, preserved before cursor/zoom rendering; `master.json.startMs` gives delivery time zero within
 the master, preserving its calibration pre-roll. Events use CSS pixels and final delivery times; click and typing
 events may include `bounds: { x, y, width, height }` in CSS pixels.
-`voice.wav` is the normalized voice-only bus on the delivery timeline; `sfx.wav` is the ducked effects
-bus and `mix.wav` is the final normalized voiced mix when effects exist. The `work/` folder ignores itself in git;
+`voice.wav` is the normalized voice-only bus on the delivery timeline; `sound.wav` is the ducked sound
+bus and `mix.wav` is the final normalized voiced mix when sounds exist. The `work/` folder ignores itself in git;
 the rest of the reel is yours to commit or not.
 
 To keep runs the same, the runner fixes the viewport, device scale, `prefers-reduced-motion`, the page's clock
@@ -268,17 +268,17 @@ whether the operation succeeded, so call it after the state or assertion it desc
 muted.
 
 ```sh
-npx flow-reel compose demos/settings.ts --no-sfx
+npx flow-reel compose demos/settings.ts --no-sound
 ```
 
-`--no-sfx` also works before the script. It mutes all sounds while keeping them in the event log, with the
+`--no-sound` also works before the script. It mutes all sounds while keeping them in the event log, with the
 comments, captions and visuals. Sounds never add frames, change speech holds or extend the video; tails reaching
 the video end fade out and are trimmed. A sound within ±150 ms inclusive replaces automatic click audio, while the
 visual ripple and logged click remain. Other sounds may overlap. Hover/scroll have no automatic sounds.
 
 The palette uses short, related DAEDAL CC0 UI sounds, with three quieter typing taps cycling deterministically.
-Effects sit beneath speech and duck another 6 dB over each speech clip, with a 30 ms lead-in and 250 ms recovery.
-They remain ducked through pauses inside a clip. The combined effects bus has a -18 dBFS sample-peak ceiling before
+Sounds sit beneath speech and duck another 6 dB over each speech clip, with a 30 ms lead-in and 250 ms recovery.
+They remain ducked through pauses inside a clip. The combined sound bus has a -18 dBFS sample-peak ceiling before
 final mix processing. SFX-only demos retain quiet fixed levels instead of being normalized to speech loudness.
 Final AAC peak checks also apply. See [asset sources, licences and calibration](docker/sfx/README.md).
 
@@ -332,6 +332,7 @@ step windows, including the speech tail, before publishing its transcript.
 | `await step("Save.", () => button.click())` | `comment("Save."); await button.click()` or `await button.comment("Save.").click()` |
 | `sfx("success")` | `sound(Sounds.feedback.SUCCESS)` or `button.sound(Sounds.feedback.SUCCESS)` |
 | `npx flow-reel record demo.ts` | `npx flow-reel compose demo.ts` |
+| `--no-sfx` | `--no-sound` |
 | transcript version 1, step field `narration` | transcript version 2, step field `comment`; `voice.language` |
 | the voice was always Ryan in English | `--speaker`, `--language` or `flow-reel.json` (see [Configure the composer](#configure-the-composer)) |
 | event log versions 1 and 2, event `{ type: "sfx" }` | event log version 4, event `{ type: "sound" }`, plus effect events and `autoZoom` |
