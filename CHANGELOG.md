@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/codeonym-oss/flow-reel/compare/v0.3.0...v0.3.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* default the OpenRouter voice to a model OpenRouter has ([#56](https://github.com/codeonym-oss/flow-reel/issues/56)) ([#57](https://github.com/codeonym-oss/flow-reel/issues/57)) ([834755b](https://github.com/codeonym-oss/flow-reel/commit/834755bf9064faf55932802472629f597bd23b38))
+
 ## [0.3.0](https://github.com/codeonym-oss/flow-reel/compare/v0.2.0...v0.3.0) (2026-11-15)
 
 
