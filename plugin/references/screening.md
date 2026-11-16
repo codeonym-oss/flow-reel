@@ -32,6 +32,8 @@ Go through the stills in order with the brief's scene table beside them.
 - A zoom meant to hold through a comment is still on at that step's end still (a standalone `zoomOut` between
   scenes ends it early; `direction.md`).
 - No cookie banner, tour, error overlay or loading spinner where a result should be.
+- No wait of more than a few seconds plays in real time; a `skip` card's words fit and read (`events.json` lists
+  each `speed` and `skip`).
 - Typed values are short and readable; the data looks real.
 
 **Comments** (`transcript.json`, `captions.vtt`)

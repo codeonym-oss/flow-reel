@@ -6,7 +6,7 @@ description: Make a narrated, polished video (a reel) of a web app's feature wit
 # Make a reel
 
 flow-reel composes a **script** (Playwright plus the words `comment`, `sound`, `flash`, `showFrame`, `zoomIn`,
-`zoomOut`) into a **reel**: a folder with the video, captions and transcript. This skill takes a request all the way.
+`zoomOut`, `speedUp`, `skip`) into a **reel**: a folder with the video, captions and transcript. This skill takes a request all the way.
 `<skill-dir>` is this file's folder; the shared files are two levels up.
 
 ## Pick up where things are
@@ -30,7 +30,7 @@ login the composer can't replay.
 
 Run `node <skill-dir>/../../scripts/preflight.mjs --url <app url> --script <script path>`. Fix nothing silently:
 report each failed check and its fix to the person, and do the fix only with their consent (installing flow-reel
-with `npm install --save-dev flow-reel@0.3` in their project is the usual one; a missing cloud voice key is theirs
+with `npm install --save-dev flow-reel@0.4` in their project is the usual one; a missing cloud voice key is theirs
 to set in their shell). The first compose pulls a large image.
 
 ## 4. Write the script
@@ -42,13 +42,16 @@ Read `<skill-dir>/../../references/language.md` (the only source for words, opti
 
 - One comment per scene; wait for every visible result before marking it with a sound or a flash.
 - Let polish handle buttons and forms; direct the camera only where the story needs it.
+- A wait longer than a few seconds goes inside `speedUp` (progress worth seeing) or `skip` (only the result
+  matters), with a `timeout` that covers it.
 - No word, option or flag that `language.md` doesn't list.
 
 `<skill-dir>/../../examples/saved-views/` is a complete worked example (app, brief, script, settings).
 
 ## 5. Compose
 
-`npx flow-reel compose <script>`. Speech is slow on a CPU (about a minute a comment); say so before starting. If it
+`npx flow-reel compose <script>`. The local voice is slow on a CPU (about a minute a comment); say so before
+starting, or offer a cloud voice (`<skill-dir>/../../references/comments.md`, "The voice"). If it
 fails, read `<skill-dir>/../../references/troubleshooting.md` and find the cause before composing again; the old
 reel stays as it was.
 

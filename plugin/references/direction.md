@@ -53,13 +53,17 @@ takeaway depends on. White, short (the default), reads as a "camera flash" of su
 - a **before** screenshot, to contrast with the live after.
 
 Make the image at 1920×1080 (or the viewport's proportions) and put it in the script's folder. `fit: "contain"`
-letterboxes it on `background`; `"cover"` fills and crops. flow-reel doesn't draw text or cards itself.
+letterboxes it on `background`; `"cover"` fills and crops. flow-reel draws no text or cards itself, except `skip`'s.
 
 ## Pacing
 
 - A scene lasts as long as its actions plus its comment; there is no duration option. To slow a scene, give it a
   comment worth saying; to quicken it, shorten the comment or merge two scenes.
 - Long typing is slow (60 ms a character): type short values.
+- A wait longer than a few seconds (an agent's reply, a build, an upload) is dead air in real time. Wrap it in
+  `speedUp` when watching it progress tells the story, at the factor that brings it to 2–6 s of video; wrap it in
+  `skip` when only the result does. Write the comment before the wait so it plays over it (`language.md`, "Long
+  waits"). Never shorten a wait the viewer must see to believe, such as the instant result being shown off.
 - Two or three zooms in a 30-second reel is plenty. Constant camera motion tires the viewer: prefer `autoZoom:
   false` plus one or two deliberate `zoomIn`s for overviews.
 

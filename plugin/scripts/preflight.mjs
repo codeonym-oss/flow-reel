@@ -71,7 +71,7 @@ function checkVoice(dir, version) {
   }
   if (version && !satisfies(version, ">=0.3.0 <999.0.0")) {
     return { status: "fail", detail: `${adapter} is a cloud voice; flow-reel ${version} has none`,
-      fix: "npm install --save-dev flow-reel@0.3" };
+      fix: "npm install --save-dev flow-reel@0.4" };
   }
   const variable = voice.apiKeyEnv ?? CLOUD_KEYS[adapter];
   if (!variable) return { status: "ok", detail: `${adapter} at ${voice.baseUrl ?? "(no baseUrl)"}, with no key` };
@@ -123,7 +123,7 @@ export async function preflight(args) {
   const range = supportedRange();
   const found = args.version ? { version: args.version, where: "--version" } : installedVersion(args.script ? dirname(args.script) : process.cwd());
   if (!found) {
-    add("runtime", { status: "fail", detail: "no flow-reel installed here and no --version given", fix: "npm install --save-dev flow-reel@0.3" });
+    add("runtime", { status: "fail", detail: "no flow-reel installed here and no --version given", fix: "npm install --save-dev flow-reel@0.4" });
   } else if (!satisfies(found.version, range)) {
     add("runtime", { status: "fail", detail: `flow-reel ${found.version} (${found.where}); this plugin supports ${range}`, fix: "install a supported flow-reel, or update the plugin" });
   } else add("runtime", { status: "ok", detail: `flow-reel ${found.version}, within ${range}` });

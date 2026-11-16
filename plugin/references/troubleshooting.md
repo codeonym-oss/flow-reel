@@ -17,11 +17,13 @@ the composer's output in the terminal.
 | A zoom cuts off the target | Bounds were taken before the target moved or grew. | Wait for the layout to settle before the step; or frame it with `zoomIn` on a larger container. |
 | A picture looks soft | `zoomIn` scale above 4/3. | Lower the scale, or accept it for small text only. |
 | "The machine is too busy" — the compose stops after capture | Capture needs about 2.5 free CPU cores; on a busy machine it stops rather than save a video with wrong timing. | Close heavy apps (builds, other containers) and compose again. |
-| Speech is slow, or the machine struggles | Local speech runs on the CPU and needs several GB of memory. | Expect about a minute a comment; recomposing reuses unchanged comments. Close heavy apps. |
+| Speech is slow, or the machine struggles | Local speech runs on the CPU and needs several GB of memory. | Expect about a minute a comment; recomposing reuses unchanged comments. Close heavy apps, or offer a cloud voice (`comments.md`). |
 | "unknown speaker" / "unknown language" | A name not in the list. | Use one from `language.md`'s settings table. |
 | The second compose differs from the first | The app's data changed between runs (a duplicate item), or the clock/time-dependent UI. | Reset the data before composing; the page clock is fixed, but the app's server isn't. |
 | `flow-reel verify` fails | A file in the reel was edited or added. | Recompose; don't patch the manifest. Keep notes and stills outside the reel. |
-| A 0.1 script fails to load | `demo`, `step`, `sfx` are 0.1 words. | Rewrite with `script`, `comment`, `sound` (`language.md`). |
+| A wait inside `speedUp` or `skip` times out after 30 s | Playwright's default timeout. | Give the wait a `timeout` longer than the slowest run you saw: `waitFor({ timeout: 120_000 })`. |
+| "comment() can't be used inside skip()" (or `speedUp`) | A comment, `showFrame`, nested word or (in `skip`) an effect inside the callback. | Move it before or after; only the wait goes inside. |
+| "speedUp is not a function" | A runtime older than 0.4.0. | `npm install --save-dev flow-reel@0.4`; `preflight.mjs` reports the version. |
 
 When a request needs something flow-reel doesn't have (music, another voice provider, a duration, a new effect),
 say so plainly and offer what it can do instead; don't approximate it with tricks that change the app's behaviour.

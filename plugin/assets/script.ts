@@ -12,6 +12,8 @@ export default script({ url: "http://localhost:4173/" }, async ({ page, comment,
     .sound(Sounds.navigation.OPEN)
     .click();
 
+  // A wait of more than a few seconds: wrap it in speedUp(4, () => …) or skip(() => …) instead of sitting through it.
+
   // The payoff: wait for the visible result, then mark it.
   await page.getByText("REPLACE: the result the viewer should see").waitFor();
   sound(Sounds.feedback.SUCCESS);
