@@ -185,7 +185,7 @@ instead, so one folder can collect the reels of many scripts. Every reel has the
 |---|---|
 | `video.mp4` | The polished video, 1920×1080, 30 fps, with AAC speech and interaction sounds. |
 | `transcript.json` | Each step's original `comment` and `startMs`, `actionEndMs` and `endMs` on the video's timeline (schema version 2). |
-| `events.json` | Every move, click, keystroke run, scroll, sound and effect, timed the same way, and whether zoom is automatic (schema version 4). |
+| `events.json` | Every move, click, keystroke run, scroll, sound and effect, timed the same way, and whether zoom is automatic (schema version 5). |
 | `captions.srt` | Captions for a subtitle-capable video player. |
 | `captions.vtt` | WebVTT captions for a browser's `<video>` / `<track>`. |
 | `audio/000.wav` | Local speech clips, named by zero-based step index. |
