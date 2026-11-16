@@ -19,7 +19,7 @@ const transcript = {
 };
 
 const events = {
-  version: 4,
+  version: 5,
   autoZoom: true,
   events: [
     { t: 1200, type: "move", from: [960, 540], to: [1412, 288], durationMs: 450, easing: "easeInOutCubic" },
@@ -66,7 +66,7 @@ describe("validateTranscript", () => {
 
 describe("validateEvents", () => {
   it("accepts optional off-screen bounds and rejects malformed target bounds", () => {
-    const log = (bounds: unknown) => ({ version: 4, autoZoom: true, events: [{ ...events.events[1], bounds }] });
+    const log = (bounds: unknown) => ({ version: 5, autoZoom: true, events: [{ ...events.events[1], bounds }] });
     expect(validateEvents(log({ x: -10, y: 20, width: 100, height: 30 }))).toEqual([]);
     for (const bounds of [null, {}, { x: 0, y: 0, width: 0, height: 10 },
       { x: NaN, y: 0, width: 10, height: 10 }, { x: 0, y: 0, width: 10, height: -1 }]) {
@@ -82,8 +82,8 @@ describe("validateEvents", () => {
     expect(validateEvents(bad)).toContain("events[0]: t must be a number >= 0");
   });
 
-  it("accepts only version 4, which names sounds `sound` and says whether zoom is automatic", () => {
-    for (const version of [1, 2, 3]) expect(validateEvents({ ...events, version })).toContain("version must be 4");
+  it("accepts only version 5, which names sounds `sound` and says whether zoom is automatic", () => {
+    for (const version of [1, 2, 3, 4]) expect(validateEvents({ ...events, version })).toContain("version must be 5");
     expect(validateEvents({ ...events, events: [{ t: 0, type: "sfx", name: "success" }] }))
       .toContain('events[0]: unknown type "sfx"');
     const { autoZoom: _, ...noAutoZoom } = events;
@@ -91,13 +91,23 @@ describe("validateEvents", () => {
   });
 
   it("accepts the effect events of GH-32 decision 005", () => {
-    expect(validateEvents({ version: 4, autoZoom: false, events: [
+    expect(validateEvents({ version: 5, autoZoom: false, events: [
       { t: 1200, type: "flash", color: "#FFFFFF", ms: 250 },
       { t: 1800, type: "frame", image: "img/diagram.png", sha256: "a".repeat(64), durationMs: 3000, fit: "contain", background: "#000000" },
       { t: 5000, type: "zoom", zoom: "in", at: [960, 540], bounds: { x: 900, y: 500, width: 120, height: 80 }, scale: 4 / 3, ms: 650 },
       { t: 5100, type: "zoom", zoom: "in", at: [960, 540], scale: 2, ms: 650 },
       { t: 9000, type: "zoom", zoom: "out", ms: 800 },
     ] })).toEqual([]);
+  });
+
+  it("accepts a speed-up and names a bad factor or duration (GH-61 decision 005)", () => {
+    const one = (event: object) => validateEvents({ ...events, events: [{ t: 0, type: "speed", ...event }] });
+    expect(one({ factor: 4, durationMs: 15000 })).toEqual([]);
+    expect(one({ factor: 1.5, durationMs: 0 })).toEqual([]);
+    for (const factor of [1, 0, 16.5, "2", Number.NaN]) {
+      expect(one({ factor, durationMs: 1 })).toEqual(["events[0]: factor must be above 1 and at most 16"]);
+    }
+    expect(one({ factor: 2, durationMs: -1 })).not.toEqual([]);
   });
 
   it("names each malformed effect field", () => {

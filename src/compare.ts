@@ -29,14 +29,16 @@ export function compareTranscripts(left: unknown, right: unknown): { errors: str
   return { errors, differences };
 }
 
-const EFFECTS = ["flash", "frame", "zoom"];
-// Paths and times may differ between honest composes; everything else an effect asked for must match.
-const effectKeys = (event: ComposerEvent) => Object.keys(event).filter((key) => key !== "t" && key !== "image").sort();
+const EFFECTS = ["flash", "frame", "zoom", "speed"];
+// Paths and times may differ between honest composes, and so may how long a sped-up wait took (GH-61 decision 005);
+// everything else an effect asked for must match.
+const effectKeys = (event: ComposerEvent) => Object.keys(event)
+  .filter((key) => key !== "t" && key !== "image" && !(event.type === "speed" && key === "durationMs")).sort();
 
 /**
- * Compare the effects of two event logs (GH-32 decision 007): the same `autoZoom`, and the same flashes, images and
- * zooms in the same order with the same options and image hashes, each starting within 150 ms. Clicks, moves,
- * typing, scrolls and sounds come from the app and are not compared.
+ * Compare the effects of two event logs (GH-32 decision 007): the same `autoZoom`, and the same flashes, images,
+ * zooms and speed-ups in the same order with the same options and image hashes, each starting within 150 ms. Clicks,
+ * moves, typing, scrolls and sounds come from the app and are not compared.
  */
 export function compareEffects(left: unknown, right: unknown): { errors: string[]; differences: string[] } {
   const errors = [...validateEvents(left).map((e) => `left: events.json: ${e}`), ...validateEvents(right).map((e) => `right: events.json: ${e}`)];

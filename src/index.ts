@@ -1,4 +1,5 @@
-// The public API a script imports (GH-27 decisions 001 and 008; GH-30 decisions 001-005; GH-32 decisions 001-006).
+// The public API a script imports (GH-27 decisions 001 and 008; GH-30 decisions 001-005; GH-32 decisions 001-006;
+// GH-61).
 import type { Page } from "playwright";
 import type { Sound } from "./composer/schema/events.ts";
 import type { FlashOptions, ShowFrameOptions, ZoomInOptions, ZoomOutOptions } from "./composer/effects.ts";
@@ -46,6 +47,12 @@ export interface ScriptContext {
   zoomIn(options?: ZoomInOptions): void;
   /** Zooms back out to the full screen. */
   zoomOut(options?: ZoomOutOptions): void;
+  /**
+   * Runs `fn` as one action, played `factor` times faster in the video (above 1, at most 16), with a "▶▶ ×N" badge in
+   * the top-right corner. For waits: only actions, sounds, `flash` and zoom go inside; `comment`, `showFrame` and
+   * another `speedUp` throw. A comment spoken over it keeps its normal speed.
+   */
+  speedUp(factor: number, fn: () => Promise<unknown>): Promise<void>;
 }
 
 export type ScriptBody = (context: ScriptContext) => Promise<void>;

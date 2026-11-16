@@ -187,3 +187,26 @@ it("inserts images into the master and the video, and resumes on the capture fra
   expect(near(at(50, 150, 80), [255, 0, 255])).toBe(true);
   expect(near(at(51, 20, 20), [0, 0, 255])).toBe(true);
 });
+
+it("plays a stretch with the planned frames, keeping source frame floor(i × factor) (GH-61 decision 008)", () => {
+  // Video 0 ms is source frame 15; red is source 0-29, blue 30-59. A ×4 stretch over source 15-44 keeps 15, 19, …, 43
+  // as master frames 15-22 (the master keeps the 15 calibration frames), so 15-18 are red and 19 is source 31, blue.
+  const timeline = planTimeline([], { fps: 30, frames: 60, cutMs: 500, speedUps: [{ t: 0, durationMs: 1000, factor: 4 }] });
+  const out = options("stretch");
+  renderTimeline({ ...out, timeline });
+  expect(videoFrames(out.master)).toBe(38);
+  expect(videoFrames(out.video)).toBe(23);
+  const pixels = execFileSync("ffmpeg", ["-v", "error", "-i", out.master, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { maxBuffer: 64 << 20 });
+  const red = (frame: number) => pixels[(frame * 90 * 160 + 20 * 160 + 20) * 3] > 128;
+  expect([14, 15, 18, 19, 22, 23].map(red)).toEqual([true, true, true, false, false, false]);
+  // The badge (GH-61 decision 006): a dark box top-right while the stretch plays (video frames 0-7), gone after it.
+  const video = execFileSync("ffmpeg", ["-v", "error", "-i", out.video, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { maxBuffer: 64 << 20 });
+  const blue = (frame: number) => video[(frame * 90 * 160 + 13 * 160 + 128) * 3 + 2];
+  expect(blue(4)).toBeLessThan(150);
+  expect(blue(12)).toBeGreaterThan(200);
+  const fractional = planTimeline([], { fps: 30, frames: 60, cutMs: 500,
+    speedUps: [{ t: 100, durationMs: 500, factor: 1.5 }, { t: 1000, durationMs: 300, factor: 16 }] });
+  const both = options("stretches");
+  renderTimeline({ ...both, timeline: fractional });
+  expect(videoFrames(both.master)).toBe(fractional.frames);
+});

@@ -1,5 +1,5 @@
 // The event log: v1 actions (story decision 013), v2 added sound cues, v3 names them `sound` (GH-30 decision 003),
-// v4 adds effects and `autoZoom` (GH-32 decision 005).
+// v4 adds effects and `autoZoom` (GH-32 decision 005), v5 adds `speed` (GH-61 decision 005).
 import { type Errors, isObject, nonNegative, point, text } from "./check.ts";
 
 export type Point = [x: number, y: number];
@@ -27,7 +27,7 @@ export type ComposerEvent =
   | { t: number; type: "type"; text: string; charDelayMs: number; target: string; bounds?: Bounds }
   | { t: number; type: "scroll"; delta: Point; durationMs: number }
   | { t: number; type: "sound"; name: SoundName }
-  | FlashEvent | FrameEvent | ZoomEvent;
+  | FlashEvent | FrameEvent | ZoomEvent | SpeedEvent;
 
 export type Fit = "contain" | "cover";
 export interface FlashEvent { t: number; type: "flash"; color: string; ms: number }
@@ -39,9 +39,11 @@ export interface FrameEvent {
 export type ZoomEvent =
   | { t: number; type: "zoom"; zoom: "in"; at: Point; bounds?: Bounds; scale: number; ms: number }
   | { t: number; type: "zoom"; zoom: "out"; ms: number };
+/** A stretch played `factor` times faster; `durationMs` is how long it lasts on the event log's clock. */
+export interface SpeedEvent { t: number; type: "speed"; factor: number; durationMs: number }
 
 export interface EventLog {
-  version: 4;
+  version: 5;
   /** False when the script turned automatic zoom off. */
   autoZoom: boolean;
   events: ComposerEvent[];
@@ -50,11 +52,12 @@ export interface EventLog {
 export const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 export const FITS: readonly Fit[] = ["contain", "cover"];
 export const MAX_ZOOM = 2;
+export const MAX_SPEED = 16;
 
 export function validateEvents(value: unknown): Errors {
   const errors: Errors = [];
   if (!isObject(value)) return ["events log must be an object"];
-  if (value.version !== 4) errors.push("version must be 4");
+  if (value.version !== 5) errors.push("version must be 5");
   if (typeof value.autoZoom !== "boolean") errors.push("autoZoom must be true or false");
   if (!Array.isArray(value.events)) return [...errors, "events must be an array"];
 
@@ -122,6 +125,12 @@ export function validateEvents(value: unknown): Errors {
           if (typeof scale !== "number" || !(scale >= 1 && scale <= MAX_ZOOM)) errors.push(`${where}scale must be from 1 to ${MAX_ZOOM}`);
         } else if (event.zoom !== "out") errors.push(`${where}zoom must be "in" or "out"`);
         break;
+      case "speed": {
+        const factor = event.factor;
+        if (typeof factor !== "number" || !(factor > 1 && factor <= MAX_SPEED)) errors.push(`${where}factor must be above 1 and at most ${MAX_SPEED}`);
+        nonNegative(errors, where, event, "durationMs");
+        break;
+      }
       default:
         errors.push(`${where}unknown type ${JSON.stringify(event.type)}`);
     }

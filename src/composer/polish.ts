@@ -22,6 +22,8 @@ export interface PolishOptions {
   autoZoom?: boolean;
   /** Where inserted images show, in video milliseconds: nothing is drawn over them, and the crop is full. */
   imageSpans?: readonly { startMs: number; endMs: number }[];
+  /** Where sped-up stretches play, in video milliseconds, each with its factor: each shows a badge (GH-61). */
+  stretches?: readonly { startMs: number; endMs: number; factor: number }[];
 }
 const ZOOM_IN_MS = 650;
 const ZOOM_IDLE_MS = 2000;

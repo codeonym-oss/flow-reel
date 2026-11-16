@@ -99,3 +99,64 @@ describe("images (GH-32 decision 003)", () => {
     expect(() => planTimeline([], { fps: 30, frames: 30, cutMs: 0, images: [image(2000, 100)] })).toThrow(/beyond the capture/);
   });
 });
+
+describe("speed-ups (GH-61 decisions 003, 007 and 008)", () => {
+  const speedUp = (t: number, durationMs: number, factor: number) => ({ t, durationMs, factor });
+
+  it("plays a ×4 stretch of 60 frames as 15 and moves everything after it earlier", () => {
+    // Capture frame 0 is video 0 ms (cutMs 0); the stretch covers frames 30-89, 1000-3000 ms.
+    const plan = planTimeline([step(0, 500, 4000), step(1, 4100, 4500)],
+      { fps: 30, frames: 150, cutMs: 0, speedUps: [speedUp(1000, 2000, 4)] });
+    expect(plan.stretches).toEqual([{ frame: 30, frames: 60, kept: 15, factor: 4, startMs: 1000, endMs: 1500 }]);
+    expect(plan.frames).toBe(105);
+    expect([500, 1000, 2000, 3000, 4100].map(plan.mapTime)).toEqual([500, 1000, 1250, 1500, 2600]);
+    expect(plan.steps.map(({ startMs, actionEndMs, endMs }) => [startMs, actionEndMs, endMs]))
+      .toEqual([[500, 2400, 2500], [2600, 2900, 3000]]);
+  });
+
+  it("keeps ceil(frames / factor) frames for a fractional factor", () => {
+    const plan = planTimeline([], { fps: 30, frames: 30, cutMs: 0, speedUps: [speedUp(100, 1000 / 15, 1.5)] });
+    expect(plan.stretches[0]).toMatchObject({ frames: 2, kept: 2 });
+    const three = planTimeline([], { fps: 30, frames: 30, cutMs: 0, speedUps: [speedUp(100, 100, 1.5)] });
+    expect(three.stretches[0]).toMatchObject({ frames: 3, kept: 2 });
+    expect(three.frames).toBe(29);
+  });
+
+  it("still holds the last frame when a comment outlasts the shortened stretch", () => {
+    // A 3 s comment over a step whose 2 s wait plays in 0.5 s: the step needs 3.2 s from 500 ms, but its picture
+    // ends at 1.7 s, so 2 s are held.
+    const plan = planTimeline([step(0, 500, 3200, 3000)],
+      { fps: 30, frames: 120, cutMs: 0, speedUps: [speedUp(1000, 2000, 4)] });
+    expect(plan.steps[0].endMs).toBe(3700);
+    expect(plan.insertions).toEqual([{ frame: 96, frames: 60 }]);
+    expect(plan.frames).toBe(120 - 45 + 60);
+  });
+
+  it("shortens an event's duration only by what the stretch drops inside it", async () => {
+    const { retimeEvents } = await import("../../src/composer/timeline.ts");
+    const plan = planTimeline([], { fps: 30, frames: 150, cutMs: 0, speedUps: [speedUp(1000, 2000, 4)] });
+    const events = [
+      { t: 500, type: "scroll" as const, delta: [0, 1] as [number, number], durationMs: 300 },
+      { t: 1200, type: "zoom" as const, zoom: "out" as const, ms: 800 },
+      { t: 2800, type: "flash" as const, color: "#ffffff", ms: 400 },
+      { t: 1000, type: "type" as const, text: "Ada", charDelayMs: 100, target: "Name" },
+      { t: 1000, type: "speed" as const, factor: 4, durationMs: 2000 },
+    ];
+    expect(retimeEvents(events, plan)).toEqual([
+      { ...events[0], t: 500 },
+      { ...events[1], t: 1050, ms: 200 },
+      { ...events[2], t: 1450, ms: 50 + 200 },
+      { ...events[3], t: 1000, charDelayMs: 25 },
+      { ...events[4], t: 1000, durationMs: 500 },
+    ]);
+  });
+
+  it("plays holds and images at its first frame before it, and changes nothing without one", () => {
+    const image = { t: 1000, durationMs: 100, file: "a.png", fit: "contain" as const, background: "#000000" };
+    const plan = planTimeline([], { fps: 30, frames: 150, cutMs: 0, images: [image], speedUps: [speedUp(1000, 2000, 4)] });
+    expect(plan.stretches[0]).toMatchObject({ startMs: 1100, endMs: 1600 });
+    const plain = planTimeline([step(0, 500, 1000, 1000)], { fps: 30, frames: 90, cutMs: 1000 });
+    expect(plain.stretches).toEqual([]);
+    expect(plain.frames).toBe(111);
+  });
+});

@@ -41,7 +41,7 @@ it("separates invalid inputs from content differences and preserves silent compa
 });
 
 describe("compareEffects (GH-32 decision 007)", () => {
-  const log = (): EventLog => ({ version: 4, autoZoom: true, events: [
+  const log = (): EventLog => ({ version: 5, autoZoom: true, events: [
     { t: 100, type: "click", at: [1, 1], button: "left", target: "a" },
     { t: 200, type: "flash", color: "#ffffff", ms: 250 },
     { t: 300, type: "frame", image: "a.png", sha256: "a".repeat(64), durationMs: 1000, fit: "contain", background: "#000000" },
@@ -72,8 +72,16 @@ describe("compareEffects (GH-32 decision 007)", () => {
     expect(compareEffects(a, { ...log(), events: log().events.slice(0, 4) }).differences).toEqual(["effect count differs (4 and 3)"]);
   });
 
+  it("compares speed-ups by factor and start, not by how long the wait took (GH-61 decision 005)", () => {
+    const sped = (factor: number, t: number, durationMs: number): EventLog =>
+      ({ version: 5, autoZoom: true, events: [{ t, type: "speed", factor, durationMs }] });
+    expect(compareEffects(sped(4, 1000, 15000), sped(4, 1100, 12000)).differences).toEqual([]);
+    expect(compareEffects(sped(4, 1000, 15000), sped(2, 1000, 15000)).differences).toEqual(["effects[0] (speed) differs"]);
+    expect(compareEffects(sped(4, 1000, 15000), { ...log(), events: [] }).differences).toEqual(["effect count differs (1 and 0)"]);
+  });
+
   it("reports an invalid event log as an error", () => {
     expect(compareEffects({ version: 3, events: [] }, log()).errors).toEqual([
-      "left: events.json: version must be 4", "left: events.json: autoZoom must be true or false"]);
+      "left: events.json: version must be 5", "left: events.json: autoZoom must be true or false"]);
   });
 });

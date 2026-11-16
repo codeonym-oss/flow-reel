@@ -131,6 +131,26 @@ export default script({ url: "http://localhost:4173" }, async ({ page, comment, 
 - **`autoZoom: false`** in the script's options turns automatic zoom off; the cursor, ripples and `zoomIn` stay.
 - A bad option, image path or duration throws where the word is written.
 
+### Speed up a wait
+
+`await speedUp(factor, fn)` runs `fn` as one action of its step and plays that stretch `factor` times faster in the
+video, with a "▶▶ ×N" badge in the top-right corner that fades in and out. Use it for waits where little changes,
+such as an agent's reply:
+
+```ts
+comment("Ask the agent, and wait for its reply.");
+await page.getByRole("button", { name: "Send" }).click();
+await speedUp(4, () => page.getByText("Done").waitFor({ timeout: 120_000 }));
+```
+
+- **The factor** is any number above 1 and at most 16, fractions included (`1.5`). Frames are dropped, not blended:
+  the stretch reads as fast-forward.
+- **Inside `fn`** go actions, sounds, `flash` and zoom; they follow the faster pace. `comment`, `showFrame` and
+  another `speedUp` throw there, since they would add time: put them before or after.
+- **A comment** spoken over the stretch keeps its normal speed. If it outlasts the shortened stretch, the last
+  frame holds until it ends, as for any step.
+- **Reels** record each stretch as a `speed` event in the event log (version 5), and `compare` checks its factor.
+
 ## Compose
 
 ```sh
@@ -190,7 +210,8 @@ framed with padding. Bounds are captured before the action, so they do not track
 Partly off-screen elements can only show the portion captured in the master. Clicks logged without bounds use
 their click points instead, without a whole-element framing guarantee. Polish preserves every frame and
 all comment, transcript and caption times. Zoom animations end with the video and do not lengthen it.
-Polish runs after capture, without replaying actions or changing speed.
+Polish runs after capture, without replaying actions or changing speed; a [`speedUp`](#speed-up-a-wait) stretch is
+shortened before polish, and its events with it.
 
 The assembled voice and final voiced mix are normalized to -16 LUFS with a -1.5 dBTP peak ceiling, then encoded as 48 kHz stereo AAC-LC
 at 192 kb/s. Decoded output is checked within 1 LU of the loudness target and 0.1 dB of the peak ceiling. Original
@@ -381,7 +402,8 @@ Comparison runs on the host without Docker or FFmpeg. It verifies both reels fir
 validates each transcript's schema and sync, and checks
 video dimensions/FPS, step order, exact original comments, voice identity, source audio hashes/durations and step
 starts within ±150 ms inclusive. It then checks the event logs' effects: the same `autoZoom`, and the same flashes,
-shown frames and zooms in order, with equal options and image hashes, each starting within ±150 ms. Clicks, moves,
+shown frames, zooms and speed-ups in order, with equal options and image hashes, each starting within ±150 ms (a
+speed-up's factor must match; how long its wait took may differ). Clicks, moves,
 typing, scrolls and sounds are not compared. Script, image and output paths may differ. Legacy silent transcripts and blank-only
 recordings are supported. Exit status is 0 for a match, 1 for valid recordings that differ, and 2 for invalid input,
 failed sync or usage errors; diagnostics identify the file or step.

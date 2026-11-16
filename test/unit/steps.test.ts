@@ -1,4 +1,5 @@
-import { expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { ComposerEvent } from "../../src/composer/schema/events.ts";
 import { stepTimer } from "../../src/composer/steps.ts";
 
 // A clock that only moves when something sleeps, so timings are exact.
@@ -97,4 +98,56 @@ it("warns and goes on when the app is still loading", async () => {
   await timer.finish();
   expect(warnings).toEqual(Array(2).fill("step 0: the page was still loading after 10 s; going on"));
   expect(timer.steps).toHaveLength(1);
+});
+
+describe("speedUp (GH-61 decisions 001, 004 and 005)", () => {
+  it("runs its actions in the open step and logs the stretch where it started", async () => {
+    const { timer, advance } = fake();
+    const events: ComposerEvent[] = [];
+    timer.comment("Wait for the reply.");
+    await timer.speedUp(4, async () => {
+      await timer.action(advance(20));
+      events.push({ t: 120, type: "sound", name: "success" });
+      await timer.action(advance(30));
+    }, events);
+    await timer.finish();
+    expect(timer.steps).toEqual([{ index: 0, comment: "Wait for the reply.", startMs: 100, actionEndMs: 150, endMs: 250 }]);
+    expect(events).toEqual([{ t: 100, type: "speed", factor: 4, durationMs: 50 }, { t: 120, type: "sound", name: "success" }]);
+  });
+
+  it("refuses a bad factor or a missing function where it is written", async () => {
+    const { timer } = fake();
+    for (const factor of [1, 0, 16.5, Number.NaN, "2"]) {
+      await expect(timer.speedUp(factor as number, async () => {}, [])).rejects
+        .toThrow(`speedUp(): the factor must be a number above 1 and at most 16, got ${JSON.stringify(factor)}`);
+    }
+    await expect(timer.speedUp(4, undefined as unknown as () => Promise<void>, [])).rejects
+      .toThrow("speedUp() takes a function to run faster, as in speedUp(4, () => …)");
+  });
+
+  it("refuses comments, showFrame and nesting inside, and allows them again after", async () => {
+    const { timer } = fake();
+    const inside: unknown[] = [];
+    await timer.speedUp(2, async () => {
+      try { timer.comment("Hi."); } catch (e) { inside.push((e as Error).message); }
+      try { timer.outsideStretch("showFrame"); } catch (e) { inside.push((e as Error).message); }
+      await timer.speedUp(2, async () => {}, []).catch((e: Error) => inside.push(e.message));
+    }, []);
+    expect(inside).toEqual([
+      "comment() can't be used inside speedUp(); put it before or after",
+      "showFrame() can't be used inside speedUp(); put it before or after",
+      "speedUp() can't be used inside speedUp(); put it before or after",
+    ]);
+    expect(() => timer.comment("After.")).not.toThrow();
+  });
+
+  it("names the failing step once when an action inside fails", async () => {
+    const { timer } = fake();
+    timer.comment("Wait.");
+    const error = await timer.speedUp(4, async () => {
+      await timer.action(async () => { throw new Error("timed out"); });
+    }, []).catch((e: Error) => e);
+    expect(error).toMatchObject({ message: 'step 0 ("Wait.") failed: timed out' });
+    expect(() => timer.comment("Next.")).not.toThrow();
+  });
 });
