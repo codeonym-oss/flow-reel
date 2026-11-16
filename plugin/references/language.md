@@ -1,11 +1,11 @@
 # The flow-reel language
 
-**Supported runtime:** `>=0.2.0 <0.4.0`
+**Supported runtime:** `>=0.2.0 <0.5.0`
 
 Everything a script can say, and every command, for the runtime versions above. If a word, option or flag is not
 on this page, flow-reel doesn't have it: say so instead of inventing it. The plugin's `scripts/preflight.mjs`
-reports the project's version and whether it is in this range. Cloud voices need 0.3.0 or later; everything else
-works on 0.2.
+reports the project's version and whether it is in this range. Cloud voices need 0.3.0 or later, `speedUp` and
+`skip` 0.4.0 or later; everything else works on 0.2.
 
 ## The words
 
@@ -96,7 +96,7 @@ Clicks and typing sound by themselves. A sound marks a moment that matters; it i
 
 - `showFrame` inserts a PNG, JPEG or WebP from the script's folder (path relative to the script) for `ms`
   milliseconds; the app is shown again exactly where it was. A comment in its step plays on over the image. No
-  cursor, ripple or zoom is drawn on it. Make the image yourself; flow-reel doesn't draw cards.
+  cursor, ripple or zoom is drawn on it. Make the image yourself; the only card flow-reel draws is `skip`'s.
 - `zoomIn` holds the camera until `zoomOut`, across steps and clicks; automatic zoom waits meanwhile. A second
   `zoomIn` pans to its new target. A zoom still held at the end eases out. Above 4/3 the picture softens.
 - A bad option, image path or duration throws where the word is written.
@@ -104,6 +104,43 @@ Clicks and typing sound by themselves. A sound marks a moment that matters; it i
   that step's last action, so a standalone word written after a step's last action (even after the next `comment`)
   happens before that hold. To act at the next scene's start, chain the word on its first action. A zoom still held
   at the end eases out as the script's actions end, before the last comment finishes.
+
+## Long waits (runtime 0.4.0 or later)
+
+A wait shows in real time unless its script shortens it. Wrap the wait, and only the wait, in one of two words:
+
+```ts
+import { script } from "flow-reel";
+
+export default script({ url: "http://localhost:4173/" }, async ({ page, comment, speedUp, skip }) => {
+  comment("Ask the agent, and watch it work through the answer.");
+  await page.getByRole("button", { name: "Send" }).click();
+  await speedUp(4, () => page.getByText("Done").waitFor({ timeout: 120_000 }));
+
+  comment("The build takes a while; here is the result.");
+  await page.getByRole("button", { name: "Build" }).click();
+  await skip(() => page.getByText("Build passed").waitFor({ timeout: 300_000 }));
+});
+```
+
+| Word | Options | In the video |
+|---|---|---|
+| `await speedUp(factor, fn)` | `factor`: above 1, at most 16, fractions allowed | The stretch plays `factor` times faster (frames dropped, not blended), with a "▶▶ ×4" badge top right. |
+| `await skip(fn, options?)` | `label`: the words after "⏭", default `"{duration} skipped"` | The stretch is cut; a card on the dimmed frame before it shows "⏭ 38 s skipped" for 1.5 s. |
+
+- Either word runs `fn` as one action of the open step. Pass a function (`() => …`), not a promise. Give the wait
+  a `timeout` that covers the real wait: Playwright's default is 30 s.
+- **Pick by what the viewer should see.** `speedUp` when the progress means something (an answer streaming in, a
+  list filling up); `skip` when only the result matters (a build, an upload, a long job).
+- **Only actions go inside.** In `speedUp`: actions, sounds, `flash` and zoom, at the faster pace. In `skip`: actions
+  and sounds, neither seen nor heard. `comment`, `showFrame`, another `speedUp` or `skip`, and in `skip` also `flash`
+  and zoom, throw where they are written: put them before or after.
+- **Speech keeps its speed and is never cut.** A comment written before the wait is spoken over it: over the faster
+  stretch (the last frame holds if it runs longer) or over the card (which stays until the comment ends).
+- `{duration}` in `label` shows the length cut, in whole seconds: "38 s", "1 min 52 s". A label without it shows as
+  written (`{ label: "Later that day" }`). The card's font covers Latin, Greek and Cyrillic.
+- A bad factor, a missing function or an empty label throws where the word is written. The event log records each
+  as a `speed` or `skip` event; `compare` checks the factor and the label.
 
 ## Polish (automatic, no word needed)
 
@@ -194,7 +231,7 @@ bills only those. Deleting the reel deletes its cache.
 |---|---|
 | `video.mp4` | 1920×1080, 30 fps, speech and sounds. |
 | `transcript.json` | Each step's `comment`, `startMs`, `actionEndMs`, `endMs` on the video's timeline. |
-| `events.json` | Pointer moves, clicks, typing, scrolls, sounds and effects, timed the same way. |
+| `events.json` | Pointer moves, clicks, typing, scrolls, sounds, effects, speed-ups and skips, timed the same way. |
 | `captions.srt`, `captions.vtt` | The comments as captions. |
 | `audio/NNN.wav` | Each step's speech clip. |
 | `manifest.json` | Every file with its size and SHA-256, the script, composer version, integration, voice. |

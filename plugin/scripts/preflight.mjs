@@ -71,7 +71,7 @@ function checkVoice(dir, version) {
   }
   if (version && !satisfies(version, ">=0.3.0 <999.0.0")) {
     return { status: "fail", detail: `${adapter} is a cloud voice; flow-reel ${version} has none`,
-      fix: "npm install --save-dev flow-reel@0.3" };
+      fix: "npm install --save-dev flow-reel@0.4" };
   }
   const variable = voice.apiKeyEnv ?? CLOUD_KEYS[adapter];
   if (!variable) return { status: "ok", detail: `${adapter} at ${voice.baseUrl ?? "(no baseUrl)"}, with no key` };
@@ -79,6 +79,17 @@ function checkVoice(dir, version) {
     ? { status: "ok", detail: `${adapter}, key in ${variable}` }
     : { status: "fail", detail: `${adapter} needs ${variable}, which isn't set here`,
       fix: `the person sets it in the shell that composes (export ${variable}=...); never in flow-reel.json` };
+}
+
+/** The script exists, and uses no word newer than the runtime: `speedUp` and `skip` need 0.4.0 (GH-65 decision 001). */
+function checkScript(file, version) {
+  if (!existsSync(file)) return { status: "fail", detail: `${file} doesn't exist` };
+  const words = [...new Set(readFileSync(file, "utf8").match(/\b(speedUp|skip)(?=\s*\()/g) ?? [])];
+  if (version && words.length && !satisfies(version, ">=0.4.0 <999.0.0")) {
+    return { status: "fail", detail: `${file} uses ${words.join(" and ")}, which flow-reel ${version} doesn't have`,
+      fix: "npm install --save-dev flow-reel@0.4" };
+  }
+  return { status: "ok", detail: `${file} exists` };
 }
 
 const probe = (cmd, args) => spawnSync(cmd, args, { encoding: "utf8", timeout: 15_000 });
@@ -123,7 +134,7 @@ export async function preflight(args) {
   const range = supportedRange();
   const found = args.version ? { version: args.version, where: "--version" } : installedVersion(args.script ? dirname(args.script) : process.cwd());
   if (!found) {
-    add("runtime", { status: "fail", detail: "no flow-reel installed here and no --version given", fix: "npm install --save-dev flow-reel@0.3" });
+    add("runtime", { status: "fail", detail: "no flow-reel installed here and no --version given", fix: "npm install --save-dev flow-reel@0.4" });
   } else if (!satisfies(found.version, range)) {
     add("runtime", { status: "fail", detail: `flow-reel ${found.version} (${found.where}); this plugin supports ${range}`, fix: "install a supported flow-reel, or update the plugin" });
   } else add("runtime", { status: "ok", detail: `flow-reel ${found.version}, within ${range}` });
@@ -137,11 +148,7 @@ export async function preflight(args) {
 
   add("voice", checkVoice(args.script ? dirname(args.script) : process.cwd(), found?.version));
 
-  if (args.script) {
-    add("script", existsSync(args.script)
-      ? { status: "ok", detail: `${args.script} exists` }
-      : { status: "fail", detail: `${args.script} doesn't exist` });
-  }
+  if (args.script) add("script", checkScript(args.script, found?.version));
   if (args.url) add("url", await checkUrl(args.url));
   return checks;
 }
