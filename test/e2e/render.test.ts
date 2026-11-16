@@ -210,3 +210,24 @@ it("plays a stretch with the planned frames, keeping source frame floor(i × fac
   renderTimeline({ ...both, timeline: fractional });
   expect(videoFrames(both.master)).toBe(fractional.frames);
 });
+
+it("cuts a skip and holds the frame before it as a dimmed card with its words (GH-62 decision 003)", () => {
+  // Video 0 ms is source frame 15; the skip cuts source 21-35, so red 15-20 plays as video 0-5, the card (source 20,
+  // red, dimmed) as 6-50, and blue resumes at 51 with source 36.
+  const timeline = planTimeline([], { fps: 30, frames: 60, cutMs: 500, skips: [{ t: 200, durationMs: 500, label: "{duration} skipped" }] });
+  const out = options("skip");
+  renderTimeline({ ...out, timeline });
+  expect(videoFrames(out.master)).toBe(90);
+  expect(videoFrames(out.video)).toBe(75);
+  const pixels = execFileSync("ffmpeg", ["-v", "error", "-i", out.video, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { maxBuffer: 64 << 20 });
+  const at = (frame: number, x: number, y: number) => [...pixels.subarray(((frame * 90 + y) * 160 + x) * 3, ((frame * 90 + y) * 160 + x) * 3 + 3)];
+  expect(at(5, 5, 5)[0]).toBeGreaterThan(200);
+  expect(at(6, 5, 5)[0]).toBeGreaterThan(200); // fading in from the frame itself
+  expect(at(28, 5, 5)[0]).toBeGreaterThan(70);
+  expect(at(28, 5, 5)[0]).toBeLessThan(130); // dimmed to about 40 %
+  // White words across the middle of the card (the cursor, which sits there, isn't drawn over a card).
+  const white = (frame: number) => Array.from({ length: 160 * 12 }, (_, i) => at(frame, i % 160, 39 + Math.floor(i / 160)))
+    .filter((rgb) => rgb.every((v) => v > 180)).length;
+  expect(white(28)).toBeGreaterThan(10);
+  expect(at(51, 5, 5)[2]).toBeGreaterThan(200);
+});

@@ -29,15 +29,16 @@ export function compareTranscripts(left: unknown, right: unknown): { errors: str
   return { errors, differences };
 }
 
-const EFFECTS = ["flash", "frame", "zoom", "speed"];
-// Paths and times may differ between honest composes, and so may how long a sped-up wait took (GH-61 decision 005);
+const EFFECTS = ["flash", "frame", "zoom", "speed", "skip"];
+// Paths and times may differ between honest composes, and so may how long a sped-up or skipped wait took (GH-61
+// decision 005, GH-62 decision 004);
 // everything else an effect asked for must match.
 const effectKeys = (event: ComposerEvent) => Object.keys(event)
-  .filter((key) => key !== "t" && key !== "image" && !(event.type === "speed" && key === "durationMs")).sort();
+  .filter((key) => key !== "t" && key !== "image" && !((event.type === "speed" || event.type === "skip") && key === "durationMs")).sort();
 
 /**
  * Compare the effects of two event logs (GH-32 decision 007): the same `autoZoom`, and the same flashes, images,
- * zooms and speed-ups in the same order with the same options and image hashes, each starting within 150 ms. Clicks,
+ * zooms, speed-ups and skips in the same order with the same options and image hashes, each starting within 150 ms. Clicks,
  * moves, typing, scrolls and sounds come from the app and are not compared.
  */
 export function compareEffects(left: unknown, right: unknown): { errors: string[]; differences: string[] } {

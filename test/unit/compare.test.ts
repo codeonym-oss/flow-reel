@@ -80,6 +80,14 @@ describe("compareEffects (GH-32 decision 007)", () => {
     expect(compareEffects(sped(4, 1000, 15000), { ...log(), events: [] }).differences).toEqual(["effect count differs (1 and 0)"]);
   });
 
+  it("compares skips by label and start, not by how long the wait took (GH-62 decision 004)", () => {
+    const cut = (label: string, t: number, durationMs: number): EventLog =>
+      ({ version: 5, autoZoom: true, events: [{ t, type: "skip", durationMs, label }] });
+    expect(compareEffects(cut("{duration} skipped", 1000, 38000), cut("{duration} skipped", 1100, 21000)).differences).toEqual([]);
+    expect(compareEffects(cut("{duration} skipped", 1000, 38000), cut("later", 1000, 38000)).differences)
+      .toEqual(["effects[0] (skip) differs"]);
+  });
+
   it("reports an invalid event log as an error", () => {
     expect(compareEffects({ version: 3, events: [] }, log()).errors).toEqual([
       "left: events.json: version must be 5", "left: events.json: autoZoom must be true or false"]);

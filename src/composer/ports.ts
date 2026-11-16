@@ -28,6 +28,10 @@ export interface Stage {
   showFrame(image: string, durationMs: number, options?: unknown): Promise<void>;
   /** Runs `run` as an action of its step, played `factor` times faster in the video (GH-61). */
   speedUp(factor: number, run: () => Promise<unknown>): Promise<void>;
+  /** Runs `run` as an action of its step, cut from the video and shown as a card (GH-62). */
+  skip(run: () => Promise<unknown>, options?: unknown): Promise<void>;
+  /** Throws when the effect word `word` can't be used here: inside a skip, nothing is seen (GH-62 decision 004). */
+  checkEffect(word: string): void;
 }
 
 /** One script, open in its E2E tool and ready to replay. */

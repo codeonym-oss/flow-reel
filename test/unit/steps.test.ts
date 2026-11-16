@@ -151,3 +151,59 @@ describe("speedUp (GH-61 decisions 001, 004 and 005)", () => {
     expect(() => timer.comment("Next.")).not.toThrow();
   });
 });
+
+describe("skip (GH-62 decisions 002 and 004)", () => {
+  it("runs its actions in the open step and logs the cut where it started, with its label", async () => {
+    const { timer, advance } = fake();
+    const events: ComposerEvent[] = [];
+    timer.comment("The build takes a while.");
+    await timer.skip(async () => {
+      await timer.action(advance(20));
+      events.push({ t: 120, type: "sound", name: "success" });
+    }, { label: "{duration} plus tard" }, events);
+    await timer.skip(advance(5), undefined, events);
+    await timer.finish();
+    expect(timer.steps).toEqual([{ index: 0, comment: "The build takes a while.", startMs: 100, actionEndMs: 125, endMs: 225 }]);
+    expect(events).toEqual([{ t: 100, type: "skip", durationMs: 20, label: "{duration} plus tard" },
+      { t: 120, type: "sound", name: "success" }, { t: 120, type: "skip", durationMs: 5, label: "{duration} skipped" }]);
+  });
+
+  it("refuses a missing function or bad options where it is written", async () => {
+    const { timer } = fake();
+    await expect(timer.skip(undefined as unknown as () => Promise<void>, undefined, [])).rejects
+      .toThrow("skip() takes a function whose wait to cut, as in skip(() => …)");
+    await expect(timer.skip(async () => {}, { label: "" }, [])).rejects.toThrow('skip(): label must be non-empty text, got ""');
+  });
+
+  it("refuses comments, effects and nesting inside, either way round, and allows them again after", async () => {
+    const { timer } = fake();
+    const inside: unknown[] = [];
+    await timer.skip(async () => {
+      try { timer.comment("Hi."); } catch (e) { inside.push((e as Error).message); }
+      try { timer.outsideSkip("flash"); } catch (e) { inside.push((e as Error).message); }
+      await timer.skip(async () => {}, undefined, []).catch((e: Error) => inside.push(e.message));
+      await timer.speedUp(2, async () => {}, []).catch((e: Error) => inside.push(e.message));
+    }, undefined, []);
+    await timer.speedUp(2, async () => {
+      try { timer.outsideSkip("zoomIn"); } catch (e) { inside.push((e as Error).message); }
+      await timer.skip(async () => {}, undefined, []).catch((e: Error) => inside.push(e.message));
+    }, []);
+    expect(inside).toEqual([
+      "comment() can't be used inside skip(); put it before or after",
+      "flash() can't be used inside skip(); put it before or after",
+      "skip() can't be used inside skip(); put it before or after",
+      "speedUp() can't be used inside skip(); put it before or after",
+      "skip() can't be used inside speedUp(); put it before or after",
+    ]);
+    expect(() => { timer.comment("After."); timer.outsideSkip("flash"); }).not.toThrow();
+  });
+
+  it("names the failing step once when an action inside fails", async () => {
+    const { timer } = fake();
+    timer.comment("Build.");
+    const error = await timer.skip(async () => {
+      await timer.action(async () => { throw new Error("timed out"); });
+    }, undefined, []).catch((e: Error) => e);
+    expect(error).toMatchObject({ message: 'step 0 ("Build.") failed: timed out' });
+  });
+});

@@ -110,6 +110,15 @@ describe("validateEvents", () => {
     expect(one({ factor: 2, durationMs: -1 })).not.toEqual([]);
   });
 
+  it("accepts a skip and names a bad label or duration (GH-62 decision 004)", () => {
+    const one = (event: object) => validateEvents({ ...events, events: [{ t: 0, type: "skip", ...event }] });
+    expect(one({ durationMs: 38000, label: "{duration} skipped" })).toEqual([]);
+    for (const label of ["", "  ", 4, undefined]) {
+      expect(one({ durationMs: 1, label })).toEqual(["events[0]: label must be non-empty text"]);
+    }
+    expect(one({ durationMs: -1, label: "x" })).not.toEqual([]);
+  });
+
   it("names each malformed effect field", () => {
     const one = (event: object) => validateEvents({ ...events, events: [{ t: 0, ...event }] });
     expect(one({ type: "flash", color: "white", ms: 0 })).toEqual([

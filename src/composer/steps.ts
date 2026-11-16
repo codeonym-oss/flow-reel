@@ -3,7 +3,7 @@
 // step is due, after the app stops loading and settles again. A comment with no action before the next comment is
 // a step of its own, with no action.
 import { setTimeout as sleep } from "node:timers/promises";
-import { speedFactor } from "./effects.ts";
+import { skipSettings, speedFactor } from "./effects.ts";
 import type { Stage } from "./ports.ts";
 import type { ComposerEvent } from "./schema/events.ts";
 import type { TranscriptStep } from "./schema/transcript.ts";
@@ -82,6 +82,22 @@ export function stepTimer({ clock, idle, sleep: wait = sleep, warn = console.war
     return result;
   };
 
+  // Runs `run` as one action, the stretch of `word`, and logs `event` in `events` before whatever `run` logged.
+  async function stretchOf(word: string, run: () => Promise<unknown>, events: ComposerEvent[],
+    event: (t: number, durationMs: number) => ComposerEvent): Promise<void> {
+    await action(async () => {
+      const at = events.length;
+      const t = clock.now();
+      stretch = word;
+      try {
+        await run();
+      } finally {
+        stretch = undefined;
+      }
+      events.splice(at, 0, event(t, clock.now() - t));
+    });
+  }
+
   /**
    * Runs `run` as one action whose stretch plays `factor` times faster, and logs it in `events` before whatever `run`
    * logged (GH-61 decisions 004 and 005).
@@ -90,17 +106,20 @@ export function stepTimer({ clock, idle, sleep: wait = sleep, warn = console.war
     outsideStretch("speedUp");
     speedFactor(factor);
     if (typeof run !== "function") throw new Error("speedUp() takes a function to run faster, as in speedUp(4, () => …)");
-    await action(async () => {
-      const at = events.length;
-      const t = clock.now();
-      stretch = "speedUp";
-      try {
-        await run();
-      } finally {
-        stretch = undefined;
-      }
-      events.splice(at, 0, { t, type: "speed", factor, durationMs: clock.now() - t });
-    });
+    await stretchOf("speedUp", run, events, (t, durationMs) => ({ t, type: "speed", factor, durationMs }));
+  }
+
+  /** Runs `run` as one action whose stretch is cut from the video, and logs it like `speedUp` (GH-62 decision 004). */
+  async function skip(run: () => Promise<unknown>, options: unknown, events: ComposerEvent[]): Promise<void> {
+    outsideStretch("skip");
+    if (typeof run !== "function") throw new Error("skip() takes a function whose wait to cut, as in skip(() => …)");
+    const { label } = skipSettings(options);
+    await stretchOf("skip", run, events, (t, durationMs) => ({ t, type: "skip", durationMs, label }));
+  }
+
+  /** Throws when an effect word (`flash`, `zoomIn`, `zoomOut`) is used inside a skip, where nothing is seen. */
+  function outsideSkip(word: string) {
+    if (stretch === "skip") throw new Error(`${word}() can't be used inside skip(); put it before or after`);
   }
 
   /** Lays down the comments still queued and ends the last step; call it after the script returns. */
@@ -109,5 +128,5 @@ export function stepTimer({ clock, idle, sleep: wait = sleep, warn = console.war
     await end();
   }
 
-  return { steps, comment, action, speedUp, outsideStretch, finish };
+  return { steps, comment, action, speedUp, skip, outsideStretch, outsideSkip, finish };
 }

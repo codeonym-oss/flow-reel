@@ -29,13 +29,18 @@ _Avoid:_ audio, SFX.
 
 **Effect**
 A change to the picture written in the script: a flash (`flash`), a shown frame (`showFrame`), a zoom in or out
-(`zoomIn`, `zoomOut`), a speed-up (`speedUp`). An explicit zoom holds the camera until the zoom out.
+(`zoomIn`, `zoomOut`), a speed-up (`speedUp`), a skip (`skip`). An explicit zoom holds the camera until the zoom out.
 _Avoid:_ visual effect, SFX.
 
 **Speed-up**
 A stretch of the script, wrapped in `speedUp(factor, …)`, that plays faster in the reel, with a badge showing the
 factor. Only actions go inside it.
 _Avoid:_ fast-forward, time-lapse, play speed.
+
+**Skip**
+A stretch of the script, wrapped in `skip(…)`, cut from the reel and replaced by a card saying how long was cut. Only
+actions go inside it.
+_Avoid:_ cut, jump, time skip.
 
 Comment, sound and effect are the three families of flow-reel words. Each can stand alone in a script or be chained
 on the element it is about.

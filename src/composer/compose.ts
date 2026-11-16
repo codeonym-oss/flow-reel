@@ -14,7 +14,7 @@ import { FPS, durationMs, firstFrameOfColour, startRecording } from "./media/rec
 import { renderTimeline, videoFrames } from "./media/render.ts";
 import { soundLogger } from "./sounds.ts";
 import { stepTimer } from "./steps.ts";
-import { planTimeline, retimeEvents } from "./timeline.ts";
+import { dropSkipped, planTimeline, retimeEvents } from "./timeline.ts";
 import { voiceSteps } from "./voicing.ts";
 import { frameRequest, zoomOutEvent, zoomOutSettings } from "./effects.ts";
 
@@ -74,6 +74,8 @@ export async function compose(scriptPath: string, { integration, voice, store, c
         await session.run({ clock: recording, events, fps: FPS, comment: timer.comment, action: timer.action,
           sound: soundLogger(recording, events),
           speedUp: (factor, run) => timer.speedUp(factor, run, events),
+          skip: (run, options) => timer.skip(run, options, events),
+          checkEffect: timer.outsideSkip,
           async showFrame(image, durationMs, options) {
             timer.outsideStretch("showFrame");
             const request = frameRequest(dirname(scriptPath), image, durationMs, options);
@@ -131,8 +133,11 @@ export async function compose(scriptPath: string, { integration, voice, store, c
   const images = events.flatMap((e) => e.type === "frame" ? [e] : []).map((e, i) =>
     ({ t: e.t, durationMs: e.durationMs, file: imageFiles[i], fit: e.fit, background: e.background }));
   const speedUps = events.flatMap((e) => e.type === "speed" ? [{ t: e.t, durationMs: e.durationMs, factor: e.factor }] : []);
-  const timeline = planTimeline(voiced.steps, { fps: FPS, frames: videoFrames(out.capture), cutMs: deliveryCutMs, images, speedUps });
-  const log = { version: 5 as const, autoZoom: script.autoZoom, events: retimeEvents(events, timeline) };
+  // Nothing inside a skip is seen, so its events go (GH-62 decision 004).
+  const seen = dropSkipped(events);
+  const skips = seen.flatMap((e) => e.type === "skip" ? [{ t: e.t, durationMs: e.durationMs, label: e.label }] : []);
+  const timeline = planTimeline(voiced.steps, { fps: FPS, frames: videoFrames(out.capture), cutMs: deliveryCutMs, images, speedUps, skips });
+  const log = { version: 5 as const, autoZoom: script.autoZoom, events: retimeEvents(seen, timeline) };
   const eventErrors = validateEvents(log);
   if (eventErrors.length) throw new Error(`recording events are invalid:\n  ${eventErrors.join("\n  ")}`);
   renderTimeline({ capture: out.capture, master: out.master, video: out.stagedVideo,

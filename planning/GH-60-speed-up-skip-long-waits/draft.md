@@ -41,7 +41,9 @@ await skip(() => page.waitForResponse(/\/api\/build/), { label: "38 s plus tard"
 ## Tickets, in the order they ship
 
 1. Speed up a wait in a reel, with a badge showing the factor (includes the timeline retiming both words use)
-2. Skip a wait in a reel with a card, release 0.4.0 and teach both words in the plugin
+2. Skip a wait in a reel with a card, and release 0.4.0
+3. Teach `speedUp` and `skip` in the plugin, and release it (split from 2: a plugin release touches only `plugin/`;
+   GH-62 decision 001)
 
 ## Not part of this story
 

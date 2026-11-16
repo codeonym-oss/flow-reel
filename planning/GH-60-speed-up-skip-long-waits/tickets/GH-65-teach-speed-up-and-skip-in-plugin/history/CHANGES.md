@@ -1,0 +1,2 @@
+- 2026-11-16: drafted (GH-62 ticket pass).
+- 2026-11-16: issue #65 created; status tracked.

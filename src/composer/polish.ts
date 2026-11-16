@@ -24,6 +24,8 @@ export interface PolishOptions {
   imageSpans?: readonly { startMs: number; endMs: number }[];
   /** Where sped-up stretches play, in video milliseconds, each with its factor: each shows a badge (GH-61). */
   stretches?: readonly { startMs: number; endMs: number; factor: number }[];
+  /** Where skip cards show, in video milliseconds, with their words (GH-62); also among `imageSpans`. */
+  cards?: readonly { startMs: number; endMs: number; text: string }[];
 }
 const ZOOM_IN_MS = 650;
 const ZOOM_IDLE_MS = 2000;
