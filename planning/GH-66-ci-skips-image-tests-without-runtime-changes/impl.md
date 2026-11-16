@@ -42,3 +42,10 @@ running on both architectures (a few minutes), and nothing that reads check name
   unit tests that still run.
 - **Base ref missing** in the diff (shallow clone): `fetch-depth: 0` avoids it; if the diff command fails, the step
   fails rather than skipping silently (`set -euo pipefail`).
+
+## Corrections after the build
+
+- Pushes to `main` still ran everything, so every planning-only or plugin-only merge cost about 20 minutes on both
+  architectures. The person asked for pushes to use the same rule: PR #73 diffs `github.event.before..HEAD`, and
+  falls back to running everything for a manual run or a push whose previous commit can't be diffed.
+- The fast path was confirmed on PRs #69 and #70: the test jobs took about a minute.

@@ -3,7 +3,7 @@ kind: story
 title: Speed up or skip long waits in a reel
 key: GH-60
 parent:
-status: tracked
+status: done
 branch:
 tracker-url: https://github.com/codeonym-oss/flow-reel/issues/60
 mr:

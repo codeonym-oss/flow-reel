@@ -1,2 +1,7 @@
 - 2026-11-16: drafted (GH-62 ticket pass).
 - 2026-11-16: issue #65 created; status tracked.
+- 2026-11-16: decision 001 (widen the range for the release, then narrow it to 0.4).
+- 2026-11-16: decision 002 (where the plugin teaches waits).
+- 2026-11-16: impl.md written; status planned.
+- 2026-11-16: status building on feat/65-teach-speed-up-and-skip-in-plugin.
+- 2026-11-16: PR #69 merged (plugin 0.3.0, with 0.4.0); PR #71 (tests) and PR #72 (0.4 only) merged; status done.
