@@ -28,8 +28,9 @@ jobs:
           npm run build
           node dist/cli.js compare 2>&1 | grep -q "usage: flow-reel"
 
-  # Whether a pull request changes anything the package or the image is built from (GH-66): the plugin (but its
-  # examples), the planning tree and Markdown don't, so the image build and the e2e tests are skipped for them.
+  # Whether a pull request, or a push to main, changes anything the package or the image is built from (GH-66): the
+  # plugin (but its examples), the planning tree and Markdown don't, so the image build and the e2e tests are skipped
+  # for them. A manual run, or a push whose previous commit isn't known, always runs them; releases rerun them anyway.
   changes:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -43,13 +44,18 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
-          if [ "$EVENT" != pull_request ]; then
-            echo "runtime=true" >> "$GITHUB_OUTPUT"
+          case "$EVENT" in
+            pull_request) range="origin/$BASE_REF...HEAD" ;;
+            push) range="$BEFORE..HEAD" ;;
+            *) range="" ;;
+          esac
+          if [ -z "$range" ] || ! changed=$(git diff --name-only "$range" 2>/dev/null); then
+            echo "runtime=true" | tee -a "$GITHUB_OUTPUT"
             exit 0
           fi
-          changed=$(git diff --name-only "origin/$BASE_REF...HEAD")
           echo "$changed"
           runtime=$(printf '%s\n' "$changed" | awk '!/^planning\// && !/\.md$/ &&
             !(/^plugin\// && !/^plugin\/examples\//) && NF { n++ } END { print n ? "true" : "false" }')
