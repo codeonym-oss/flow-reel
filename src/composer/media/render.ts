@@ -93,7 +93,22 @@ function renderMaster(capture: string, master: string, timeline: Timeline): void
     labels.push(`[${label}]`);
     from = to;
   };
-  for (const insertion of timeline.insertions) {
+  // Insertions and stretches in source order; at one frame, insertions play first (they never overlap a stretch).
+  const cuts = [...timeline.insertions, ...timeline.stretches]
+    .sort((a, b) => a.frame - b.frame || Number("kept" in a) - Number("kept" in b));
+  for (const insertion of cuts) {
+    if ("kept" in insertion) {
+      span(insertion.frame, 0);
+      const to = insertion.frame + insertion.frames;
+      const label = `s${labels.length}`;
+      // Output frame i is source frame floor(i × f): frame n is kept when ceil(n/f) < (n+1)/f (GH-61 decision 008).
+      const f = insertion.factor;
+      filters.push(`[0:v]trim=start_frame=${from}:end_frame=${to},setpts=PTS-STARTPTS,setsar=1,` +
+        `select='lt(ceil(n/${f}),(n+1)/${f})'[${label}]`);
+      labels.push(`[${label}]`);
+      from = to;
+      continue;
+    }
     if (!insertion.image) {
       span(insertion.frame, insertion.frames);
       continue;
@@ -130,7 +145,7 @@ interface RenderOptions {
 }
 
 export function renderTimeline({ capture, master, video, voice, audioDir, viewport: [width, height], timeline, events = [], sound = true, autoZoom = true }: RenderOptions): void {
-  if (!timeline.insertions.length) copyFileSync(capture, master);
+  if (!timeline.insertions.length && !timeline.stretches.length) copyFileSync(capture, master);
   else renderMaster(capture, master, timeline);
   if (videoFrames(master) !== timeline.frames) throw new Error("rendered master frame count disagrees with timeline");
   const hasVoice = assembleVoice(voice, audioDir, timeline);
@@ -143,7 +158,8 @@ export function renderTimeline({ capture, master, video, voice, audioDir, viewpo
   const dimensions = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries",
     "stream=width,height", "-of", "json", master], { encoding: "utf8" })).streams[0];
   const polish = polishFilters(events, { viewport: [width, height], source: [dimensions.width, dimensions.height],
-    fps: timeline.fps, frames: timeline.frames - timeline.cutFrames, autoZoom, imageSpans: timeline.imageSpans }, video, audio ? 2 : 1);
+    fps: timeline.fps, frames: timeline.frames - timeline.cutFrames, autoZoom, imageSpans: timeline.imageSpans, stretches: timeline.stretches },
+    video, audio ? 2 : 1);
   const graph = video + ".filters";
   writeFileSync(graph, `[0:v]trim=start_frame=${timeline.cutFrames},setpts=PTS-STARTPTS[trimmed];${polish.filters}`);
   // FFmpeg 8+ removed the old script option; the recording image still uses FFmpeg 6.

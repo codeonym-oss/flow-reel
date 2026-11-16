@@ -1,0 +1,2 @@
+- 2026-11-16: drafted by the story's global pass.
+- 2026-11-16: issue #62 created; status tracked.

@@ -20,6 +20,8 @@ const html = readFileSync(resolve("test/e2e/app/index.html"));
 let server: Server;
 let port: number;
 let image: string;
+// The slow reply a speedUp waits for (GH-61): 20 s at ×4 checks the same ratio as the story's 60 s, in less CI time.
+const SLOW_MS = 20_000;
 const COMMENTS = ["  Type <b>Ada</b> & &lt; --> 保存.\r\n  ", "Scroll down and save.", "Open the settings."];
 
 const script = (p: number, viewport?: [number, number]) => `import { script, Sounds } from "flow-reel";
@@ -79,6 +81,7 @@ beforeAll(async () => {
   image = prepareImage();
   server = createServer((req, res) => {
     if (req.url === "/delayed") return void setTimeout(() => res.writeHead(200).end("ready"), 350);
+    if (req.url === "/slow") return void setTimeout(() => res.writeHead(200).end("reply"), SLOW_MS);
     res.writeHead(200, { "content-type": "text/html" }).end(html);
   });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
@@ -201,6 +204,77 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540], aut
   }, 240_000);
 });
 
+describe("speedUp in a composed reel (GH-61)", () => {
+  const speedScript = (p: number, inside = "") => `import { script } from "flow-reel";
+export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, async ({ page, comment, speedUp }) => {
+  comment("Ask for the slow reply.");
+  await speedUp(4, async () => {
+    ${inside}
+    await page.evaluate(() => fetch("/slow").then((r) => r.text()));
+  });
+  await page.getByRole("link", { name: "Settings" }).click();
+});`;
+  const composeSpeed = async (name: string, inside?: string) => {
+    const dir = join(OUT, name);
+    rmSync(dir, { recursive: true, force: true });
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "demo.ts"), speedScript(port, inside));
+    const container = `flow-reel-${name}-${randomUUID()}`;
+    try {
+      const { stderr } = await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g",
+        "--network", "host", "--user", `${process.getuid!()}:${process.getgid!()}`, "-v", `${dir}:/work`, image,
+        "compose", "/work/demo.ts"], { timeout: 300_000 });
+      if (stderr) writeFileSync(join(dir, "record.log"), stderr);
+    } finally {
+      spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
+    }
+    const reel = join(dir, "demo.reel");
+    return { reel, events: JSON.parse(readFileSync(join(reel, "events.json"), "utf8")) as EventLog,
+      transcript: JSON.parse(readFileSync(join(reel, "transcript.json"), "utf8")) as Transcript };
+  };
+  let first: Awaited<ReturnType<typeof composeSpeed>>;
+  let second: Awaited<ReturnType<typeof composeSpeed>>;
+  beforeAll(async () => {
+    first = await composeSpeed("speed-a");
+    second = await composeSpeed("speed-b");
+  }, 900_000);
+
+  it("plays the 20 s wait in about 5 s, with the comment spoken whole", () => {
+    expect(validateEvents(first.events)).toEqual([]);
+    const speed = first.events.events.find((e) => e.type === "speed")!;
+    expect(speed).toMatchObject({ type: "speed", factor: 4 });
+    if (speed.type !== "speed") throw new Error("no speed event");
+    expect(speed.durationMs).toBeGreaterThan(SLOW_MS / 4 - 100);
+    expect(speed.durationMs).toBeLessThan(SLOW_MS / 4 + 1000);
+    expect(first.transcript.video.durationMs).toBeLessThan(SLOW_MS - 5000);
+    const [step] = first.transcript.steps;
+    expect(step.endMs - step.startMs).toBeGreaterThanOrEqual(step.audio!.durationMs);
+  });
+
+  it("shows the badge in the top-right corner while the stretch plays, and not after", () => {
+    const speed = first.events.events.find((e) => e.type === "speed")!;
+    if (speed.type !== "speed") throw new Error("no speed event");
+    const raw = execFileSync("ffmpeg", ["-v", "error", "-i", join(first.reel, "video.mp4"), "-vf", "scale=96:54,format=rgb24",
+      "-f", "rawvideo", "-"], { maxBuffer: 1 << 28 });
+    const size = 96 * 54 * 3;
+    const light = (frame: number) => raw[frame * size + (3 * 96 + 92) * 3];
+    const mid = Math.round((speed.t + speed.durationMs / 2) * 30 / 1000);
+    const after = Math.round((speed.t + speed.durationMs) * 30 / 1000) + 15;
+    expect(light(mid)).toBeLessThan(light(after) - 60);
+  });
+
+  it("verifies, and a second compose matches it", () => {
+    expect(verifyReel(first.reel)).toMatchObject({ errors: [], differences: [] });
+    const result = spawnSync(process.execPath, ["dist/cli.js", "compare", first.reel, second.reel], { encoding: "utf8" });
+    expect(result).toMatchObject({ status: 0, stdout: "Reels match (step starts and effects within 150 ms).\n" });
+  });
+
+  it("fails the compose with a clear error when a comment is used inside", async () => {
+    await expect(composeSpeed("speed-comment", `comment("Too late.");`)).rejects
+      .toMatchObject({ stderr: expect.stringContaining("comment() can't be used inside speedUp(); put it before or after") });
+  }, 300_000);
+});
+
 it("captures the settled response while keeping the callback finish time", async () => {
   const dir = join(OUT, "settled");
   mkdirSync(dir, { recursive: true });
@@ -318,7 +392,7 @@ describe("flow-reel compose", () => {
     expect(validateSync(a.transcript)).toEqual([]);
     for (const s of a.transcript.steps) expect(s.endMs - s.startMs).toBeGreaterThanOrEqual(s.audio!.durationMs + 200 - 1e-6);
     expect(validateEvents(a.events)).toEqual([]);
-    expect(a.events).toMatchObject({ version: 4, autoZoom: true });
+    expect(a.events).toMatchObject({ version: 5, autoZoom: true });
     expect(a.transcript.steps).toHaveLength(3);
     expect(a.events.events.map((e) => e.type)).toEqual(["move", "click", "type", "scroll", "move", "click", "sound", "scroll", "move", "click", "sound"]);
     for (const e of a.events.events) if (e.type === "click" || e.type === "type") {

@@ -1,0 +1,14 @@
+- 2026-11-16: drafted by the story's global pass.
+- 2026-11-16: issue #61 created; status tracked.
+- 2026-11-16: ticket pass started; decision 001 (factors).
+- 2026-11-16: decision 002 (one bundled font, drawn with drawtext; the earlier pixel-glyph answer reopened).
+- 2026-11-16: decision 003 (durations map start and end through the timeline).
+- 2026-11-16: decision 004 (sounds, flash and zoom allowed inside speedUp).
+- 2026-11-16: decision 005 (speed event, event log version 5).
+- 2026-11-16: decision 006 (badge top-right, 200 ms fades).
+- 2026-11-16: decision 007 (keep every N-th frame, exactly, with select).
+- 2026-11-16: decision 008 (floor, not round); impl.md written; status planned.
+- 2026-11-16: draft.md's open questions replaced with what the ticket pass settled.
+- 2026-11-16: branch feat/61-speed-up-a-wait; status building.
+- 2026-11-16: impl.md corrections noted during the build.
+- 2026-11-16: pull request #63 opened; status in-review.

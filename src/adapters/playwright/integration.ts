@@ -37,9 +37,9 @@ export const playwright: Integration = {
               await page.evaluate((id) => document.getElementById(id)?.remove(), MARK_ID);
             },
             async run(stage) {
-              const { clock, events, fps, comment, sound, showFrame } = stage;
+              const { clock, events, fps, comment, sound, showFrame, speedUp } = stage;
               const { page: wrapped, flash, zoomIn, zoomOut } = wrapScript(page, { clock, events, fps, viewport, stage });
-              await script.body({ page: wrapped, comment, sound, showFrame, flash, zoomIn, zoomOut });
+              await script.body({ page: wrapped, comment, sound, showFrame, flash, zoomIn, zoomOut, speedUp });
             },
             close: () => context.close(),
           };

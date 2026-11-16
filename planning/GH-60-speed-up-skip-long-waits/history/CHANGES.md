@@ -1,0 +1,6 @@
+- 2026-11-16: created from the shaping session (decisions 001-004 moved here; notes kept as history/2026-11-16_0900_shaping-notes.md).
+- 2026-11-16: decision 005, speedUp and skip wrap the wait in a callback.
+- 2026-11-16: decision 006, only actions inside a wrapped wait.
+- 2026-11-16: decision 007, fixed look for badge and card, skip takes a label.
+- 2026-11-16: draft.md written, two tickets drafted (speed-up-a-wait, skip-a-wait-and-release); status drafted.
+- 2026-11-16: issue #60 created; status tracked.

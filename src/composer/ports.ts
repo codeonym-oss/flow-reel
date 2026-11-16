@@ -26,6 +26,8 @@ export interface Stage {
   action<T>(run: () => Promise<T>): Promise<T>;
   /** Inserts an image into the video, as an action of its step (GH-32 decision 003). */
   showFrame(image: string, durationMs: number, options?: unknown): Promise<void>;
+  /** Runs `run` as an action of its step, played `factor` times faster in the video (GH-61). */
+  speedUp(factor: number, run: () => Promise<unknown>): Promise<void>;
 }
 
 /** One script, open in its E2E tool and ready to replay. */

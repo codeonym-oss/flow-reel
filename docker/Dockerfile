@@ -20,6 +20,7 @@ RUN if [ -f package-lock.json ]; then npm ci --omit=dev --no-fund --no-audit; \
     else npm install --omit=dev --no-fund --no-audit; fi
 COPY dist ./dist
 COPY docker/sfx ./docker/sfx
+COPY docker/fonts ./docker/fonts
 
 ENV FLOW_REEL_IN_CONTAINER=1 HOME=/tmp HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 TOKENIZERS_PARALLELISM=false
 USER pwuser

@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import { extname, isAbsolute, relative, resolve, sep } from "node:path";
-import { type Bounds, type FlashEvent, type FrameEvent, type Point, type ZoomEvent, FITS, type Fit, HEX_COLOR, MAX_ZOOM } from "./schema/events.ts";
+import { type Bounds, type FlashEvent, type FrameEvent, type Point, type ZoomEvent, FITS, type Fit, HEX_COLOR, MAX_SPEED, MAX_ZOOM } from "./schema/events.ts";
 
 export interface FlashOptions {
   /** `#rrggbb`; white by default. */
@@ -72,6 +72,14 @@ export function zoomInSettings(value?: unknown): { scale: number; ms: number } {
 export function zoomOutSettings(value?: unknown): { ms: number } {
   const o = options<ZoomOutOptions>("zoomOut", value, ["ms"]);
   return { ms: positive("zoomOut", "ms", o.ms, ZOOM_OUT_MS) };
+}
+
+/** Checks `speedUp`'s factor: above 1 and at most 16, fractions allowed (GH-61 decision 001). */
+export function speedFactor(value: unknown): number {
+  if (typeof value !== "number" || !(value > 1 && value <= MAX_SPEED)) {
+    throw new Error(`speedUp(): the factor must be a number above 1 and at most ${MAX_SPEED}, got ${JSON.stringify(value)}`);
+  }
+  return value;
 }
 
 export const zoomInEvent = (t: number, at: Point, bounds: Bounds | undefined, settings: { scale: number; ms: number }): ZoomEvent =>

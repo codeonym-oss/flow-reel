@@ -73,7 +73,9 @@ export async function compose(scriptPath: string, { integration, voice, store, c
       try {
         await session.run({ clock: recording, events, fps: FPS, comment: timer.comment, action: timer.action,
           sound: soundLogger(recording, events),
+          speedUp: (factor, run) => timer.speedUp(factor, run, events),
           async showFrame(image, durationMs, options) {
+            timer.outsideStretch("showFrame");
             const request = frameRequest(dirname(scriptPath), image, durationMs, options);
             await timer.action(async () => {
               events.push({ t: recording.now(), ...request.event });
@@ -128,8 +130,9 @@ export async function compose(scriptPath: string, { integration, voice, store, c
   }
   const images = events.flatMap((e) => e.type === "frame" ? [e] : []).map((e, i) =>
     ({ t: e.t, durationMs: e.durationMs, file: imageFiles[i], fit: e.fit, background: e.background }));
-  const timeline = planTimeline(voiced.steps, { fps: FPS, frames: videoFrames(out.capture), cutMs: deliveryCutMs, images });
-  const log = { version: 4 as const, autoZoom: script.autoZoom, events: retimeEvents(events, timeline) };
+  const speedUps = events.flatMap((e) => e.type === "speed" ? [{ t: e.t, durationMs: e.durationMs, factor: e.factor }] : []);
+  const timeline = planTimeline(voiced.steps, { fps: FPS, frames: videoFrames(out.capture), cutMs: deliveryCutMs, images, speedUps });
+  const log = { version: 5 as const, autoZoom: script.autoZoom, events: retimeEvents(events, timeline) };
   const eventErrors = validateEvents(log);
   if (eventErrors.length) throw new Error(`recording events are invalid:\n  ${eventErrors.join("\n  ")}`);
   renderTimeline({ capture: out.capture, master: out.master, video: out.stagedVideo,

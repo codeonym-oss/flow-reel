@@ -61,3 +61,17 @@ describe("effect words (GH-32 decisions 001 and 002)", () => {
     expect(script({ url: "http://x", autoZoom: false }, async () => {}).options.autoZoom).toBe(false);
   });
 });
+
+describe("speedUp (GH-61)", () => {
+  it("takes a factor and a function, and is awaited", () => {
+    const check = async ({ page, speedUp }: ScriptContext) => {
+      await speedUp(4, () => page.getByText("Done").waitFor());
+      await speedUp(1.5, async () => {});
+      // @ts-expect-error the factor is a number
+      await speedUp("4", async () => {});
+      // @ts-expect-error it wraps a function
+      await speedUp(4);
+    };
+    expect(typeof check).toBe("function");
+  });
+});
