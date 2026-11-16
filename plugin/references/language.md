@@ -1,11 +1,10 @@
 # The flow-reel language
 
-**Supported runtime:** `>=0.2.0 <0.5.0`
+**Supported runtime:** `>=0.4.0 <0.5.0`
 
 Everything a script can say, and every command, for the runtime versions above. If a word, option or flag is not
 on this page, flow-reel doesn't have it: say so instead of inventing it. The plugin's `scripts/preflight.mjs`
-reports the project's version and whether it is in this range. Cloud voices need 0.3.0 or later, `speedUp` and
-`skip` 0.4.0 or later; everything else works on 0.2.
+reports the project's version and whether it is in this range.
 
 ## The words
 
@@ -105,7 +104,7 @@ Clicks and typing sound by themselves. A sound marks a moment that matters; it i
   happens before that hold. To act at the next scene's start, chain the word on its first action. A zoom still held
   at the end eases out as the script's actions end, before the last comment finishes.
 
-## Long waits (runtime 0.4.0 or later)
+## Long waits
 
 A wait shows in real time unless its script shortens it. Wrap the wait, and only the wait, in one of two words:
 
@@ -195,7 +194,7 @@ existing file is rewritten only with `--save-config`.
 | baseUrl | cloud only: the provider's endpoint, a proxy, or an OpenAI-compatible server | the provider's |
 
 The local voice runs on the CPU: expect about a minute per short comment on a laptop, and several GB of memory. A
-cloud voice (runtime 0.3.0 or later) speaks a whole script in seconds, and needs a key and a network:
+cloud voice speaks a whole script in seconds, and needs a key and a network:
 
 | voice | Default model | Default speaker | Key variable |
 |---|---|---|---|
