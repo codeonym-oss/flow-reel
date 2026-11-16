@@ -67,26 +67,26 @@ describe("preflight.mjs", () => {
 
   it("passes with an answering engine, the image present, a supported runtime and an answering app", async () => {
     const fake = fakePath("all-good", { version: true, info: true, image: true });
-    const result = await run(preflight, ["--url", `${base}/`, "--version", "0.2.0", "--json"], fake.path);
+    const result = await run(preflight, ["--url", `${base}/`, "--version", "0.4.0", "--json"], fake.path);
     expect(result.status).toBe(0);
     const c = checks(result.stdout);
     expect([c.engine.status, c.runtime.status, c.image.status, c.url.status]).toEqual(["ok", "ok", "ok", "ok"]);
   });
 
   it("fails without an engine, and names an engine that is installed but not answering", async () => {
-    const none = await run(preflight, ["--version", "0.2.0", "--json"], fakePath("no-engine").path);
+    const none = await run(preflight, ["--version", "0.4.0", "--json"], fakePath("no-engine").path);
     expect(none.status).toBe(1);
     expect(checks(none.stdout).engine.detail).toMatch(/neither Docker nor Podman/);
-    const down = await run(preflight, ["--version", "0.2.0", "--json"], fakePath("engine-down", { version: true, info: false }).path);
+    const down = await run(preflight, ["--version", "0.4.0", "--json"], fakePath("engine-down", { version: true, info: false }).path);
     expect(down.status).toBe(1);
     expect(checks(down.stdout).engine).toMatchObject({ status: "fail", detail: "docker installed but not answering" });
   });
 
   it("reports a missing image with the pull command, and never pulls it", async () => {
     const fake = fakePath("no-image", { version: true, info: true, image: false });
-    const result = await run(preflight, ["--version", "0.2.0", "--json"], fake.path);
+    const result = await run(preflight, ["--version", "0.4.0", "--json"], fake.path);
     expect(result.status).toBe(0);
-    expect(checks(result.stdout).image).toMatchObject({ status: "note", fix: "docker pull ghcr.io/codeonym-oss/flow-reel:0.2.0" });
+    expect(checks(result.stdout).image).toMatchObject({ status: "note", fix: "docker pull ghcr.io/codeonym-oss/flow-reel:0.4.0" });
     expect(readFileSync(fake.log, "utf8")).not.toMatch(/^(pull|build|run)/m);
   });
 
@@ -99,15 +99,15 @@ describe("preflight.mjs", () => {
     const project = join(work, "a project", "demos");
     mkdirSync(project, { recursive: true });
     mkdirSync(join(project, "../node_modules/flow-reel"), { recursive: true });
-    writeFileSync(join(project, "../node_modules/flow-reel/package.json"), JSON.stringify({ version: "0.2.3" }));
+    writeFileSync(join(project, "../node_modules/flow-reel/package.json"), JSON.stringify({ version: "0.4.3" }));
     writeFileSync(join(project, "settings.ts"), "");
     const found = await run(preflight, ["--script", join(project, "settings.ts"), "--json"], fake.path);
     expect(found.status).toBe(0);
-    expect(checks(found.stdout).runtime.detail).toMatch(/^flow-reel 0\.2\.3/);
+    expect(checks(found.stdout).runtime.detail).toMatch(/^flow-reel 0\.4\.3/);
     expect(checks(found.stdout).script.status).toBe("ok");
   });
 
-  it("checks a cloud voice's runtime and key variable, never its value (GH-49)", async () => {
+  it("checks a cloud voice's key variable, never its value (GH-49)", async () => {
     const fake = fakePath("voices", { version: true, info: true, image: true });
     const project = join(work, "voices");
     mkdirSync(project, { recursive: true });
@@ -119,24 +119,22 @@ describe("preflight.mjs", () => {
         { OPENAI_API_KEY: "", MY_KEY: "", ...env });
       return { ...checks(result.stdout).voice, exit: result.status };
     };
-    expect(await voice(undefined, "0.2.0")).toMatchObject({ exit: 0, detail: expect.stringContaining("local voice") });
-    expect(await voice({ version: 1, voice: { adapter: "openai" } }, "0.2.0"))
-      .toMatchObject({ exit: 1, detail: "openai is a cloud voice; flow-reel 0.2.0 has none" });
-    expect(await voice({ version: 1, voice: { adapter: "openai" } }, "0.3.0"))
+    expect(await voice(undefined, "0.4.0")).toMatchObject({ exit: 0, detail: expect.stringContaining("local voice") });
+    expect(await voice({ version: 1, voice: { adapter: "openai" } }, "0.4.0"))
       .toMatchObject({ exit: 1, detail: "openai needs OPENAI_API_KEY, which isn't set here" });
     const secret = "sk-preflight-secret";
-    const ok = await voice({ version: 1, voice: { adapter: "openai", apiKeyEnv: "MY_KEY" } }, "0.3.0", { MY_KEY: secret });
+    const ok = await voice({ version: 1, voice: { adapter: "openai", apiKeyEnv: "MY_KEY" } }, "0.4.0", { MY_KEY: secret });
     expect(ok).toMatchObject({ exit: 0, detail: "openai, key in MY_KEY" });
     expect(JSON.stringify(ok)).not.toContain(secret);
-    expect(await voice({ version: 1, voice: { adapter: "openai", apiKey: secret } }, "0.3.0"))
+    expect(await voice({ version: 1, voice: { adapter: "openai", apiKey: secret } }, "0.4.0"))
       .toMatchObject({ exit: 1, detail: expect.stringContaining("voice.apiKey") });
     expect(await voice({ version: 1, voice: { adapter: "openai-compatible", baseUrl: "http://localhost:8880/v1", model: "kokoro" } },
-      "0.3.0")).toMatchObject({ exit: 0, detail: "openai-compatible at http://localhost:8880/v1, with no key" });
+      "0.4.0")).toMatchObject({ exit: 0, detail: "openai-compatible at http://localhost:8880/v1, with no key" });
   });
 
   it("fails an app that doesn't answer or answers an error, and notes a redirect", async () => {
     const fake = fakePath("urls", { version: true, info: true, image: true });
-    const url = async (u: string) => checks((await run(preflight, ["--version", "0.2.0", "--url", u, "--json"], fake.path)).stdout).url;
+    const url = async (u: string) => checks((await run(preflight, ["--version", "0.4.0", "--url", u, "--json"], fake.path)).stdout).url;
     expect(await url(`${base}/missing`)).toMatchObject({ status: "fail", detail: expect.stringContaining("404") });
     expect(await url(`${base}/login-wall`)).toMatchObject({ status: "note", detail: expect.stringContaining("/login") });
     expect(await url("http://127.0.0.1:1/")).toMatchObject({ status: "fail", detail: expect.stringContaining("start the app") });
