@@ -146,10 +146,31 @@ await speedUp(4, () => page.getByText("Done").waitFor({ timeout: 120_000 }));
 - **The factor** is any number above 1 and at most 16, fractions included (`1.5`). Frames are dropped, not blended:
   the stretch reads as fast-forward.
 - **Inside `fn`** go actions, sounds, `flash` and zoom; they follow the faster pace. `comment`, `showFrame` and
-  another `speedUp` throw there, since they would add time: put them before or after.
+  another `speedUp` or a `skip` throw there, since they would add time: put them before or after.
 - **A comment** spoken over the stretch keeps its normal speed. If it outlasts the shortened stretch, the last
   frame holds until it ends, as for any step.
 - **Reels** record each stretch as a `speed` event in the event log (version 5), and `compare` checks its factor.
+
+### Skip a wait
+
+`await skip(fn, options?)` runs `fn` as one action of its step and cuts that stretch from the video. In its place, a
+card shows the frame before the wait, dimmed, with "⏭ 38 s skipped" in the middle. Use it for waits that show
+nothing worth watching, such as a build:
+
+```ts
+comment("The build takes a while; here is the result.");
+await skip(() => page.waitForResponse(/\/api\/build/), { label: "{duration} plus tard" });
+```
+
+- **The card** says how long was cut, in whole seconds: "38 s", "1 min 52 s". `label` replaces the words after
+  "⏭"; `{duration}` in it shows that length, and a label without it shows as written. The bundled Noto Sans covers
+  Latin, Greek and Cyrillic; other scripts show as boxes.
+- **It lasts** 1.5 s, or longer while a comment spoken over it hasn't finished: the comment is never cut. The card
+  and its words fade in and out over 200 ms, and no cursor or zoom is drawn over it.
+- **Inside `fn`** go actions and sounds; nothing of them is seen or heard. `comment`, `showFrame`, `flash`, zoom,
+  `speedUp` and another `skip` throw there: put them before or after.
+- **Reels** record each skip as a `skip` event in the event log, with the length cut and the label; `compare`
+  checks its label.
 
 ## Compose
 

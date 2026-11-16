@@ -1,8 +1,8 @@
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { type Curve, planPolish, type PolishOptions } from "../polish.ts";
 import type { ComposerEvent } from "../schema/events.ts";
+import { advanceEm, FONTS_DIR as fonts } from "./fonts.ts";
 
 // Same cubic curves as the pure planner, evaluated by FFmpeg on the delivery frame clock.
 function expression(curve: Curve, clock: string, initial: number): string {
@@ -39,12 +39,15 @@ function cursor(file: string): void {
   writeFileSync(file, Buffer.concat([Buffer.from(`P7\nWIDTH ${size}\nHEIGHT ${size}\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n`), pixels]));
 }
 
-// The bundled fonts (GH-61 decision 002): Noto Sans Bold for the factor, Noto Sans Symbols 2 for the arrows.
-const fonts = fileURLToPath(new URL("../../../docker/fonts/", import.meta.url));
+// The bundled fonts (GH-61 decision 002): Noto Sans Bold for the words, Noto Sans Symbols 2 for the arrows.
 // Advance widths in em, from the fonts' hmtx tables, so the box fits its text without measuring at render time.
 const ARROWS_EM = 2 * 0.799;
 const textEm = (text: string) => [...text].reduce((n, c) => n + (c === "." ? 0.281 : 0.572), 0);
 const BADGE_FADE_MS = 200;
+// A skip's card (GH-62 decision 003): the frame dimmed to 40 %, the text 6 % of the height, both fading over 200 ms.
+const CARD_DIM = 0.6;
+const CARD_FADE_MS = 200;
+const SKIP_ICON = "⏭";
 
 /**
  * The speed-up badge (GH-61 decision 006): "▶▶ ×N" in white, 4 % of the video's height, on a dark, slightly
@@ -80,6 +83,7 @@ export function polishFilters(events: readonly ComposerEvent[], options: PolishO
   const arrow = join(work, "cursor.pam");
   cursor(arrow);
   const stretches = options.stretches ?? [];
+  const cards = options.cards ?? [];
   const inputs = ["-loop", "1", "-framerate", String(options.fps), "-i", arrow];
   const boundedExpression = (c: Curve, clock: string, initial: number, start: number, end: number) => {
     const first = Math.max(0, c.findLastIndex((s) => s.start <= start));
@@ -134,7 +138,7 @@ export function polishFilters(events: readonly ComposerEvent[], options: PolishO
   const flashes = events.filter((e) => e.type === "flash" && e.t >= 0 && e.t < options.frames * 1000 / options.fps);
   filters.push(`[${previous}][${firstInput}:v]overlay=x='(${pointer[0]}-(${crop[0]}))*${width}/(${crop[2]})-1':` +
     `y='(${pointer[1]}-(${crop[1]}))*${height}/(${crop[2]})-1':shortest=1${visible ? `:enable='1${visible}'` : ""}` +
-    `[${flashes.length || stretches.length ? "cursor" : "polished"}]`);
+    `[${flashes.length || cards.length || stretches.length ? "cursor" : "polished"}]`);
   previous = "cursor";
   // A flash is a full-frame colour whose opacity fades from 1 to 0, drawn over everything (GH-32 decision 002).
   flashes.forEach((event, i) => {
@@ -142,15 +146,39 @@ export function polishFilters(events: readonly ComposerEvent[], options: PolishO
     const input = firstInput + 1 + (plan.clicks.length ? 1 : 0) + i;
     inputs.push("-f", "lavfi", "-i", `color=c=0x${event.color.slice(1)}:s=${width}x${height}:r=${options.fps}:d=${event.ms / 1000}`);
     const startFrame = Math.ceil(event.t * options.fps / 1000 - 1e-9);
-    const out = i + 1 < flashes.length || stretches.length ? `flash${i}` : "polished";
+    const out = i + 1 < flashes.length || cards.length || stretches.length ? `flash${i}` : "polished";
     filters.push(`[${input}:v]format=rgba,fade=t=out:st=0:d=${event.ms / 1000}:alpha=1,setpts=PTS+${startFrame / options.fps}/TB[f${i}]`);
     filters.push(`[${previous}][f${i}]overlay=eof_action=pass:repeatlast=0:enable='gte(t*${options.fps},${startFrame}-1e-9)'[${out}]`);
+    previous = out;
+  });
+  // A card: a black layer and the text over the held frame, fading in and out inside the card's time (GH-62).
+  cards.forEach((card, i) => {
+    const input = firstInput + 1 + (plan.clicks.length ? 1 : 0) + flashes.length + i;
+    const start = Math.round(card.startMs * options.fps / 1000) / options.fps;
+    const end = Math.round(card.endMs * options.fps / 1000) / options.fps;
+    const fade = Math.min(CARD_FADE_MS / 1000, (end - start) / 2);
+    inputs.push("-f", "lavfi", "-i", `color=c=black:s=${width}x${height}:r=${options.fps}:d=${end - start}`);
+    filters.push(`[${input}:v]format=rgba,colorchannelmixer=aa=${CARD_DIM},fade=t=in:st=0:d=${fade}:alpha=1,` +
+      `fade=t=out:st=${end - start - fade}:d=${fade}:alpha=1,setpts=PTS+${start}/TB[dim${i}]`);
+    // The words go through a file, so a label needs no escaping; the icon and the words are centred as one line.
+    const words = join(work, `card${i}.txt`);
+    writeFileSync(words, card.text);
+    const size = Math.max(8, Math.round(height * 0.06));
+    const gap = Math.round(size * 0.3);
+    const iconWidth = Math.round(size * advanceEm("NotoSansSymbols2-Regular.ttf", SKIP_ICON));
+    const iconX = Math.round((width - iconWidth - gap - size * advanceEm("NotoSans-Bold.ttf", card.text)) / 2);
+    const alpha = `'min(1,min((t-${start})/${fade},(${end}-t)/${fade}))'`;
+    const common = `fontsize=${size}:fontcolor=white:y='${height / 2}-th/2':alpha=${alpha}:enable='between(t,${start},${end})'`;
+    const out = i + 1 < cards.length || stretches.length ? `card${i}` : "polished";
+    filters.push(`[${previous}][dim${i}]overlay=eof_action=pass:repeatlast=0,` +
+      `drawtext=fontfile='${join(fonts, "NotoSansSymbols2-Regular.ttf")}':text='${SKIP_ICON}':x=${iconX}:${common},` +
+      `drawtext=fontfile='${join(fonts, "NotoSans-Bold.ttf")}':textfile='${words}':expansion=none:x=${iconX + iconWidth + gap}:${common}[${out}]`);
     previous = out;
   });
   // Last, so zoom never scales the badge and a flash never covers it. It fades in and out over 200 ms inside the
   // stretch, less when the stretch is shorter (GH-61 decision 006).
   stretches.forEach((stretch, i) => {
-    const input = firstInput + 1 + (plan.clicks.length ? 1 : 0) + flashes.length + i;
+    const input = firstInput + 1 + (plan.clicks.length ? 1 : 0) + flashes.length + cards.length + i;
     const box = join(work, `badge${i}.pam`);
     const b = badge(box, stretch.factor, [width, height]);
     inputs.push("-loop", "1", "-framerate", String(options.fps), "-i", box);

@@ -10,9 +10,8 @@ Some waits are too long even sped up (a two-minute build is 30 s at ×4). The vi
   a card on the dimmed last frame, "⏭ 38 s skipped" by default, for about 1.5 s, longer while a comment is still
   being spoken (story decisions 003, 005, 007). Sounds inside the stretch are dropped.
 - Built on the previous ticket's retiming.
-- Release 0.4.0 (`feat:`), and the plugin (`plugin/references/language.md`, the reel skill) teaches `speedUp` and
-  `skip`, when to choose each, and narrating a wait with a comment just before it; the plugin's supported range
-  includes 0.4.
+- Release 0.4.0: merge release-please's PR (#64) once `skip` is in, and check npm and the image are published.
+- The plugin's teaching is its own ticket, after this one (decision 001).
 
 ## For the ticket pass
 
@@ -25,5 +24,4 @@ Some waits are too long even sped up (a two-minute build is 30 s at ×4). The vi
 - A script waiting about 60 s, wrapped in `skip(…)`, composes into a reel where the wait is replaced by the card,
   the comment before it is spoken whole over the card, and `verify` and `compare` pass.
 - `label` replaces the card's text; a bad option throws where it is written.
-- npm `flow-reel@0.4.0` and the image are published for amd64 and arm64; the plugin release lists the new words and
-  its preflight accepts 0.4.
+- npm `flow-reel@0.4.0` and the image are published for amd64 and arm64.

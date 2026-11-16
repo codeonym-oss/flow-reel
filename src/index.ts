@@ -2,9 +2,9 @@
 // GH-61).
 import type { Page } from "playwright";
 import type { Sound } from "./composer/schema/events.ts";
-import type { FlashOptions, ShowFrameOptions, ZoomInOptions, ZoomOutOptions } from "./composer/effects.ts";
+import type { FlashOptions, ShowFrameOptions, SkipOptions, ZoomInOptions, ZoomOutOptions } from "./composer/effects.ts";
 export { Sounds, type Sound } from "./composer/schema/events.ts";
-export type { FlashOptions, ShowFrameOptions, ZoomInOptions, ZoomOutOptions } from "./composer/effects.ts";
+export type { FlashOptions, ShowFrameOptions, SkipOptions, ZoomInOptions, ZoomOutOptions } from "./composer/effects.ts";
 
 declare module "playwright-core" {
   interface Locator {
@@ -50,9 +50,16 @@ export interface ScriptContext {
   /**
    * Runs `fn` as one action, played `factor` times faster in the video (above 1, at most 16), with a "▶▶ ×N" badge in
    * the top-right corner. For waits: only actions, sounds, `flash` and zoom go inside; `comment`, `showFrame` and
-   * another `speedUp` throw. A comment spoken over it keeps its normal speed.
+   * another `speedUp` or a `skip` throw. A comment spoken over it keeps its normal speed.
    */
   speedUp(factor: number, fn: () => Promise<unknown>): Promise<void>;
+  /**
+   * Runs `fn` as one action, cut from the video: a card on the dimmed last frame shows "⏭ 38 s skipped" instead, for
+   * at least 1.5 s or until the comment spoken over it ends. `label` replaces the words after "⏭"; `{duration}` in it
+   * shows the length cut. For waits: only actions and sounds go inside, and nothing of them is seen or heard;
+   * `comment`, `showFrame`, `flash`, zoom, `speedUp` and another `skip` throw.
+   */
+  skip(fn: () => Promise<unknown>, options?: SkipOptions): Promise<void>;
 }
 
 export type ScriptBody = (context: ScriptContext) => Promise<void>;

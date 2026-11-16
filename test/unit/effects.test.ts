@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { flashSettings, frameRequest, zoomInSettings, zoomOutSettings } from "../../src/composer/effects.ts";
 
 const dirs: string[] = [];
@@ -55,4 +55,26 @@ it("rejects images the composer can't read or render", () => {
   expect(() => frameRequest(dir, "img/diagram.PNG", 0)).toThrow("the duration must be a number of milliseconds > 0");
   expect(() => frameRequest(dir, "img/diagram.PNG", 10, { fit: "stretch" })).toThrow('fit must be "contain" or "cover"');
   expect(() => frameRequest(dir, 42, 10)).toThrow("showFrame() takes the image's path");
+});
+
+describe("skip (GH-62 decision 002)", () => {
+  it("defaults the label, and refuses unknown options and empty or non-text labels", async () => {
+    const { skipSettings } = await import("../../src/composer/effects.ts");
+    expect(skipSettings()).toEqual({ label: "{duration} skipped" });
+    expect(skipSettings({ label: "{duration} plus tard" })).toEqual({ label: "{duration} plus tard" });
+    expect(() => skipSettings({ lable: "x" })).toThrow('skip(): unknown option "lable"; it takes label');
+    for (const label of ["", " ", 4]) {
+      expect(() => skipSettings({ label })).toThrow(`skip(): label must be non-empty text, got ${JSON.stringify(label)}`);
+    }
+    expect(() => skipSettings("x")).toThrow("skip() takes an options object");
+  });
+
+  it("shows lengths in whole seconds and minutes, and fills every {duration}", async () => {
+    const { cardText, formatDuration } = await import("../../src/composer/effects.ts");
+    expect([400, 38_400, 59_600, 112_400, 120_000, 3_600_000].map(formatDuration))
+      .toEqual(["0 s", "38 s", "1 min", "1 min 52 s", "2 min", "60 min"]);
+    expect(cardText("{duration} skipped", 38_000)).toBe("38 s skipped");
+    expect(cardText("{duration} plus tard, {duration}", 61_000)).toBe("1 min 1 s plus tard, 1 min 1 s");
+    expect(cardText("Later", 61_000)).toBe("Later");
+  });
 });

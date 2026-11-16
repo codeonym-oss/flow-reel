@@ -93,10 +93,17 @@ function renderMaster(capture: string, master: string, timeline: Timeline): void
     labels.push(`[${label}]`);
     from = to;
   };
-  // Insertions and stretches in source order; at one frame, insertions play first (they never overlap a stretch).
-  const cuts = [...timeline.insertions, ...timeline.stretches]
-    .sort((a, b) => a.frame - b.frame || Number("kept" in a) - Number("kept" in b));
+  // Insertions, stretches and skips in source order; at one frame, insertions play first (they never overlap a
+  // stretch or a skip). A skip's card is a hold: polish draws on it.
+  const skipped = timeline.skips.map((s) => ({ ...s, skip: true as const }));
+  const later = (x: object) => Number("kept" in x || "skip" in x);
+  const cuts = [...timeline.insertions, ...timeline.stretches, ...skipped].sort((a, b) => a.frame - b.frame || later(a) - later(b));
   for (const insertion of cuts) {
+    if ("skip" in insertion) {
+      span(insertion.frame, 0);
+      from = insertion.frame + insertion.frames;
+      continue;
+    }
     if ("kept" in insertion) {
       span(insertion.frame, 0);
       const to = insertion.frame + insertion.frames;
@@ -158,7 +165,9 @@ export function renderTimeline({ capture, master, video, voice, audioDir, viewpo
   const dimensions = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries",
     "stream=width,height", "-of", "json", master], { encoding: "utf8" })).streams[0];
   const polish = polishFilters(events, { viewport: [width, height], source: [dimensions.width, dimensions.height],
-    fps: timeline.fps, frames: timeline.frames - timeline.cutFrames, autoZoom, imageSpans: timeline.imageSpans, stretches: timeline.stretches },
+    fps: timeline.fps, frames: timeline.frames - timeline.cutFrames, autoZoom, stretches: timeline.stretches, cards: timeline.cardSpans,
+    // Nothing is drawn over a card either, and the crop is full (GH-62 decision 003).
+    imageSpans: [...timeline.imageSpans, ...timeline.cardSpans.map(({ startMs, endMs }) => ({ startMs, endMs }))] },
     video, audio ? 2 : 1);
   const graph = video + ".filters";
   writeFileSync(graph, `[0:v]trim=start_frame=${timeline.cutFrames},setpts=PTS-STARTPTS[trimmed];${polish.filters}`);

@@ -19,7 +19,7 @@ export interface WrapOptions {
   /** CSS pixels; defaults to the page's emulated viewport. */
   viewport?: [width: number, height: number];
   /** Steps and sounds; without it, actions just run. */
-  stage?: Pick<Stage, "comment" | "sound" | "action">;
+  stage?: Pick<Stage, "comment" | "sound" | "action" | "checkEffect">;
 }
 
 const CHAR_DELAY_MS = 60;
@@ -72,7 +72,7 @@ export function wrapPage(page: Page, options: WrapOptions): Page {
 /** The wrapped page and the standalone effect words, which share the wrapper's clock and pointer. */
 export function wrapScript(page: Page, options: WrapOptions) {
   const { clock, events, fps = 30 } = options;
-  const stage = options.stage ?? { comment() {}, sound() {}, action: (run) => run() };
+  const stage = options.stage ?? { comment() {}, sound() {}, action: (run) => run(), checkEffect() {} };
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const warned = new Set<string>();
   const [vw, vh] = options.viewport ?? [page.viewportSize()?.width ?? 1920, page.viewportSize()?.height ?? 1080];
@@ -236,9 +236,9 @@ export function wrapScript(page: Page, options: WrapOptions) {
       get(obj, prop, receiver) {
         if (prop === "comment") return (text: string) => { stage.comment(text); return proxy; };
         if (prop === "sound") return (next: Sound) => { checkSound(next); return wrapLocator(locator, { ...chain, sound: next }); };
-        if (prop === "flash") return (o?: unknown) => wrapLocator(locator, { ...chain, flash: flashSettings(o) });
-        if (prop === "zoomIn") return (o?: unknown) => wrapLocator(locator, { ...chain, zoomIn: zoomInSettings(o) });
-        if (prop === "zoomOut") return (o?: unknown) => wrapLocator(locator, { ...chain, zoomOut: zoomOutSettings(o) });
+        if (prop === "flash") return (o?: unknown) => { stage.checkEffect("flash"); return wrapLocator(locator, { ...chain, flash: flashSettings(o) }); };
+        if (prop === "zoomIn") return (o?: unknown) => { stage.checkEffect("zoomIn"); return wrapLocator(locator, { ...chain, zoomIn: zoomInSettings(o) }); };
+        if (prop === "zoomOut") return (o?: unknown) => { stage.checkEffect("zoomOut"); return wrapLocator(locator, { ...chain, zoomOut: zoomOutSettings(o) }); };
         const value = Reflect.get(obj, prop, receiver);
         if (typeof prop !== "string" || typeof value !== "function") return value;
         const original = value.bind(obj);
@@ -327,9 +327,9 @@ export function wrapScript(page: Page, options: WrapOptions) {
   return {
     page: wrapped,
     /** Flashes the screen now. */
-    flash: (o?: unknown) => void events.push({ t: clock.now(), type: "flash", ...flashSettings(o) }),
+    flash: (o?: unknown) => { stage.checkEffect("flash"); events.push({ t: clock.now(), type: "flash", ...flashSettings(o) }); },
     /** Zooms in on wherever the pointer is. */
-    zoomIn: (o?: unknown) => void events.push(zoomInEvent(clock.now(), pointer, undefined, zoomInSettings(o))),
-    zoomOut: (o?: unknown) => void events.push(zoomOutEvent(clock.now(), zoomOutSettings(o))),
+    zoomIn: (o?: unknown) => { stage.checkEffect("zoomIn"); events.push(zoomInEvent(clock.now(), pointer, undefined, zoomInSettings(o))); },
+    zoomOut: (o?: unknown) => { stage.checkEffect("zoomOut"); events.push(zoomOutEvent(clock.now(), zoomOutSettings(o))); },
   };
 }

@@ -1,5 +1,6 @@
 // The event log: v1 actions (story decision 013), v2 added sound cues, v3 names them `sound` (GH-30 decision 003),
-// v4 adds effects and `autoZoom` (GH-32 decision 005), v5 adds `speed` (GH-61 decision 005).
+// v4 adds effects and `autoZoom` (GH-32 decision 005), v5 adds `speed` (GH-61 decision 005)
+// and `skip` (GH-62 decision 004).
 import { type Errors, isObject, nonNegative, point, text } from "./check.ts";
 
 export type Point = [x: number, y: number];
@@ -27,7 +28,7 @@ export type ComposerEvent =
   | { t: number; type: "type"; text: string; charDelayMs: number; target: string; bounds?: Bounds }
   | { t: number; type: "scroll"; delta: Point; durationMs: number }
   | { t: number; type: "sound"; name: SoundName }
-  | FlashEvent | FrameEvent | ZoomEvent | SpeedEvent;
+  | FlashEvent | FrameEvent | ZoomEvent | SpeedEvent | SkipEvent;
 
 export type Fit = "contain" | "cover";
 export interface FlashEvent { t: number; type: "flash"; color: string; ms: number }
@@ -41,6 +42,8 @@ export type ZoomEvent =
   | { t: number; type: "zoom"; zoom: "out"; ms: number };
 /** A stretch played `factor` times faster; `durationMs` is how long it lasts on the event log's clock. */
 export interface SpeedEvent { t: number; type: "speed"; factor: number; durationMs: number }
+/** A stretch cut from the video and shown as a card; `durationMs` is the length cut, `label` the card's words. */
+export interface SkipEvent { t: number; type: "skip"; durationMs: number; label: string }
 
 export interface EventLog {
   version: 5;
@@ -131,6 +134,10 @@ export function validateEvents(value: unknown): Errors {
         nonNegative(errors, where, event, "durationMs");
         break;
       }
+      case "skip":
+        nonNegative(errors, where, event, "durationMs");
+        if (typeof event.label !== "string" || !event.label.trim()) errors.push(`${where}label must be non-empty text`);
+        break;
       default:
         errors.push(`${where}unknown type ${JSON.stringify(event.type)}`);
     }

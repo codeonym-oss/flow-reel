@@ -23,6 +23,10 @@ export interface ZoomInOptions {
   /** How long the zoom takes, in milliseconds; 650 by default. */
   ms?: number;
 }
+export interface SkipOptions {
+  /** The card's words after "⏭"; `{duration}` shows the length cut, as "38 s". "{duration} skipped" by default. */
+  label?: string;
+}
 export interface ZoomOutOptions {
   /** How long the return to the full screen takes, in milliseconds; 800 by default. */
   ms?: number;
@@ -81,6 +85,25 @@ export function speedFactor(value: unknown): number {
   }
   return value;
 }
+
+/** Checks `skip`'s options (GH-62 decision 002). */
+export function skipSettings(value?: unknown): { label: string } {
+  const o = options<SkipOptions>("skip", value, ["label"]);
+  if (o.label === undefined) return { label: "{duration} skipped" };
+  if (typeof o.label !== "string" || !o.label.trim()) throw new Error(`skip(): label must be non-empty text, got ${JSON.stringify(o.label)}`);
+  return { label: o.label };
+}
+
+/** A length in whole seconds, as a card shows it: "38 s", "1 min 52 s", "2 min" (GH-62 decision 002). */
+export function formatDuration(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) return `${seconds} s`;
+  const rest = seconds % 60;
+  return `${Math.floor(seconds / 60)} min${rest ? ` ${rest} s` : ""}`;
+}
+
+/** A skip card's words: its label with every `{duration}` filled in. */
+export const cardText = (label: string, durationMs: number) => label.replaceAll("{duration}", formatDuration(durationMs));
 
 export const zoomInEvent = (t: number, at: Point, bounds: Bounds | undefined, settings: { scale: number; ms: number }): ZoomEvent =>
   ({ t, type: "zoom", zoom: "in", at, ...(bounds ? { bounds } : {}), ...settings });

@@ -62,6 +62,20 @@ describe("effect words (GH-32 decisions 001 and 002)", () => {
   });
 });
 
+describe("skip (GH-62)", () => {
+  it("takes a function and an optional label, and is awaited", () => {
+    const check = async ({ page, skip }: ScriptContext) => {
+      await skip(() => page.waitForResponse(/build/));
+      await skip(async () => {}, { label: "{duration} plus tard" });
+      // @ts-expect-error label is text
+      await skip(async () => {}, { label: 4 });
+      // @ts-expect-error it wraps a function
+      await skip();
+    };
+    expect(typeof check).toBe("function");
+  });
+});
+
 describe("speedUp (GH-61)", () => {
   it("takes a factor and a function, and is awaited", () => {
     const check = async ({ page, speedUp }: ScriptContext) => {

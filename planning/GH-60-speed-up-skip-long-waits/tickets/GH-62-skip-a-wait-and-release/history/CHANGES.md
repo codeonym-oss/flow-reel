@@ -1,2 +1,8 @@
 - 2026-11-16: drafted by the story's global pass.
 - 2026-11-16: issue #62 created; status tracked.
+- 2026-11-16: ticket pass started; decision 001 (plugin split out); draft narrowed.
+- 2026-11-16: decision 002 (label may contain {duration}).
+- 2026-11-16: decision 003 (card duration and look).
+- 2026-11-16: decision 004 (skip event, hidden events dropped, words inside).
+- 2026-11-16: impl.md written; status planned.
+- 2026-11-16: status building on feat/62-skip-a-wait.

@@ -265,8 +265,10 @@ describe("wrapPage with a stage", () => {
       comment: (text: string) => void log.push(`comment ${text}`),
       sound: (name: string) => { log.push(`sound ${name}`); events.push({ t: now, type: "sound", name: name as "success" }); },
       async action<T>(run: () => Promise<T>) { log.push("action"); const result = await run(); log.push("done"); return result; },
+      checkEffect: (word: string) => void log.push(`check ${word}`),
     };
-    return { log, p: wrapPage(page, { clock, events, sleep, warn: (m) => warnings.push(m), stage }) };
+    const script = wrapScript(page, { clock, events, sleep, warn: (m) => warnings.push(m), stage });
+    return { log, p: script.page, script };
   };
   const save = { x: 900, y: 500, width: 120, height: 40 };
   const boxes = () => ({ "button Save": save, "button Save.first()": save });
@@ -280,6 +282,16 @@ describe("wrapPage with a stage", () => {
     await p.keyboard.type("a");
     await p.evaluate(() => 1);
     expect(log).toEqual(Array(5).fill(["action", "done"]).flat());
+  });
+
+  it("asks the stage whether each effect word may be used, chained or standalone (GH-62 decision 004)", async () => {
+    const { page } = fakePage(boxes());
+    const { log, p, script } = staged(page);
+    p.getByRole("button", { name: "Save" }).flash().zoomIn().zoomOut();
+    script.flash();
+    script.zoomIn();
+    script.zoomOut();
+    expect(log).toEqual(["flash", "zoomIn", "zoomOut", "flash", "zoomIn", "zoomOut"].map((w) => `check ${w}`));
   });
 
   it("opens a chained comment's step before the action it is chained on", async () => {

@@ -214,11 +214,11 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, a
   });
   await page.getByRole("link", { name: "Settings" }).click();
 });`;
-  const composeSpeed = async (name: string, inside?: string) => {
+  const composeSpeed = async (name: string, inside?: string, make = speedScript) => {
     const dir = join(OUT, name);
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "demo.ts"), speedScript(port, inside));
+    writeFileSync(join(dir, "demo.ts"), make(port, inside));
     const container = `flow-reel-${name}-${randomUUID()}`;
     try {
       const { stderr } = await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g",
@@ -273,6 +273,60 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, a
     await expect(composeSpeed("speed-comment", `comment("Too late.");`)).rejects
       .toMatchObject({ stderr: expect.stringContaining("comment() can't be used inside speedUp(); put it before or after") });
   }, 300_000);
+
+  describe("skip (GH-62)", () => {
+    const skipScript = (p: number, inside = "") => `import { script, Sounds } from "flow-reel";
+export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, async ({ page, comment, skip, sound }) => {
+  comment("The reply takes a while; here it is.");
+  await skip(async () => {
+    ${inside}
+    sound(Sounds.feedback.SUCCESS);
+    await page.evaluate(() => fetch("/slow").then((r) => r.text()));
+  }, { label: "{duration} plus tard" });
+  await page.getByRole("link", { name: "Settings" }).click();
+});`;
+    let a: Awaited<ReturnType<typeof composeSpeed>>;
+    let b: Awaited<ReturnType<typeof composeSpeed>>;
+    beforeAll(async () => {
+      a = await composeSpeed("skip-a", undefined, skipScript);
+      b = await composeSpeed("skip-b", undefined, skipScript);
+    }, 900_000);
+
+    it("cuts the 20 s wait to a card, drops what happened inside, and speaks the comment whole", () => {
+      expect(validateEvents(a.events)).toEqual([]);
+      const cut = a.events.events.find((e) => e.type === "skip")!;
+      if (cut.type !== "skip") throw new Error("no skip event");
+      expect(cut.label).toBe("{duration} plus tard");
+      expect(cut.durationMs).toBeGreaterThan(SLOW_MS - 100);
+      expect(cut.durationMs).toBeLessThan(SLOW_MS + 1000);
+      expect(a.events.events.some((e) => e.type === "sound")).toBe(false);
+      expect(a.transcript.video.durationMs).toBeLessThan(SLOW_MS - 12_000);
+      const [step] = a.transcript.steps;
+      expect(step.endMs - step.startMs).toBeGreaterThanOrEqual(step.audio!.durationMs);
+    });
+
+    it("shows the dimmed card with white words in the middle", () => {
+      const cut = a.events.events.find((e) => e.type === "skip")!;
+      const still = (ms: number) => execFileSync("ffmpeg", ["-v", "error", "-ss", String(ms / 1000), "-i", join(a.reel, "video.mp4"),
+        "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"], { maxBuffer: 1 << 24 });
+      const card = still(cut.t + 750), before = still(cut.t - 100);
+      expect(card[500 * 960 + 50]).toBeLessThan(before[500 * 960 + 50] * 0.6);
+      // The words sit across the middle row band, in white; the dimmed app around them is grey.
+      const band = card.subarray(250 * 960, 285 * 960);
+      expect(band.filter((v) => v > 230).length).toBeGreaterThan(200);
+    });
+
+    it("verifies, and a second compose matches it", () => {
+      expect(verifyReel(a.reel)).toMatchObject({ errors: [], differences: [] });
+      const result = spawnSync(process.execPath, ["dist/cli.js", "compare", a.reel, b.reel], { encoding: "utf8" });
+      expect(result).toMatchObject({ status: 0, stdout: "Reels match (step starts and effects within 150 ms).\n" });
+    });
+
+    it("fails the compose with a clear error when flash is used inside", async () => {
+      await expect(composeSpeed("skip-flash", "flash();", (p, inside) => skipScript(p, inside).replace("sound })", "sound, flash })"))).rejects
+        .toMatchObject({ stderr: expect.stringContaining("flash() can't be used inside skip(); put it before or after") });
+    }, 300_000);
+  });
 });
 
 it("captures the settled response while keeping the callback finish time", async () => {
