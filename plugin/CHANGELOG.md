@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/codeonym-oss/flow-reel/compare/flow-reel-plugin-v0.2.1...flow-reel-plugin-v0.3.0) (2026-11-16)
+
+
+### Features
+
+* teach speedUp and skip in the plugin ([#65](https://github.com/codeonym-oss/flow-reel/issues/65)) ([#69](https://github.com/codeonym-oss/flow-reel/issues/69)) ([f5944e5](https://github.com/codeonym-oss/flow-reel/commit/f5944e5fffc4faa7b9589c4ee470b7232e700e69))
+
 ## [0.2.1](https://github.com/codeonym-oss/flow-reel/compare/flow-reel-plugin-v0.2.0...flow-reel-plugin-v0.2.1) (2026-11-15)
 
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/codeonym-oss/flow-reel/compare/v0.3.1...v0.4.0) (2026-11-16)
+
+
+### Features
+
+* skip a wait in a reel ([#62](https://github.com/codeonym-oss/flow-reel/issues/62)) ([#67](https://github.com/codeonym-oss/flow-reel/issues/67)) ([f97bf62](https://github.com/codeonym-oss/flow-reel/commit/f97bf62c95ad9837ca2dc7c55520717bfd3509f8))
+* speed up a wait in a reel ([#61](https://github.com/codeonym-oss/flow-reel/issues/61)) ([#63](https://github.com/codeonym-oss/flow-reel/issues/63)) ([7988cee](https://github.com/codeonym-oss/flow-reel/commit/7988cee8f3a64a623f5a728e0661dfc38c7a456e))
+
 ## [0.3.1](https://github.com/codeonym-oss/flow-reel/compare/v0.3.0...v0.3.1) (2026-11-15)
 
 
