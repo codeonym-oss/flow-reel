@@ -2,3 +2,4 @@
 - 2026-11-16: issue #66 created; status tracked.
 - 2026-11-16: ticket pass done; impl.md written; status planned.
 - 2026-11-16: built in PR #68 (full CI ran, as it touches .github/); status done on merge. The fast path is checked on GH-65's PR.
+- 2026-11-16: impl.md corrected after the build: pushes to main use the same rule (PR #73).

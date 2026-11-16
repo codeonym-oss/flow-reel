@@ -5,3 +5,4 @@
 - 2026-11-16: draft.md written, two tickets drafted (speed-up-a-wait, skip-a-wait-and-release); status drafted.
 - 2026-11-16: issue #60 created; status tracked.
 - 2026-11-16: ticket list updated: the plugin ticket split from GH-62.
+- 2026-11-16: all three tickets done; 0.4.0 and the plugin released; status done.

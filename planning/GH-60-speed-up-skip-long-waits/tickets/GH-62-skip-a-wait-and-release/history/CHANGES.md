@@ -7,3 +7,4 @@
 - 2026-11-16: impl.md written; status planned.
 - 2026-11-16: status building on feat/62-skip-a-wait.
 - 2026-11-16: PR #67 opened; status in-review.
+- 2026-11-16: PR #67 merged; release 0.4.0 published (#64); status done.
