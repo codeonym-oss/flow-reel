@@ -6,3 +6,4 @@
 - 2026-11-16: decision 004 (skip event, hidden events dropped, words inside).
 - 2026-11-16: impl.md written; status planned.
 - 2026-11-16: status building on feat/62-skip-a-wait.
+- 2026-11-16: PR #67 opened; status in-review.
