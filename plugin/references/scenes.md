@@ -34,6 +34,8 @@ and review a reel; in the script it is a comment followed by the actions it cove
   reading time beyond the comment (a table, a chart), give the scene a comment that talks about it, or frame it
   with `zoomIn` so the viewer knows where to look. A `page.waitForTimeout(…)` pause is a last resort, for reading
   only, and never a substitute for waiting on a real state.
+- **Shorten a long wait, don't sit through it.** When the result takes more than a few seconds (an agent's reply,
+  a build), wrap the wait in `speedUp` or `skip` (`direction.md`, "Pacing"). Note the wait's length while exploring.
 
 ## Common scenes
 
@@ -44,5 +46,6 @@ and review a reel; in the script it is a comment followed by the actions it cove
 | Edit | item visible | open, change, save | the changed value shown |
 | Error and recovery | form visible | submit a bad value | the error message; then fix and resubmit |
 | Navigate | page A | click the link | page B's heading |
+| Long job | job ready to start | start it | the finished state, behind `speedUp` or `skip` |
 
-`shots.md` has a worked script for each, with comments, sounds and effects.
+`shots.md` has worked scripts for these, with comments, sounds and effects.

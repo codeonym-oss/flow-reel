@@ -167,3 +167,62 @@ export default script({ url: "http://localhost:4173/" }, async ({ page }) => {
 - A second `zoomIn` pans from one target to the next without widening; a slow `zoomOut`, chained on the next
   scene's action, widens after both comments have been spoken.
 - Above 4/3 the picture softens a little: worth it for small table text, not for whole panels.
+
+## The agent's reply (speed up)
+
+An answer streams in over half a minute. Watching it grow tells the story; watching it in real time doesn't.
+
+```ts
+import { script, Sounds } from "flow-reel";
+
+export default script({ url: "http://localhost:4173/assistant" }, async ({ page, comment, sound, speedUp }) => {
+  await page.getByLabel("Message")
+    .comment("Ask the assistant to summarise last week's incidents.")
+    .fill("Summarise last week's incidents");
+  await page.getByRole("button", { name: "Send" }).click();
+
+  comment("It reads every report, and writes the summary as it goes.");
+  await speedUp(6, () => page.getByRole("status").filter({ hasText: "Done" }).waitFor({ timeout: 120_000 }));
+  sound(Sounds.feedback.NOTIFICATION);
+
+  await page.getByRole("article").last()
+    .comment("Three incidents, each with its cause and its fix.")
+    .zoomIn()
+    .hover();
+});
+```
+
+- The comment comes before `speedUp`, so it plays over the faster stretch at normal speed. Pick the factor from the
+  wait you measured while exploring: 30 s at ×6 is 5 s of video, about one comment.
+- Only the wait is inside. The sound and the zoom on the answer come after it, at normal speed.
+- The `timeout` covers the slowest reply you saw, with room to spare; Playwright's default 30 s would fail the
+  compose on a slow day.
+
+## The long build (skip)
+
+A job runs for minutes and shows nothing worth watching: a build, a deploy, an export. Only the result matters.
+
+```ts
+import { script, Sounds } from "flow-reel";
+
+export default script({ url: "http://localhost:4173/pipelines" }, async ({ page, comment, sound, flash, skip }) => {
+  await page.getByRole("button", { name: "Run pipeline" })
+    .comment("Start a build of the main branch.")
+    .click();
+
+  comment("The build takes a few minutes; here is the result.");
+  await skip(() => page.getByText("Build passed").waitFor({ timeout: 600_000 }));
+
+  sound(Sounds.feedback.SUCCESS);
+  flash();
+  await page.getByRole("link", { name: "Download artifacts" })
+    .comment("It passed, and the artifacts are ready to download.")
+    .hover();
+});
+```
+
+- The card says how long was cut ("⏭ 3 min 12 s skipped"), so the viewer knows time passed. The comment before
+  `skip` plays over the card, which stays until it ends.
+- `{ label: "A few minutes later" }` replaces the words, for a reel where the exact time doesn't matter or varies
+  between composes; `{ label: "{duration} plus tard" }` for a French reel.
+- Nothing inside a skip is seen or heard: mark the result after it, never inside.

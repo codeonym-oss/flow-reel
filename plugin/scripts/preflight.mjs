@@ -81,17 +81,6 @@ function checkVoice(dir, version) {
       fix: `the person sets it in the shell that composes (export ${variable}=...); never in flow-reel.json` };
 }
 
-/** The script exists, and uses no word newer than the runtime: `speedUp` and `skip` need 0.4.0 (GH-65 decision 001). */
-function checkScript(file, version) {
-  if (!existsSync(file)) return { status: "fail", detail: `${file} doesn't exist` };
-  const words = [...new Set(readFileSync(file, "utf8").match(/\b(speedUp|skip)(?=\s*\()/g) ?? [])];
-  if (version && words.length && !satisfies(version, ">=0.4.0 <999.0.0")) {
-    return { status: "fail", detail: `${file} uses ${words.join(" and ")}, which flow-reel ${version} doesn't have`,
-      fix: "npm install --save-dev flow-reel@0.4" };
-  }
-  return { status: "ok", detail: `${file} exists` };
-}
-
 const probe = (cmd, args) => spawnSync(cmd, args, { encoding: "utf8", timeout: 15_000 });
 
 async function checkUrl(url) {
@@ -148,7 +137,11 @@ export async function preflight(args) {
 
   add("voice", checkVoice(args.script ? dirname(args.script) : process.cwd(), found?.version));
 
-  if (args.script) add("script", checkScript(args.script, found?.version));
+  if (args.script) {
+    add("script", existsSync(args.script)
+      ? { status: "ok", detail: `${args.script} exists` }
+      : { status: "fail", detail: `${args.script} doesn't exist` });
+  }
   if (args.url) add("url", await checkUrl(args.url));
   return checks;
 }
