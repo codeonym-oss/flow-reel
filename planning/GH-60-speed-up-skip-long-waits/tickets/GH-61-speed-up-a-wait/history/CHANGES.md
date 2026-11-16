@@ -11,3 +11,4 @@
 - 2026-11-16: draft.md's open questions replaced with what the ticket pass settled.
 - 2026-11-16: branch feat/61-speed-up-a-wait; status building.
 - 2026-11-16: impl.md corrections noted during the build.
+- 2026-11-16: pull request #63 opened; status in-review.
