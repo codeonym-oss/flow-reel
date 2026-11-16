@@ -50,12 +50,12 @@ function installedVersion(from) {
   }
 }
 
-/** Each cloud voice's default key variable (runtime 0.3.0 and later); `openai-compatible` has none. */
+/** Each cloud voice's default key variable; `openai-compatible` has none. */
 const CLOUD_KEYS = { openai: "OPENAI_API_KEY", gemini: "GEMINI_API_KEY", openrouter: "OPENROUTER_API_KEY",
   together: "TOGETHER_API_KEY", groq: "GROQ_API_KEY", elevenlabs: "ELEVENLABS_API_KEY", "openai-compatible": undefined };
 
 /** The voice in the folder's flow-reel.json, and whether its key is set; never reads or prints the key's value. */
-function checkVoice(dir, version) {
+function checkVoice(dir) {
   let config;
   try { config = JSON.parse(readFileSync(join(dir, "flow-reel.json"), "utf8")); }
   catch (error) {
@@ -68,10 +68,6 @@ function checkVoice(dir, version) {
   if ("apiKey" in voice) {
     return { status: "fail", detail: "flow-reel.json holds a key (voice.apiKey), which flow-reel refuses",
       fix: "remove it, put the key in an environment variable, and name the variable in voice.apiKeyEnv" };
-  }
-  if (version && !satisfies(version, ">=0.3.0 <999.0.0")) {
-    return { status: "fail", detail: `${adapter} is a cloud voice; flow-reel ${version} has none`,
-      fix: "npm install --save-dev flow-reel@0.4" };
   }
   const variable = voice.apiKeyEnv ?? CLOUD_KEYS[adapter];
   if (!variable) return { status: "ok", detail: `${adapter} at ${voice.baseUrl ?? "(no baseUrl)"}, with no key` };
@@ -125,7 +121,7 @@ export async function preflight(args) {
   if (!found) {
     add("runtime", { status: "fail", detail: "no flow-reel installed here and no --version given", fix: "npm install --save-dev flow-reel@0.4" });
   } else if (!satisfies(found.version, range)) {
-    add("runtime", { status: "fail", detail: `flow-reel ${found.version} (${found.where}); this plugin supports ${range}`, fix: "install a supported flow-reel, or update the plugin" });
+    add("runtime", { status: "fail", detail: `flow-reel ${found.version} (${found.where}); this plugin supports ${range}`, fix: "npm install --save-dev flow-reel@0.4, or update the plugin" });
   } else add("runtime", { status: "ok", detail: `flow-reel ${found.version}, within ${range}` });
 
   if (engine && found) {
@@ -135,7 +131,7 @@ export async function preflight(args) {
       : { status: "note", detail: `${image} isn't present; the first compose pulls it (several GB), or builds it if it can't`, fix: `${engine} pull ${image}` });
   }
 
-  add("voice", checkVoice(args.script ? dirname(args.script) : process.cwd(), found?.version));
+  add("voice", checkVoice(args.script ? dirname(args.script) : process.cwd()));
 
   if (args.script) {
     add("script", existsSync(args.script)
