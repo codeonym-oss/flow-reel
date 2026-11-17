@@ -17,7 +17,10 @@ That suits forms and buttons. It's wrong when:
 | The camera on a result (a chart, a new row) while the comment explains it | Nothing: hover doesn't zoom, and after a click it zooms on the button, not the result | `locator.zoomIn().hover()` on the result, then `.zoomOut()` chained on the next scene's first action |
 | A steady wide shot of a whole page (a dashboard tour) | Zooms in and out at every click: restless | `autoZoom: false` in the script's options |
 | Emphasis on one instant (the save happened, the error appeared) | A ring at the click only | `flash()` after the result's wait, usually with a sound |
-| A title, a diagram, a before-screenshot | Nothing | `await showFrame("title.png", 2500)` |
+| A title, a part of the story, a closing link | Nothing | `card.intro`, `card.chapter`, `card.outro` |
+| A screenshot, a diagram, a before and after | Nothing | `card.image`, `card.compare` |
+| The viewer's eye on one element while the comment explains it | A zoom at a click only | `await locator.callout("…")` or `.highlight()` |
+| The feature's name on screen while it is shown | Nothing | `await lowerThird({ title: "…" })` |
 | A closer look at small UI | 4/3 at most | `zoomIn({ scale: 1.6 })`, accepting some softness above 4/3 |
 
 ## Holding the camera
@@ -44,16 +47,30 @@ A flash fades the screen from a colour in `ms` milliseconds. Use at most one or 
 takeaway depends on. White, short (the default), reads as a "camera flash" of success. A brief dim red
 (`{ color: "#ff3b30", ms: 200 }`) reads as an alert. Never flash during typing or on every click.
 
-## Shown frames (cards and diagrams)
+## Cards
 
-`showFrame(image, ms)` inserts an image into the video; the app resumes exactly where it was. Use it for:
+A card stops the app and plays a designed screen; the app resumes exactly where it was. Cards give a reel its shape:
 
-- a **title card** at the start (product name, the feature, one line): 2–3 s;
-- a **diagram** that explains what happens behind the click: 3–5 s, with a comment over it;
-- a **before** screenshot, to contrast with the live after.
+- **An intro** names the feature (and the product, in the `kicker`), with the opening comment spoken over it.
+- **Chapters** split a reel of more than about 40 s into its parts, two to four of them; a short reel needs none.
+- **A feature card** sums up what was just shown, in three short points, beside a screenshot of it.
+- **`card.image`** shows what the app can't show live: the mobile view (`frame: "phone"`), a diagram
+  (`frame: "none"`, `fit: "contain"`), another page (`frame: "browser"`, with its `url`).
+- **`card.compare`** contrasts the old screen with the new one; take both screenshots, the same size.
+- **An outro** ends on where to go next: a short `url`, a couple of `links`.
+- **A custom card** for anything else the story needs on screen (pricing, a quote, numbers that count up): an HTML
+  page built on the `fr-*` atoms, so it matches.
 
-Make the image at 1920×1080 (or the viewport's proportions) and put it in the script's folder. `fit: "contain"`
-letterboxes it on `background`; `"cover"` fills and crops. flow-reel draws no text or cards itself, except `skip`'s.
+Keep cards few: they stop the app, and the app is the proof. An intro, the chapters and an outro frame a reel; one
+or two cards inside it are plenty. Let the comment pace each one (no `ms`), so it lasts as long as it is spoken
+over. Give every card in a reel the same transitions, through the brand.
+
+## Overlays
+
+An overlay points while the app runs. `callout` puts words beside an element; `highlight` only spotlights it;
+`lowerThird` titles what is on screen. Use a callout for the one detail a comment refers to and the viewer could
+miss; never one per click. While a callout or a highlight shows, the camera shows the whole screen, so don't zoom
+into the element as well.
 
 ## Pacing
 

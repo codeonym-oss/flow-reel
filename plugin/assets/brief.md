@@ -11,8 +11,9 @@
 
 ## Scenes
 
-<!-- Effect: flash, zoomIn/zoomOut, showFrame; for a result that takes more than a few seconds, write how long it
-     took and speedUp ×N or skip. -->
+<!-- Effect: flash, zoomIn/zoomOut, a card (intro, chapter, feature, image, compare, outro, custom) or an overlay
+     (callout, highlight, lowerThird); for a result that takes more than a few seconds, write how long it took and
+     speedUp ×N or skip. -->
 
 | # | Purpose | Action (observed locator) | Visible result to wait for | Comment | Sound | Effect |
 |---|---|---|---|---|---|---|

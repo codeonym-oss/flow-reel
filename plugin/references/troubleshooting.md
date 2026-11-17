@@ -22,8 +22,11 @@ the composer's output in the terminal.
 | The second compose differs from the first | The app's data changed between runs (a duplicate item), or the clock/time-dependent UI. | Reset the data before composing; the page clock is fixed, but the app's server isn't. |
 | `flow-reel verify` fails | A file in the reel was edited or added. | Recompose; don't patch the manifest. Keep notes and stills outside the reel. |
 | A wait inside `speedUp` or `skip` times out after 30 s | Playwright's default timeout. | Give the wait a `timeout` longer than the slowest run you saw: `waitFor({ timeout: 120_000 })`. |
-| "comment() can't be used inside skip()" (or `speedUp`) | A comment, `showFrame`, nested word or (in `skip`) an effect inside the callback. | Move it before or after; only the wait goes inside. |
-| "speedUp is not a function" | A runtime older than 0.4.0. | `npm install --save-dev flow-reel@0.4`; `preflight.mjs` reports the version. |
+| "comment() can't be used inside skip()" (or `speedUp`) | A comment, a card, an overlay, a nested word or (in `skip`) an effect inside the callback. | Move it before or after; only the wait goes inside. |
+| "speedUp is not a function" | A runtime older than 0.4.0. | `npm install --save-dev flow-reel@0.5`; `preflight.mjs` reports the version. |
+| "card is undefined" / "callout is not a function" | A runtime older than 0.5.0. | `npm install --save-dev flow-reel@0.5`. |
+| "showFrame() was replaced by card.image()" | A 0.4 script on 0.5. | `await card.image("diagram.png", { frame: "none", fit: "contain", ms: 3000 })`. |
+| A card's image or a custom card's file "doesn't exist" or is "outside the script's folder" | The path is relative to the script, and only its folder is mounted. | Move the file under the script's folder. |
 
 When a request needs something flow-reel doesn't have (music, another voice provider, a duration, a new effect),
 say so plainly and offer what it can do instead; don't approximate it with tricks that change the app's behaviour.

@@ -5,8 +5,8 @@ description: Make a narrated, polished video (a reel) of a web app's feature wit
 
 # Make a reel
 
-flow-reel composes a **script** (Playwright plus the words `comment`, `sound`, `flash`, `showFrame`, `zoomIn`,
-`zoomOut`, `speedUp`, `skip`) into a **reel**: a folder with the video, captions and transcript. This skill takes a request all the way.
+flow-reel composes a **script** (Playwright plus the words `comment`, `sound`, `flash`, `zoomIn`, `zoomOut`,
+`speedUp`, `skip`, the `card` words, `callout`, `highlight` and `lowerThird`) into a **reel**: a folder with the video, captions and transcript. This skill takes a request all the way.
 `<skill-dir>` is this file's folder; the shared files are two levels up.
 
 ## Pick up where things are
