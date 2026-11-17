@@ -175,7 +175,9 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540], aut
     const at = (frame: number, x: number, y: number) => [...raw.subarray(frame * size + (y * 96 + x) * 3, frame * size + (y * 96 + x) * 3 + 3)];
     const [shown, , flash] = first.events.events.filter((e) => ["flash", "card", "zoom"].includes(e.type));
     const start = Math.round(shown.t * 30 / 1000);
-    for (const f of [start, start + 29]) {
+    // The image lifts in over its first second, then holds until the card's last frame.
+    expect(at(start, 48, 27)[1]).toBeLessThan(120);
+    for (const f of [start + 22, start + 29]) {
       expect(at(f, 48, 27)[1]).toBeGreaterThan(200); // the green image in the middle
       expect(Math.max(...at(f, 1, 27))).toBeLessThan(40);  // the ink card around it
     }
