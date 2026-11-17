@@ -34,6 +34,9 @@ Go through the stills in order with the brief's scene table beside them.
 - No cookie banner, tour, error overlay or loading spinner where a result should be.
 - No wait of more than a few seconds plays in real time; a `skip` card's words fit and read (`events.json` lists
   each `speed` and `skip`).
+- Each card's words fit and read, its images are sharp and the right ones, and it stays as long as its comment;
+  the cards share one look (`events.json` lists each `card`, with its props and theme). A callout points at the
+  element its comment is about, its bubble readable and on screen (each `overlay` is listed too).
 - Typed values are short and readable; the data looks real.
 
 **Comments** (`transcript.json`, `captions.vtt`)

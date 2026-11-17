@@ -28,7 +28,8 @@ Use the craft references for the kind of change:
 
 | Feedback about | Read |
 |---|---|
-| The camera, zooms, pace, a card, a wait that drags | `<skill-dir>/../../references/direction.md` |
+| The camera, zooms, pace, a card, an overlay, a wait that drags | `<skill-dir>/../../references/direction.md` |
+| A card's words, props, look or transition; the brand | `<skill-dir>/../../references/language.md` ("Cards", "Overlays", "The brand") |
 | What the voice says, its length, the speaker | `<skill-dir>/../../references/comments.md` |
 | Sounds | `<skill-dir>/../../references/sound-design.md` |
 | A scene's order, what's on screen | `<skill-dir>/../../references/scenes.md` |

@@ -63,9 +63,9 @@ export default script({ url: "http://localhost:4173/" }, async ({ page, comment 
 ```ts
 import { script, Sounds } from "flow-reel";
 
-export default script({ url: "http://localhost:4173/settings" }, async ({ page, comment, showFrame }) => {
+export default script({ url: "http://localhost:4173/settings" }, async ({ page, comment, card }) => {
   comment("Last release, the report took a full page of settings.");
-  await showFrame("before.png", 3000);
+  await card.image("before.png", { title: "Before", frame: "browser", url: "orbit.dev/settings" });
 
   await page.getByRole("heading", { name: "Report" })
     .comment("Now it's one switch.")
@@ -76,7 +76,8 @@ export default script({ url: "http://localhost:4173/settings" }, async ({ page, 
 });
 ```
 
-- `before.png` is a screenshot of the old screen, saved in the script's folder. The comment plays over it.
+- `before.png` is a screenshot of the old screen, saved in the script's folder. The comment plays over its card.
+- With screenshots of both versions, `card.compare({ before, after })` wipes from one to the other instead.
 - The live "after" follows, framed, with a toggle sound on the switch.
 
 ## Error and recovery
@@ -130,9 +131,9 @@ export default script({ url: "http://localhost:4173/settings" }, async ({ page }
 ```ts
 import { script } from "flow-reel";
 
-export default script({ url: "http://localhost:4173/", autoZoom: false }, async ({ page, comment, showFrame }) => {
+export default script({ url: "http://localhost:4173/", autoZoom: false }, async ({ page, comment, card }) => {
   comment("Orbit: every project, one board.");
-  await showFrame("title.png", 2500, { fit: "contain", background: "#1b1f2a" });
+  await card.intro({ kicker: "Orbit", title: "Every project, one board" });
 
   comment("Projects on the left, this week's progress on the right.");
   await page.getByRole("region", { name: "Project list" }).hover();
@@ -141,7 +142,36 @@ export default script({ url: "http://localhost:4173/", autoZoom: false }, async 
 ```
 
 - `autoZoom: false` keeps a steady wide shot for a tour, where zooming at every click would be restless.
-- The card is an image you make (1920×1080) in the script's folder.
+- The intro is drawn by flow-reel in the brand's look; the comment is spoken over it.
+
+## Chapters, a callout and an outro
+
+```ts
+import { script } from "flow-reel";
+
+export default script({ url: "http://localhost:4173/" }, async ({ page, comment, card }) => {
+  comment("Saved views keep your filters one click away.");
+  await card.intro({ kicker: "Orbit 2.4", title: "Saved views" });
+
+  comment("First, save the filters you use every day.");
+  await card.chapter({ title: "Save a view" });
+  await page.getByRole("button", { name: "Save view" }).click();
+  await page.getByLabel("View name").fill("Active work");
+  await page.getByRole("button", { name: "Save" }).click();
+
+  comment("Then share it with your team.");
+  await card.chapter({ title: "Share it" });
+  await page.getByRole("button", { name: "Share" }).click();
+  comment("Everyone on the team sees the same view.");
+  await page.getByRole("list", { name: "Members" }).callout("Shared with 4 people", { detail: "They get it in their sidebar" });
+
+  comment("Try saved views today.");
+  await card.outro({ title: "Try saved views", url: "orbit.dev/views" });
+});
+```
+
+- Each chapter's comment is spoken over its card, which lasts as long as it.
+- The callout's comment comes first; the callout stays through it, until the next action.
 
 ## Moving between two parts of a screen
 
@@ -221,7 +251,8 @@ export default script({ url: "http://localhost:4173/pipelines" }, async ({ page,
 });
 ```
 
-- The card says how long was cut ("⏭ 3 min 12 s skipped"), so the viewer knows time passed. The comment before
+- The card says how long was cut ("3 min 12 s skipped"), so the viewer knows time passed; `style: "bar"` puts it in
+  a bar along the bottom instead of a panel in the middle. The comment before
   `skip` plays over the card, which stays until it ends.
 - `{ label: "A few minutes later" }` replaces the words, for a reel where the exact time doesn't matter or varies
   between composes; `{ label: "{duration} plus tard" }` for a French reel.

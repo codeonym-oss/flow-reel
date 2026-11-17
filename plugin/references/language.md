@@ -1,8 +1,9 @@
 # The flow-reel language
 
-**Supported runtime:** `>=0.4.0 <0.5.0`
+**Supported runtime:** `>=0.4.0 <0.6.0`
 
-Everything a script can say, and every command, for the runtime versions above. If a word, option or flag is not
+Everything a script can say, and every command, for the runtime versions above. Cards, overlays and the brand need
+0.5; on 0.4, use none of them. If a word, option or flag is not
 on this page, flow-reel doesn't have it: say so instead of inventing it. The plugin's `scripts/preflight.mjs`
 reports the project's version and whether it is in this range.
 
@@ -10,8 +11,10 @@ reports the project's version and whether it is in this range.
 
 flow-reel turns a **script** into a **reel**. The **composer** (a container image) **composes** it: it replays the
 script in a fresh browser, makes a **recording**, speaks the **comments** with a **voice**, and renders the video.
-A script is made of **steps**; a step can carry **comments**, **sounds** and **effects**. Say these words, with
-these meanings, to the person too. Avoid: demo (for the script), scenario, take, narration, SFX, recorder.
+A script is made of **steps**; a step can carry **comments**, **sounds** and **effects**, show **cards** (designed
+screens inserted into the video) and **overlays** (drawn over the app), all in the **brand**'s look. Say these words,
+with these meanings, to the person too. Avoid: demo (for the script), scenario, take, narration, SFX, recorder,
+slide, title screen, annotation.
 
 ## A script
 
@@ -89,16 +92,14 @@ Clicks and typing sound by themselves. A sound marks a moment that matters; it i
 | Word | Options (defaults) | When |
 |---|---|---|
 | `flash(options?)` | `color: "#ffffff"`, `ms: 250` (fade-out) | Standalone: now. Chained: when the action happens. |
-| `await showFrame(image, ms, options?)` | `fit: "contain"` or `"cover"`, `background: "#000000"` | An action of its step; standalone only. |
 | `zoomIn(options?)` | `scale: 4/3` (from 1 to 2), `ms: 650` | Standalone: on the pointer. Chained: as the pointer heads for the element. |
 | `zoomOut(options?)` | `ms: 800` | Standalone: now. Chained: after the action. |
 
-- `showFrame` inserts a PNG, JPEG or WebP from the script's folder (path relative to the script) for `ms`
-  milliseconds; the app is shown again exactly where it was. A comment in its step plays on over the image. No
-  cursor, ripple or zoom is drawn on it. Make the image yourself; the only card flow-reel draws is `skip`'s.
+- To show a picture, use `card.image` (Cards, below). `showFrame` was retired in 0.5: a script calling it fails,
+  naming `card.image`.
 - `zoomIn` holds the camera until `zoomOut`, across steps and clicks; automatic zoom waits meanwhile. A second
   `zoomIn` pans to its new target. A zoom still held at the end eases out. Above 4/3 the picture softens.
-- A bad option, image path or duration throws where the word is written.
+- A bad option throws where the word is written.
 - **When standalone words happen:** when they are called. The hold that lets a step's comment finish comes after
   that step's last action, so a standalone word written after a step's last action (even after the next `comment`)
   happens before that hold. To act at the next scene's start, chain the word on its first action. A zoom still held
@@ -125,21 +126,111 @@ export default script({ url: "http://localhost:4173/" }, async ({ page, comment,
 | Word | Options | In the video |
 |---|---|---|
 | `await speedUp(factor, fn)` | `factor`: above 1, at most 16, fractions allowed | The stretch plays `factor` times faster (frames dropped, not blended), with a "▶▶ ×4" badge top right. |
-| `await skip(fn, options?)` | `label`: the words after "⏭", default `"{duration} skipped"` | The stretch is cut; a card on the dimmed frame before it shows "⏭ 38 s skipped" for 1.5 s. |
+| `await skip(fn, options?)` | `label`: the card's words, default `"{duration} skipped"`; `style`: `"clock"` (default) or `"bar"` | The stretch is cut; a card over the blurred frame before it says "38 s skipped" for 1.5 s, in the brand's theme. |
 
 - Either word runs `fn` as one action of the open step. Pass a function (`() => …`), not a promise. Give the wait
   a `timeout` that covers the real wait: Playwright's default is 30 s.
 - **Pick by what the viewer should see.** `speedUp` when the progress means something (an answer streaming in, a
   list filling up); `skip` when only the result matters (a build, an upload, a long job).
 - **Only actions go inside.** In `speedUp`: actions, sounds, `flash` and zoom, at the faster pace. In `skip`: actions
-  and sounds, neither seen nor heard. `comment`, `showFrame`, another `speedUp` or `skip`, and in `skip` also `flash`
-  and zoom, throw where they are written: put them before or after.
+  and sounds, neither seen nor heard. `comment`, a card, an overlay, another `speedUp` or `skip`, and in `skip` also
+  `flash` and zoom, throw where they are written: put them before or after.
 - **Speech keeps its speed and is never cut.** A comment written before the wait is spoken over it: over the faster
   stretch (the last frame holds if it runs longer) or over the card (which stays until the comment ends).
 - `{duration}` in `label` shows the length cut, in whole seconds: "38 s", "1 min 52 s". A label without it shows as
-  written (`{ label: "Later that day" }`). The card's font covers Latin, Greek and Cyrillic.
+  written (`{ label: "Later that day" }`).
 - A bad factor, a missing function or an empty label throws where the word is written. The event log records each
   as a `speed` or `skip` event; `compare` checks the factor and the label.
+
+## Cards
+
+A card is a designed screen inserted where the script awaits it: the app stops on its frame, the card plays with a
+transition in and out, and the app resumes where it left. Each card is one word on `card`:
+
+```ts
+import { script } from "flow-reel";
+
+export default script({ url: "http://localhost:4173/" }, async ({ page, comment, card }) => {
+  comment("Orbit 2.4 brings saved views.");
+  await card.intro({ kicker: "Orbit 2.4", title: "Saved views", subtitle: "Your filters, one click away" });
+  await card.chapter({ title: "Save a view" });
+  await page.getByLabel("View name").fill("Active work");
+  await card.feature({ title: "One click", points: ["Save any filter", "Share it", "Pin it"], image: "shots/views.png" });
+  await card.image("shots/mobile.png", { title: "On your phone too", frame: "phone" });
+  await card.compare({ before: "shots/2.3.png", after: "shots/2.4.png", title: "Six filters, or one click" });
+  await card.custom("cards/pricing.html", { plan: "Team", price: 12 }, { enter: "zoom" });
+  await card.outro({ title: "Try saved views", url: "orbit.dev/views", links: ["Docs", "Changelog"] });
+});
+```
+
+| Word | Props |
+|---|---|
+| `card.intro({ … })` | `title`, `kicker?` (a short line above, in the accent), `subtitle?`, `layout?: "left"` (default) or `"center"` |
+| `card.chapter({ … })` | `title`, `subtitle?`; numbered by itself, "Chapter 02 / 03" |
+| `card.feature({ … })` | `title`, `points` (one to five short lines), `kicker?`, `image?` (in a browser window), `imageSide?: "right"` or `"left"` |
+| `card.image(image, { … }?)` | `kicker?`, `title?`, `caption?`, `frame?: "browser"` (default), `"phone"` or `"none"`, `fit?: "cover"` or `"contain"`, `url?` (the browser bar's) |
+| `card.compare({ … })` | `before`, `after`, `kicker?`, `title?`, `labels?` (two; "Before" and "After") |
+| `card.outro({ … })` | `title`, `url?` (a button), `links?` (up to four) |
+| `card.custom(page, props?, options?)` | any JSON props, for an HTML page of your own |
+
+Every card also takes these options, in its props object (or as `options` for `card.custom`):
+
+| Option | Values | Default |
+|---|---|---|
+| `ms` | its exact length, 500 to 60000, transitions included | 3 s, or until the comment before it has been spoken |
+| `enter`, `exit` | `fade`, `slide`, `wipe`, `zoom`, `blur`, `iris`, `cut` | the brand's, else `fade` |
+| `theme` | `ink`, `paper`, `ocean`, `ember` | the brand's, else `ink` |
+
+- **A comment written before a card is spoken over it**, and the card stays until it ends. That is how to pace one.
+- Images are PNG, JPEG, WebP or SVG files in the script's folder, relative to the script. Take them yourself (a
+  screenshot while exploring) or ask the person; never invent one.
+- The camera eases back to the full screen as a card comes. No cursor or zoom is drawn on a card.
+- A wrong prop, option or path throws where the card is written, naming it. Cards can't go inside `speedUp` or `skip`.
+
+### Custom cards
+
+`card.custom("cards/pricing.html", props)` draws an HTML page from the script's folder: its own CSS, JavaScript,
+images and fonts, at the reel's size. It is drawn frame by frame on a frozen clock, so `setTimeout`,
+`requestAnimationFrame`, `performance.now()` and CSS animations play the same way every time. The network is off:
+only the script's folder loads.
+
+- `data-prop="name"` fills an element with `props.name` (its text, an image's `src`, or a list's items).
+- `window.flowReel` holds `props`, `theme` (its colours), `durationMs` and `logo`.
+- Always there: the colours `--fr-bg`, `--fr-surface`, `--fr-line`, `--fr-fg`, `--fr-muted`, `--fr-accent`,
+  `--fr-on-accent`; the fonts `--fr-font-heading`, `--fr-font-body`, `--fr-font-mono`; the classes `fr-card` (a
+  full-screen card), `fr-kicker`, `fr-title`, `fr-title-m`, `fr-subtitle`, `fr-mono`, `fr-muted`, `fr-accent`,
+  `fr-surface`, `fr-badge`, `fr-pill`, `fr-logo`, `fr-stack`, `fr-row`, and `fr-enter` with the delays `fr-d1` to
+  `fr-d5`. A rem is 1/54 of the screen's height.
+- Build on these, so a custom card matches the built-in ones and follows the brand.
+
+## Overlays
+
+An overlay is drawn over the app while it runs. Each is awaited: the script waits `ms` (1.5 s by default) with it
+shown, and it stays until the script's next action, through the hold that lets its step's comment finish.
+
+| Word | Options | Drawn |
+|---|---|---|
+| `await locator.callout(text, options?)` | `detail?`, `ms?`, `theme?` | A spotlight on the element and a bubble with `text` below or above it |
+| `await locator.highlight(options?)` | `ms?`, `theme?` | The spotlight alone |
+| `await lowerThird({ title, … })` | `subtitle?`, `ms?`, `theme?` | A title bar at the bottom left of the screen |
+
+- While a callout or a highlight shows, the camera shows the whole screen; it zooms again after.
+- Write the comment first and the overlay right after: the comment explains, the overlay points.
+- An overlay stops where a card starts, and can't go inside `speedUp` or `skip`.
+
+## The brand
+
+`brand` in `flow-reel.json` sets how every card, overlay and the skip card look; each key is optional, and a card's
+or overlay's own `theme`, `enter` and `exit` win:
+
+```json
+{ "version": 1, "brand": { "theme": "paper", "accent": "#D6336C", "logo": "brand/logo.svg", "fonts": { "heading": "brand/Display.woff2" }, "enter": "fade", "exit": "fade" } }
+```
+
+- `theme`: `ink` (dark, the default), `paper` (light), `ocean` (teal), `ember` (warm). `accent` replaces its accent
+  colour. `logo` (SVG, PNG, JPEG or WebP) shows on the intro and the outro. `fonts.heading` and `fonts.body` (WOFF2,
+  WOFF, TTF or OTF) replace Inter Tight and Inter. Paths are inside the script's folder.
+- Use the product's own colour and logo when the person has them; ask before guessing a brand.
 
 ## Polish (automatic, no word needed)
 
@@ -181,7 +272,7 @@ npx flow-reel compare demos/a.reel demos/b.reel
 ```
 
 Flags win over the file, the file over defaults. The first compose in a folder without the file writes it; an
-existing file is rewritten only with `--save-config`.
+existing file is rewritten only with `--save-config`, which keeps its `brand` (above).
 
 | Setting | Values | Default |
 |---|---|---|
@@ -230,7 +321,7 @@ bills only those. Deleting the reel deletes its cache.
 |---|---|
 | `video.mp4` | 1920×1080, 30 fps, speech and sounds. |
 | `transcript.json` | Each step's `comment`, `startMs`, `actionEndMs`, `endMs` on the video's timeline. |
-| `events.json` | Pointer moves, clicks, typing, scrolls, sounds, effects, speed-ups and skips, timed the same way. |
+| `events.json` | Pointer moves, clicks, typing, scrolls, sounds, effects, speed-ups, skips, cards and overlays, timed the same way. |
 | `captions.srt`, `captions.vtt` | The comments as captions. |
 | `audio/NNN.wav` | Each step's speech clip. |
 | `manifest.json` | Every file with its size and SHA-256, the script, composer version, integration, voice. |
