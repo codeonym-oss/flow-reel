@@ -170,3 +170,15 @@ describe("explicit zoom, autoZoom and images (story decision 011, GH-32)", () =>
     expect(planPolish(events, options).camera).toEqual(planPolish([click(1000)], options).camera);
   });
 });
+
+it("eases the camera back to the full screen as a card comes, so its transition starts from what was seen (GH-76)", () => {
+  const card: ComposerEvent = { t: 2500, type: "card", card: "chapter", props: { title: "x" }, files: [], enter: "fade", exit: "fade", theme: "ink" };
+  // Zoomed on the click from 1.65 s; the card at 2.5 s pulls the camera out over the 800 ms before it.
+  const plan = planPolish([click(1000), card], { ...options, frames: 120 });
+  expect(plan.frame(51).zoom).toBeCloseTo(4 / 3);
+  expect(plan.frame(75).crop).toEqual([0, 0, 1]);
+  expect(plan.frame(100).crop).toEqual([0, 0, 1]);
+  // A click just before the card leaves less time: the camera is still full when the card comes.
+  const late = planPolish([click(2300), card], { ...options, frames: 120 });
+  expect(late.frame(75).crop).toEqual([0, 0, 1]);
+});

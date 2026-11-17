@@ -109,8 +109,9 @@ async function main(argv: string[]): Promise<number> {
       ? (await import("./adapters/cloud/voice.ts")).cloudVoice(settings.voice)
       : (await import("./adapters/qwen/voice.ts")).qwenVoice(settings.voice);
     const { folderStore } = await import("./adapters/folder/store.ts");
+    const { chromiumPainter } = await import("./adapters/chromium/painter.ts");
     const { version } = readJson(resolve(dirname(fileURLToPath(import.meta.url)), "../package.json")) as { version: string };
-    await compose(resolve(script), { integration: playwright, voice, store: folderStore,
+    await compose(resolve(script), { integration: playwright, voice, store: folderStore, painter: chromiumPainter,
       composerVersion: version, sound: options.sound, ...(options.outDir ? { outDir: resolve(options.outDir) } : {}) });
     return 0;
   }

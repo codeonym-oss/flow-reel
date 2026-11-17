@@ -1,6 +1,7 @@
 // The Playwright integration: loads a script, opens its app in Chromium on the composer's display, and replays the
 // script body with a page that animates and logs what it does.
 import type { Integration } from "../../composer/ports.ts";
+import type { ScriptContext } from "../../index.ts";
 import { launchBrowser } from "./browser.ts";
 import { loadScript } from "./load.ts";
 import { trackNetwork } from "./network.ts";
@@ -37,9 +38,9 @@ export const playwright: Integration = {
               await page.evaluate((id) => document.getElementById(id)?.remove(), MARK_ID);
             },
             async run(stage) {
-              const { clock, events, fps, comment, sound, showFrame, speedUp, skip } = stage;
+              const { clock, events, fps, comment, sound, showFrame, speedUp, skip, card } = stage;
               const { page: wrapped, flash, zoomIn, zoomOut } = wrapScript(page, { clock, events, fps, viewport, stage });
-              await script.body({ page: wrapped, comment, sound, showFrame, flash, zoomIn, zoomOut, speedUp, skip });
+              await script.body({ page: wrapped, comment, sound, showFrame, flash, zoomIn, zoomOut, speedUp, skip, card: card as ScriptContext["card"] });
             },
             close: () => context.close(),
           };

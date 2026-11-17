@@ -1,0 +1,2 @@
+- 2026-11-17: drafted with the story; issue #77 created; status tracked.
+- 2026-11-17: ticket pass and build in one session; impl.md written; status in-review.

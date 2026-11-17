@@ -1,7 +1,8 @@
 // The event log: v1 actions (story decision 013), v2 added sound cues, v3 names them `sound` (GH-30 decision 003),
 // v4 adds effects and `autoZoom` (GH-32 decision 005), v5 adds `speed` (GH-61 decision 005)
-// and `skip` (GH-62 decision 004).
+// and `skip` (GH-62 decision 004), v6 adds `card` and the skip card's `style` (GH-76 decisions 001 and 008).
 import { type Errors, isObject, nonNegative, point, text } from "./check.ts";
+import { THEME_NAMES, TRANSITION_NAMES, type ThemeName, type Transition } from "../cards/brand.ts";
 
 export type Point = [x: number, y: number];
 export interface Bounds { x: number; y: number; width: number; height: number }
@@ -28,7 +29,7 @@ export type ComposerEvent =
   | { t: number; type: "type"; text: string; charDelayMs: number; target: string; bounds?: Bounds }
   | { t: number; type: "scroll"; delta: Point; durationMs: number }
   | { t: number; type: "sound"; name: SoundName }
-  | FlashEvent | FrameEvent | ZoomEvent | SpeedEvent | SkipEvent;
+  | FlashEvent | FrameEvent | ZoomEvent | SpeedEvent | SkipEvent | CardEvent;
 
 export type Fit = "contain" | "cover";
 export interface FlashEvent { t: number; type: "flash"; color: string; ms: number }
@@ -43,10 +44,24 @@ export type ZoomEvent =
 /** A stretch played `factor` times faster; `durationMs` is how long it lasts on the event log's clock. */
 export interface SpeedEvent { t: number; type: "speed"; factor: number; durationMs: number }
 /** A stretch cut from the video and shown as a card; `durationMs` is the length cut, `label` the card's words. */
-export interface SkipEvent { t: number; type: "skip"; durationMs: number; label: string }
+export interface SkipEvent { t: number; type: "skip"; durationMs: number; label: string; style: SkipStyle }
+export type SkipStyle = "clock" | "bar";
+export const SKIP_STYLES: readonly SkipStyle[] = ["clock", "bar"];
+
+/** The cards a script's `card` words insert (GH-76 decision 001). */
+export const CARD_WORDS = ["intro", "chapter", "outro", "custom"] as const;
+export type CardWord = typeof CARD_WORDS[number];
+/**
+ * A card inserted into the video (GH-76 decision 002): its kind and checked props, the files it uses by their path in
+ * the script's folder and hash, the exact length asked for (none: until its comment ends), and how it looks.
+ */
+export interface CardEvent {
+  t: number; type: "card"; card: CardWord; props: Record<string, unknown>; files: { path: string; sha256: string }[];
+  ms?: number; enter: Transition; exit: Transition; theme: ThemeName;
+}
 
 export interface EventLog {
-  version: 5;
+  version: 6;
   /** False when the script turned automatic zoom off. */
   autoZoom: boolean;
   events: ComposerEvent[];
@@ -60,7 +75,7 @@ export const MAX_SPEED = 16;
 export function validateEvents(value: unknown): Errors {
   const errors: Errors = [];
   if (!isObject(value)) return ["events log must be an object"];
-  if (value.version !== 5) errors.push("version must be 5");
+  if (value.version !== 6) errors.push("version must be 6");
   if (typeof value.autoZoom !== "boolean") errors.push("autoZoom must be true or false");
   if (!Array.isArray(value.events)) return [...errors, "events must be an array"];
 
@@ -137,7 +152,24 @@ export function validateEvents(value: unknown): Errors {
       case "skip":
         nonNegative(errors, where, event, "durationMs");
         if (typeof event.label !== "string" || !event.label.trim()) errors.push(`${where}label must be non-empty text`);
+        if (!SKIP_STYLES.includes(event.style as SkipStyle)) errors.push(`${where}style must be "clock" or "bar"`);
         break;
+      case "card": {
+        if (!CARD_WORDS.includes(event.card as CardWord)) errors.push(`${where}unknown card ${JSON.stringify(event.card)}`);
+        if (!isObject(event.props)) errors.push(`${where}props must be an object`);
+        const files = event.files;
+        if (!Array.isArray(files) || files.some((f) => !isObject(f) || typeof f.path !== "string" || !f.path ||
+          f.path.startsWith("/") || f.path.split("/").some((part) => !part || part === "." || part === "..") ||
+          typeof f.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(f.sha256))) {
+          errors.push(`${where}files must list paths relative to the script's folder, each with its SHA-256`);
+        }
+        if (event.ms !== undefined) positive("ms");
+        for (const key of ["enter", "exit"]) {
+          if (!TRANSITION_NAMES.includes(event[key] as Transition)) errors.push(`${where}${key} is not a transition`);
+        }
+        if (!THEME_NAMES.includes(event.theme as ThemeName)) errors.push(`${where}theme is not a theme`);
+        break;
+      }
       default:
         errors.push(`${where}unknown type ${JSON.stringify(event.type)}`);
     }

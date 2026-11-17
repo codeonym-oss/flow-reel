@@ -19,7 +19,7 @@ const transcript = {
 };
 
 const events = {
-  version: 5,
+  version: 6,
   autoZoom: true,
   events: [
     { t: 1200, type: "move", from: [960, 540], to: [1412, 288], durationMs: 450, easing: "easeInOutCubic" },
@@ -66,7 +66,7 @@ describe("validateTranscript", () => {
 
 describe("validateEvents", () => {
   it("accepts optional off-screen bounds and rejects malformed target bounds", () => {
-    const log = (bounds: unknown) => ({ version: 5, autoZoom: true, events: [{ ...events.events[1], bounds }] });
+    const log = (bounds: unknown) => ({ version: 6, autoZoom: true, events: [{ ...events.events[1], bounds }] });
     expect(validateEvents(log({ x: -10, y: 20, width: 100, height: 30 }))).toEqual([]);
     for (const bounds of [null, {}, { x: 0, y: 0, width: 0, height: 10 },
       { x: NaN, y: 0, width: 10, height: 10 }, { x: 0, y: 0, width: 10, height: -1 }]) {
@@ -82,8 +82,8 @@ describe("validateEvents", () => {
     expect(validateEvents(bad)).toContain("events[0]: t must be a number >= 0");
   });
 
-  it("accepts only version 5, which names sounds `sound` and says whether zoom is automatic", () => {
-    for (const version of [1, 2, 3, 4]) expect(validateEvents({ ...events, version })).toContain("version must be 5");
+  it("accepts only version 6, which names sounds `sound` and says whether zoom is automatic", () => {
+    for (const version of [1, 2, 3, 4, 5]) expect(validateEvents({ ...events, version })).toContain("version must be 6");
     expect(validateEvents({ ...events, events: [{ t: 0, type: "sfx", name: "success" }] }))
       .toContain('events[0]: unknown type "sfx"');
     const { autoZoom: _, ...noAutoZoom } = events;
@@ -91,7 +91,7 @@ describe("validateEvents", () => {
   });
 
   it("accepts the effect events of GH-32 decision 005", () => {
-    expect(validateEvents({ version: 5, autoZoom: false, events: [
+    expect(validateEvents({ version: 6, autoZoom: false, events: [
       { t: 1200, type: "flash", color: "#FFFFFF", ms: 250 },
       { t: 1800, type: "frame", image: "img/diagram.png", sha256: "a".repeat(64), durationMs: 3000, fit: "contain", background: "#000000" },
       { t: 5000, type: "zoom", zoom: "in", at: [960, 540], bounds: { x: 900, y: 500, width: 120, height: 80 }, scale: 4 / 3, ms: 650 },
@@ -110,13 +110,26 @@ describe("validateEvents", () => {
     expect(one({ factor: 2, durationMs: -1 })).not.toEqual([]);
   });
 
-  it("accepts a skip and names a bad label or duration (GH-62 decision 004)", () => {
-    const one = (event: object) => validateEvents({ ...events, events: [{ t: 0, type: "skip", ...event }] });
+  it("accepts a skip and names a bad label, style or duration (GH-62 decision 004, GH-76 decision 008)", () => {
+    const one = (event: object) => validateEvents({ ...events, events: [{ t: 0, type: "skip", style: "clock", ...event }] });
     expect(one({ durationMs: 38000, label: "{duration} skipped" })).toEqual([]);
     for (const label of ["", "  ", 4, undefined]) {
       expect(one({ durationMs: 1, label })).toEqual(["events[0]: label must be non-empty text"]);
     }
     expect(one({ durationMs: -1, label: "x" })).not.toEqual([]);
+    expect(one({ durationMs: 1, label: "x", style: "ring" })).toEqual(['events[0]: style must be "clock" or "bar"']);
+  });
+
+  it("accepts a card and names each bad field (GH-76 decision 001)", () => {
+    const card = { type: "card", card: "intro", props: { title: "Hi" }, files: [], enter: "fade", exit: "cut", theme: "ink" };
+    const one = (event: object) => validateEvents({ ...events, events: [{ t: 0, ...card, ...event }] });
+    expect(one({})).toEqual([]);
+    expect(one({ ms: 4000, files: [{ path: "cards/a.html", sha256: "a".repeat(64) }] })).toEqual([]);
+    expect(one({ card: "poster" })).toEqual(['events[0]: unknown card "poster"']);
+    expect(one({ props: [] })).toEqual(["events[0]: props must be an object"]);
+    expect(one({ files: [{ path: "../a.html", sha256: "a".repeat(64) }] })).toEqual(["events[0]: files must list paths relative to the script's folder, each with its SHA-256"]);
+    expect(one({ ms: 0 })).toEqual(["events[0]: ms must be a number > 0"]);
+    expect(one({ enter: "spin", theme: "neon" })).toEqual(["events[0]: enter is not a transition", "events[0]: theme is not a theme"]);
   });
 
   it("names each malformed effect field", () => {

@@ -76,8 +76,11 @@ function normalizeAudio(bus: string, voice: string, samples: number): void {
     "-ar", "48000", "-ac", "2", "-c:a", "pcm_s24le", voice]);
 }
 
-/** The capture with the timeline's insertions: spans of the capture, cloned frames and images (GH-32 decision 003). */
-function renderMaster(capture: string, master: string, timeline: Timeline): void {
+/**
+ * The capture with the timeline's insertions: spans of the capture, cloned frames, images (GH-32 decision 003) and
+ * cards, each from its rendered clip (GH-76 decision 003).
+ */
+function renderMaster(capture: string, master: string, timeline: Timeline, clips: Readonly<Record<string, string>>): void {
   const { width, height } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries",
     "stream=width,height", "-of", "json", capture], { encoding: "utf8" })).streams[0];
   const inputs = ["-i", capture];
@@ -94,7 +97,7 @@ function renderMaster(capture: string, master: string, timeline: Timeline): void
     from = to;
   };
   // Insertions, stretches and skips in source order; at one frame, insertions play first (they never overlap a
-  // stretch or a skip). A skip's card is a hold: polish draws on it.
+  // stretch or a skip).
   const skipped = timeline.skips.map((s) => ({ ...s, skip: true as const }));
   const later = (x: object) => Number("kept" in x || "skip" in x);
   const cuts = [...timeline.insertions, ...timeline.stretches, ...skipped].sort((a, b) => a.frame - b.frame || later(a) - later(b));
@@ -114,6 +117,17 @@ function renderMaster(capture: string, master: string, timeline: Timeline): void
         `select='lt(ceil(n/${f}),(n+1)/${f})'[${label}]`);
       labels.push(`[${label}]`);
       from = to;
+      continue;
+    }
+    if (insertion.card) {
+      span(insertion.frame, 0);
+      const clip = clips[insertion.card.id];
+      if (!clip) throw new Error(`card ${insertion.card.id} wasn't rendered`);
+      const input = 1 + images++;
+      inputs.push("-i", clip);
+      const label = `s${labels.length}`;
+      filters.push(`[${input}:v]scale=${width}:${height},setsar=1,format=yuv420p,trim=end_frame=${insertion.frames},setpts=PTS-STARTPTS[${label}]`);
+      labels.push(`[${label}]`);
       continue;
     }
     if (!insertion.image) {
@@ -145,15 +159,17 @@ interface RenderOptions {
   audioDir: string;
   viewport: [number, number];
   timeline: Timeline;
+  /** Each card's rendered clip, by its id in the timeline. */
+  clips?: Readonly<Record<string, string>>;
   events?: readonly ComposerEvent[];
   sound?: boolean;
   /** False when the script turned automatic zoom off. */
   autoZoom?: boolean;
 }
 
-export function renderTimeline({ capture, master, video, voice, audioDir, viewport: [width, height], timeline, events = [], sound = true, autoZoom = true }: RenderOptions): void {
+export function renderTimeline({ capture, master, video, voice, audioDir, viewport: [width, height], timeline, clips = {}, events = [], sound = true, autoZoom = true }: RenderOptions): void {
   if (!timeline.insertions.length && !timeline.stretches.length) copyFileSync(capture, master);
-  else renderMaster(capture, master, timeline);
+  else renderMaster(capture, master, timeline, clips);
   if (videoFrames(master) !== timeline.frames) throw new Error("rendered master frame count disagrees with timeline");
   const hasVoice = assembleVoice(voice, audioDir, timeline);
   const effects = assembleSfx(events, timeline, hasVoice ? voice : undefined, dirname(voice), sound);
@@ -165,9 +181,9 @@ export function renderTimeline({ capture, master, video, voice, audioDir, viewpo
   const dimensions = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries",
     "stream=width,height", "-of", "json", master], { encoding: "utf8" })).streams[0];
   const polish = polishFilters(events, { viewport: [width, height], source: [dimensions.width, dimensions.height],
-    fps: timeline.fps, frames: timeline.frames - timeline.cutFrames, autoZoom, stretches: timeline.stretches, cards: timeline.cardSpans,
+    fps: timeline.fps, frames: timeline.frames - timeline.cutFrames, autoZoom, stretches: timeline.stretches,
     // Nothing is drawn over a card either, and the crop is full (GH-62 decision 003).
-    imageSpans: [...timeline.imageSpans, ...timeline.cardSpans.map(({ startMs, endMs }) => ({ startMs, endMs }))] },
+    imageSpans: [...timeline.imageSpans, ...timeline.cards.map(({ startMs, endMs }) => ({ startMs, endMs }))] },
     video, audio ? 2 : 1);
   const graph = video + ".filters";
   writeFileSync(graph, `[0:v]trim=start_frame=${timeline.cutFrames},setpts=PTS-STARTPTS[trimmed];${polish.filters}`);

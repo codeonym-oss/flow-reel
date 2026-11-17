@@ -3,6 +3,7 @@
 // it imports no adapter.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { type Brand, validateBrand } from "./composer/cards/brand.ts";
 
 export const CONFIG_FILE = "flow-reel.json";
 
@@ -17,8 +18,8 @@ export interface SettingsFlags {
   integration?: string; voice?: string; speaker?: string; language?: string; model?: string; apiKeyEnv?: string;
   baseUrl?: string;
 }
-/** `flow-reel.json`: every setting is optional. */
-export interface ConfigFile { version: 1; integration?: string; voice?: Partial<VoiceSettings> }
+/** `flow-reel.json`: every setting is optional. `brand` is how cards look (GH-76 decision 006). */
+export interface ConfigFile { version: 1; integration?: string; voice?: Partial<VoiceSettings>; brand?: Brand }
 
 /**
  * What one voice can be set to. A local voice lists its speakers and languages and needs no key; a cloud voice passes
@@ -88,7 +89,7 @@ const VOICE_KEYS = ["adapter", "speaker", "language", "model", "apiKeyEnv", "bas
 export function validateConfig(value: unknown): string[] {
   if (!isObject(value)) return ["must be a JSON object"];
   const errors: string[] = [];
-  const extra = unknownKey("", value, ["version", "integration", "voice"]);
+  const extra = unknownKey("", value, ["version", "integration", "voice", "brand"]);
   if (extra) errors.push(extra);
   if (value.version !== 1) errors.push("version must be 1");
   if (value.integration !== undefined && typeof value.integration !== "string") errors.push("integration must be a string");
@@ -107,6 +108,7 @@ export function validateConfig(value: unknown): string[] {
       }
     }
   }
+  if (value.brand !== undefined) errors.push(...validateBrand(value.brand));
   return errors;
 }
 
@@ -127,8 +129,10 @@ export function readConfig(dir: string): ConfigFile | undefined {
   return value as ConfigFile;
 }
 
+/** Writes the settings to the folder's `flow-reel.json`, keeping its brand. */
 export function writeConfig(dir: string, settings: Settings): void {
-  const config: ConfigFile = { version: 1, integration: settings.integration, voice: { ...settings.voice } };
+  const brand = readConfig(dir)?.brand;
+  const config: ConfigFile = { version: 1, integration: settings.integration, voice: { ...settings.voice }, ...(brand ? { brand } : {}) };
   writeFileSync(join(dir, CONFIG_FILE), `${JSON.stringify(config, null, 2)}\n`);
 }
 

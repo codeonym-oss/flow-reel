@@ -8,7 +8,7 @@ const transcript = () => ({ version: 2, script: "demo.ts",
   video: { file: "video.mp4", width: 960, height: 540, fps: 30, durationMs: 2000 },
   steps: [{ index: 0, comment: "Hello", startMs: 500, actionEndMs: 700, endMs: 1000 }] });
 
-const log = (color = "#ffffff") => ({ version: 5, autoZoom: true, events: [{ t: 600, type: "flash", color, ms: 250 }] });
+const log = (color = "#ffffff") => ({ version: 6, autoZoom: true, events: [{ t: 600, type: "flash", color, ms: 250 }] });
 
 /** A small reel on disk: its transcript, its event log, a stand-in video, and a manifest listing them. */
 function writeReel(dir: string, value: unknown, effects: unknown = log()) {
@@ -33,7 +33,7 @@ it("compares reels on the host without external executables, with distinct failu
   writeReel(b, value, log("#ff0000"));
   expect(cli("compare", a, b)).toMatchObject({ status: 1, stdout: "effects[0] (flash) differs\n" });
   writeReel(b, value, { version: 3, events: [] });
-  expect(cli("compare", a, b)).toMatchObject({ status: 2, stderr: expect.stringContaining(`${b}: events.json: version must be 5`) });
+  expect(cli("compare", a, b)).toMatchObject({ status: 2, stderr: expect.stringContaining(`${b}: events.json: version must be 6`) });
   value.steps[0].comment = "Different"; writeReel(b, value);
   expect(cli("compare", a, b)).toMatchObject({ status: 1, stdout: expect.stringContaining("steps[0].comment") });
   value.steps[0].endMs = 3000; writeReel(b, value);
