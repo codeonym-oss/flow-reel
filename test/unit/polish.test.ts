@@ -182,3 +182,16 @@ it("eases the camera back to the full screen as a card comes, so its transition 
   const late = planPolish([click(2300), card], { ...options, frames: 120 });
   expect(late.frame(75).crop).toEqual([0, 0, 1]);
 });
+
+it("shows the whole screen while a callout or a highlight is on the app, and zooms again after (GH-76 decision 007)", () => {
+  const overlay = (t: number, durationMs: number, kind: "callout" | "lowerThird" = "callout"): ComposerEvent =>
+    ({ t, type: "overlay", overlay: kind, props: { text: "x" }, ms: 1500, durationMs, theme: "ink" });
+  const plan = planPolish([click(1000), overlay(1700, 2000), click(2500), click(4000)], { ...options, frames: 180 });
+  expect(plan.frame(51).zoom).toBeCloseTo(4 / 3);
+  expect(plan.frame(75).crop).toEqual([0, 0, 1]);
+  expect(plan.frame(100).crop).toEqual([0, 0, 1]); // the click at 2.5 s, under the callout, doesn't zoom
+  expect(plan.frame(150).zoom).toBeCloseTo(4 / 3); // the click at 4 s, after it, does
+  // A lower third is on the screen: the camera goes on as before.
+  const third = planPolish([click(1000), overlay(1700, 2000, "lowerThird")], { ...options, frames: 120 });
+  expect(third.frame(60).zoom).toBeCloseTo(4 / 3);
+});

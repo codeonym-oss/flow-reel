@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { type Curve, planPolish, type PolishOptions } from "../polish.ts";
 import type { ComposerEvent } from "../schema/events.ts";
 import { FONTS_DIR as fonts } from "./fonts.ts";
+import type { DrawnOverlay } from "./overlays.ts";
 
 // Same cubic curves as the pure planner, evaluated by FFmpeg on the delivery frame clock.
 function expression(curve: Curve, clock: string, initial: number): string {
@@ -72,7 +73,12 @@ function badge(file: string, factor: number, [width, height]: [number, number]) 
   return { x, y: margin, size, label, arrowsX: x + pad, labelX: x + pad + Math.round(size * ARROWS_EM) + gap, textY };
 }
 
-export function polishFilters(events: readonly ComposerEvent[], options: PolishOptions, video: string, firstInput: number) {
+/**
+ * The polish graph from `[trimmed]` to `[polished]`: overlays drawn on the app (GH-76 decision 007), the camera,
+ * overlays drawn on the screen, ripples, the cursor, flashes and badges.
+ */
+export function polishFilters(events: readonly ComposerEvent[], options: PolishOptions & { overlays?: readonly DrawnOverlay[] }, video: string,
+  firstInput: number) {
   const plan = planPolish(events, options);
   const [width, height] = options.viewport;
   const work = dirname(video);
@@ -102,8 +108,20 @@ export function polishFilters(events: readonly ComposerEvent[], options: PolishO
   const camera = positions(`on*1000/${options.fps}`).crop;
   const { crop, pointer } = positions("t*1000");
   const visible = plan.cardSpans.length ? `*not(${inCard("t*1000")})` : "";
-  const filters = [`[trimmed]zoompan=z='1/(${camera[2]})':x='(${camera[0]})*iw':y='(${camera[1]})*ih':d=1:s=${width}x${height}:fps=${options.fps}[camera]`];
-  let previous = "camera";
+  const flashes = events.filter((e) => e.type === "flash" && e.t >= 0 && e.t < options.frames * 1000 / options.fps);
+  // Overlays are the last inputs; each is laid over its layer from its first frame for its frames.
+  const overlays = options.overlays ?? [];
+  const overlayInput = firstInput + 1 + (plan.clicks.length ? 1 : 0) + flashes.length + stretches.length;
+  const filters: string[] = [];
+  const layOver = (layer: "app" | "screen", from: string) => overlays.reduce((source, o, k) => {
+    if (o.layer !== layer) return source;
+    const start = Math.round(o.startMs * options.fps / 1000) / options.fps;
+    filters.push(`[${overlayInput + k}:v]format=rgba,setpts=PTS+${start}/TB[ov${k}]`);
+    filters.push(`[${source}][ov${k}]overlay=eof_action=pass:repeatlast=0:enable='between(t,${start - 1e-6},${start + (o.frames - 0.5) / options.fps})'[${layer}${k}]`);
+    return `${layer}${k}`;
+  }, from);
+  filters.push(`[${layOver("app", "trimmed")}]zoompan=z='1/(${camera[2]})':x='(${camera[0]})*iw':y='(${camera[1]})*ih':d=1:s=${width}x${height}:fps=${options.fps}[camera]`);
+  let previous = layOver("screen", "camera");
   if (plan.clicks.length) {
     const ringFile = join(work, "ripple.rgba");
     const count = Math.ceil(0.4 * options.fps);
@@ -130,7 +148,6 @@ export function polishFilters(events: readonly ComposerEvent[], options: PolishO
       previous = `click${i}`;
     });
   }
-  const flashes = events.filter((e) => e.type === "flash" && e.t >= 0 && e.t < options.frames * 1000 / options.fps);
   filters.push(`[${previous}][${firstInput}:v]overlay=x='(${pointer[0]}-(${crop[0]}))*${width}/(${crop[2]})-1':` +
     `y='(${pointer[1]}-(${crop[1]}))*${height}/(${crop[2]})-1':shortest=1${visible ? `:enable='1${visible}'` : ""}` +
     `[${flashes.length || stretches.length ? "cursor" : "polished"}]`);
@@ -166,5 +183,6 @@ export function polishFilters(events: readonly ComposerEvent[], options: PolishO
       `${text("NotoSansSymbols2-Regular.ttf", "▶▶", b.arrowsX)},${text("NotoSans-Bold.ttf", b.label, b.labelX)}[${out}]`);
     previous = out;
   });
+  for (const o of overlays) inputs.push("-framerate", String(options.fps), "-i", o.pattern);
   return { inputs, filters: filters.join(";") };
 }

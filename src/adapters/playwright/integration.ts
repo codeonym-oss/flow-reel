@@ -44,7 +44,7 @@ export const playwright: Integration = {
               const showFrame = () => Promise.reject(new Error("showFrame() was replaced by card.image() in flow-reel 0.5: " +
                 'await card.image("diagram.png", { frame: "none", ms: 3000 })'));
               await script.body({ page: wrapped, comment, sound, flash, zoomIn, zoomOut, speedUp, skip, showFrame,
-                card: card as ScriptContext["card"] });
+                card: card as ScriptContext["card"], lowerThird: (options) => stage.overlay("lowerThird", {}, options) });
             },
             close: () => context.close(),
           };

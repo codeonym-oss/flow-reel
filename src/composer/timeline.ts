@@ -174,6 +174,13 @@ export function retimeEvents(events: readonly ComposerEvent[], timeline: Timelin
     // A skip keeps its length: the real time cut, which its card shows.
     if (event.type === "skip") return { ...event, t: start(`skip${skip++}`) };
     if (event.type === "card") return { ...event, t: start(`card${card++}`) };
+    if (event.type === "overlay") {
+      // It shows until the script's next action, holds included, and stops where a card starts (GH-76 decision 007).
+      const from = timeline.mapTime(event.t);
+      const next = timeline.cards.find((c) => c.startMs >= from - 0.5);
+      const to = Math.min(timeline.mapTime(event.t + event.durationMs), next?.startMs ?? Infinity);
+      return { ...event, t: from, durationMs: Math.max(0, to - from) };
+    }
     const t = timeline.mapTime(event.t);
     const span = (d: number) => timeline.mapDuration(event.t, d);
     switch (event.type) {

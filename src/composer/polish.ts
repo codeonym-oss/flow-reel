@@ -60,6 +60,8 @@ export function planPolish(events: readonly ComposerEvent[], options: PolishOpti
   let target = [0, 0, 1];
   let cameraTarget = target;
   let held = false;
+  // Until when the camera stays on the full screen for an overlay on the app (GH-76 decision 007).
+  let fullUntil = -Infinity;
   const sorted = events.filter((e) => !["sound", "flash"].includes(e.type)).sort((a, b) => a.t - b.t);
   sorted.forEach((event, i) => {
     const previousDeadline = deadline;
@@ -71,6 +73,16 @@ export function planPolish(events: readonly ComposerEvent[], options: PolishOpti
       held = false;
       deadline = -Infinity;
       cameraTarget = initial;
+      return;
+    }
+    if (event.type === "overlay") {
+      // A callout or a highlight shows the whole screen, its spotlight on the element: the camera eases out and stays.
+      if (event.overlay === "lowerThird") return;
+      change(camera, event.t, ZOOM_IN_MS, initial, initial);
+      held = false;
+      deadline = -Infinity;
+      cameraTarget = initial;
+      fullUntil = event.t + event.durationMs;
       return;
     }
     if (event.type === "zoom") {
@@ -99,7 +111,7 @@ export function planPolish(events: readonly ComposerEvent[], options: PolishOpti
       const at = value(pointer, event.t, [0.5, 0.5]);
       target = fit([at[0] * width, at[1] * height], event.bounds);
     } else return;
-    if (held || !autoZoom) return;
+    if (held || !autoZoom || event.t < fullUntil) return;
     if (event.t > deadline + ZOOM_OUT_MS) return;
     // Hover does not restart an already-ending zoom or move its return-to-full deadline.
     if (event.type === "move" && event.t >= deadline) return;

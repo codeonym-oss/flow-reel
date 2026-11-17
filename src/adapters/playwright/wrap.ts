@@ -19,7 +19,7 @@ export interface WrapOptions {
   /** CSS pixels; defaults to the page's emulated viewport. */
   viewport?: [width: number, height: number];
   /** Steps and sounds; without it, actions just run. */
-  stage?: Pick<Stage, "comment" | "sound" | "action" | "checkEffect">;
+  stage?: Pick<Stage, "comment" | "sound" | "action" | "checkEffect" | "overlay">;
 }
 
 const CHAR_DELAY_MS = 60;
@@ -72,7 +72,7 @@ export function wrapPage(page: Page, options: WrapOptions): Page {
 /** The wrapped page and the standalone effect words, which share the wrapper's clock and pointer. */
 export function wrapScript(page: Page, options: WrapOptions) {
   const { clock, events, fps = 30 } = options;
-  const stage = options.stage ?? { comment() {}, sound() {}, action: (run) => run(), checkEffect() {} };
+  const stage = options.stage ?? { comment() {}, sound() {}, action: (run) => run(), checkEffect() {}, overlay: async () => {} };
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const warned = new Set<string>();
   const [vw, vh] = options.viewport ?? [page.viewportSize()?.width ?? 1920, page.viewportSize()?.height ?? 1080];
@@ -130,11 +130,8 @@ export function wrapScript(page: Page, options: WrapOptions) {
     return x < 0 || x > viewport.width || y < 0 || y > viewport.height;
   };
 
-  // Scrolls the target to the middle of the viewport when it is off screen, then eases the mouse to its centre (or
-  // to `position`, relative to its top-left corner, as Playwright's own option means).
-  // A chained zoomIn starts here, once the target's box is known and before the pointer heads for it.
-  async function approach(locator: Locator, position?: { x: number; y: number }, zoom?: Chain["zoomIn"]):
-    Promise<{ at: Point; bounds: Bounds } | undefined> {
+  // Scrolls the target to the middle of the viewport when it is off screen; its box, or undefined when it has none.
+  async function bring(locator: Locator): Promise<Bounds | undefined> {
     let box = await paced(BUDGET_MS.locate, () => locator.boundingBox());
     if (!box) return undefined;
     if (offScreen(box)) {
@@ -151,6 +148,16 @@ export function wrapScript(page: Page, options: WrapOptions) {
         return next;
       });
     }
+    return box;
+  }
+
+  // Brings the target on screen, then eases the mouse to its centre (or to `position`, relative to its top-left
+  // corner, as Playwright's own option means). A chained zoomIn starts here, once the target's box is known and
+  // before the pointer heads for it.
+  async function approach(locator: Locator, position?: { x: number; y: number }, zoom?: Chain["zoomIn"]):
+    Promise<{ at: Point; bounds: Bounds } | undefined> {
+    const box = await bring(locator);
+    if (!box) return undefined;
     const at: Point = position
       ? [Math.round(box.x + position.x), Math.round(box.y + position.y)]
       : [Math.round(box.x + box.width / 2), Math.round(box.y + box.height / 2)];
@@ -239,6 +246,9 @@ export function wrapScript(page: Page, options: WrapOptions) {
         if (prop === "flash") return (o?: unknown) => { stage.checkEffect("flash"); return wrapLocator(locator, { ...chain, flash: flashSettings(o) }); };
         if (prop === "zoomIn") return (o?: unknown) => { stage.checkEffect("zoomIn"); return wrapLocator(locator, { ...chain, zoomIn: zoomInSettings(o) }); };
         if (prop === "zoomOut") return (o?: unknown) => { stage.checkEffect("zoomOut"); return wrapLocator(locator, { ...chain, zoomOut: zoomOutSettings(o) }); };
+        // Overlays on the element, shown until the script's next action (GH-76 decision 007).
+        if (prop === "callout") return (text: unknown, o?: unknown) => stage.overlay("callout", { text }, o, () => bring(locator));
+        if (prop === "highlight") return (o?: unknown) => stage.overlay("highlight", {}, o, () => bring(locator));
         const value = Reflect.get(obj, prop, receiver);
         if (typeof prop !== "string" || typeof value !== "function") return value;
         const original = value.bind(obj);

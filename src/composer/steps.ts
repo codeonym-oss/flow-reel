@@ -5,7 +5,7 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { skipSettings, speedFactor } from "./effects.ts";
 import type { Stage } from "./ports.ts";
-import type { ComposerEvent } from "./schema/events.ts";
+import type { Bounds, ComposerEvent, OverlayEvent } from "./schema/events.ts";
 import type { TranscriptStep } from "./schema/transcript.ts";
 
 // A short settle before each step, so its start doesn't depend on how long the idle check took.
@@ -22,6 +22,11 @@ export function stepTimer({ clock, idle, sleep: wait = sleep, warn = console.war
   const steps: TranscriptStep[] = [];
   const queued: string[] = [];
   let open: { comment?: string; startMs: number; actionEndMs: number } | undefined;
+  // Overlays shown and not yet closed: each closes when the script's next action starts (GH-76 decision 007).
+  const overlays: { durationMs: number; t: number }[] = [];
+  const closeOverlays = () => {
+    for (const o of overlays.splice(0)) o.durationMs = Math.round(clock.now() - o.t);
+  };
   // The word whose stretch is running: inside it, only actions (GH-61 decision 004). The stretch is an action itself,
   // so an action failing inside it lets the stretch name the step, once.
   let stretch: string | undefined;
@@ -68,6 +73,8 @@ export function stepTimer({ clock, idle, sleep: wait = sleep, warn = console.war
   const action: Stage["action"] = async (run) => {
     if (queued.length) await layDown();
     else if (!open) await start(undefined);
+    // After the step before ended, so an overlay lasts through the hold that lets its comment finish.
+    closeOverlays();
     const index = steps.length;
     const { comment: text } = open!;
     let result;
@@ -122,11 +129,28 @@ export function stepTimer({ clock, idle, sleep: wait = sleep, warn = console.war
     if (stretch === "skip") throw new Error(`${word}() can't be used inside skip(); put it before or after`);
   }
 
+  /**
+   * Shows an overlay as an action of its step: logs `event` now, waits its `ms`, and leaves it open until the script's
+   * next action (GH-76 decision 007).
+   */
+  async function overlay(word: string, event: (t: number) => OverlayEvent, events: ComposerEvent[],
+    bounds?: () => Promise<Bounds | undefined>): Promise<void> {
+    outsideStretch(word);
+    await action(async () => {
+      const box = await bounds?.();
+      const logged: OverlayEvent = { ...event(clock.now()), ...(box ? { bounds: box } : {}) };
+      events.push(logged);
+      overlays.push(logged);
+      await wait(logged.ms);
+    });
+  }
+
   /** Lays down the comments still queued and ends the last step; call it after the script returns. */
   async function finish() {
     await layDown();
     await end();
+    closeOverlays();
   }
 
-  return { steps, comment, action, speedUp, skip, outsideStretch, outsideSkip, finish };
+  return { steps, comment, action, speedUp, skip, overlay, outsideStretch, outsideSkip, finish };
 }

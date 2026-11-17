@@ -7,7 +7,19 @@ export { Sounds, type Sound } from "./composer/schema/events.ts";
 export type { FlashOptions, SkipOptions, ZoomInOptions, ZoomOutOptions } from "./composer/effects.ts";
 export type { Brand, BrandFonts, ThemeName, Transition } from "./composer/cards/brand.ts";
 import type { CardOptions } from "./composer/cards/words.ts";
+import type { OverlayOptions } from "./composer/cards/overlays.ts";
 export type { CardOptions } from "./composer/cards/words.ts";
+export type { OverlayOptions } from "./composer/cards/overlays.ts";
+
+/** A callout's options: a second, quieter line under its words. */
+export interface CalloutOptions extends OverlayOptions {
+  detail?: string;
+}
+/** A lower third: a title, and a line under it, in a bar at the bottom left of the screen. */
+export interface LowerThird extends OverlayOptions {
+  title: string;
+  subtitle?: string;
+}
 
 /** A title card that opens the reel: a kicker above the title, a subtitle below, the brand's logo. */
 export interface IntroCard extends CardOptions {
@@ -112,6 +124,14 @@ declare module "playwright-core" {
     zoomIn(options?: ZoomInOptions): Locator;
     /** Zooms back out to the full screen after this locator's next action. */
     zoomOut(options?: ZoomOutOptions): Locator;
+    /**
+     * Spotlights this element with a bubble saying `text`, until the script's next action and through its step's
+     * comment; the script waits `ms` (1.5 s by default) with it shown. Drawn on the app, so it moves with the camera.
+     * `await page.getByTestId("chart").callout("The chart follows the filter", { detail: "…" })`.
+     */
+    callout(text: string, options?: CalloutOptions): Promise<void>;
+    /** Spotlights this element alone, like `callout` without the bubble. */
+    highlight(options?: OverlayOptions): Promise<void>;
   }
 }
 
@@ -155,6 +175,11 @@ export interface ScriptContext {
    * `flash`, zoom, `speedUp` and another `skip` throw.
    */
   skip(fn: () => Promise<unknown>, options?: SkipOptions): Promise<void>;
+  /**
+   * Shows a title bar at the bottom left of the screen, until the script's next action and through its step's
+   * comment; the script waits `ms` (1.5 s by default) with it shown. `await lowerThird({ title: "Saved views" })`.
+   */
+  lowerThird(lowerThird: LowerThird): Promise<void>;
   /** The cards: `await card.intro({ title: "…" })`, `card.chapter`, `card.feature`, `card.image`, `card.compare`, `card.outro`, `card.custom`. */
   card: Cards;
 }
