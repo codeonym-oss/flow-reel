@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/codeonym-oss/flow-reel/compare/flow-reel-plugin-v0.3.0...flow-reel-plugin-v0.4.0) (2026-11-16)
+
+
+### Features
+
+* support flow-reel 0.4 only in the plugin ([#65](https://github.com/codeonym-oss/flow-reel/issues/65)) ([#72](https://github.com/codeonym-oss/flow-reel/issues/72)) ([e3a0625](https://github.com/codeonym-oss/flow-reel/commit/e3a062510b70cc6683f6b9c0f6fd33c0f00e66a2))
+
 ## [0.3.0](https://github.com/codeonym-oss/flow-reel/compare/flow-reel-plugin-v0.2.1...flow-reel-plugin-v0.3.0) (2026-11-16)
 
 
