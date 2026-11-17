@@ -4,7 +4,7 @@
 - **Takeaway:** "I can save a filtered board and get back to it in one click."
 - **App:** http://localhost:4173/ (`node serve.mjs` in this folder) — starting state: all five projects, chart of
   all work, no saved views. Nothing persists: reloading resets it.
-- **Runtime:** flow-reel 0.4.x
+- **Runtime:** flow-reel 0.5.x
 - **Settings:** speaker Ryan, language english (`flow-reel.json`)
 - **Expected length:** about 30 s
 

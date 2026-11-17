@@ -119,9 +119,9 @@ export async function preflight(args) {
   const range = supportedRange();
   const found = args.version ? { version: args.version, where: "--version" } : installedVersion(args.script ? dirname(args.script) : process.cwd());
   if (!found) {
-    add("runtime", { status: "fail", detail: "no flow-reel installed here and no --version given", fix: "npm install --save-dev flow-reel@0.4" });
+    add("runtime", { status: "fail", detail: "no flow-reel installed here and no --version given", fix: "npm install --save-dev flow-reel@0.5" });
   } else if (!satisfies(found.version, range)) {
-    add("runtime", { status: "fail", detail: `flow-reel ${found.version} (${found.where}); this plugin supports ${range}`, fix: "npm install --save-dev flow-reel@0.4, or update the plugin" });
+    add("runtime", { status: "fail", detail: `flow-reel ${found.version} (${found.where}); this plugin supports ${range}`, fix: "npm install --save-dev flow-reel@0.5, or update the plugin" });
   } else add("runtime", { status: "ok", detail: `flow-reel ${found.version}, within ${range}` });
 
   if (engine && found) {

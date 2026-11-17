@@ -30,7 +30,7 @@ login the composer can't replay.
 
 Run `node <skill-dir>/../../scripts/preflight.mjs --url <app url> --script <script path>`. Fix nothing silently:
 report each failed check and its fix to the person, and do the fix only with their consent (installing flow-reel
-with `npm install --save-dev flow-reel@0.4` in their project is the usual one; a missing cloud voice key is theirs
+with `npm install --save-dev flow-reel@0.5` in their project is the usual one; a missing cloud voice key is theirs
 to set in their shell). The first compose pulls a large image.
 
 ## 4. Write the script
