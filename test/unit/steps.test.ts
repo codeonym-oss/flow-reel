@@ -161,11 +161,11 @@ describe("skip (GH-62 decisions 002 and 004)", () => {
       await timer.action(advance(20));
       events.push({ t: 120, type: "sound", name: "success" });
     }, { label: "{duration} plus tard" }, events);
-    await timer.skip(advance(5), undefined, events);
+    await timer.skip(advance(5), { style: "bar" }, events);
     await timer.finish();
     expect(timer.steps).toEqual([{ index: 0, comment: "The build takes a while.", startMs: 100, actionEndMs: 125, endMs: 225 }]);
-    expect(events).toEqual([{ t: 100, type: "skip", durationMs: 20, label: "{duration} plus tard" },
-      { t: 120, type: "sound", name: "success" }, { t: 120, type: "skip", durationMs: 5, label: "{duration} skipped" }]);
+    expect(events).toEqual([{ t: 100, type: "skip", durationMs: 20, label: "{duration} plus tard", style: "clock" },
+      { t: 120, type: "sound", name: "success" }, { t: 120, type: "skip", durationMs: 5, label: "{duration} skipped", style: "bar" }]);
   });
 
   it("refuses a missing function or bad options where it is written", async () => {

@@ -16,7 +16,7 @@ const scriptIn = () => {
 
 const transcript = { version: 2 as const, script: "settings.ts", steps: [],
   video: { file: "video.mp4", width: 1920, height: 1080, fps: 30, durationMs: 0 } };
-const events = { version: 5 as const, autoZoom: true, events: [] };
+const events = { version: 6 as const, autoZoom: true, events: [] };
 const about = { script: { file: "settings.ts", sha256: "a".repeat(64) }, composer: { version: "0.2.0", platform: "linux/amd64" },
   integration: "playwright", voice: { adapter: "qwen3-tts-0.6b", voice: "Ryan", seed: 0, language: "english" } };
 

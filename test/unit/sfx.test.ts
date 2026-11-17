@@ -9,11 +9,11 @@ it("logs sounds immediately on the recording clock and rejects unknown names", (
   const sound = soundLogger(clock, events);
   expect(sound(Sounds.feedback.SUCCESS)).toBeUndefined();
   expect(events).toEqual([{ t: 123.5, type: "sound", name: "success" }]);
-  expect(validateEvents({ version: 5, autoZoom: true, events })).toEqual([]);
+  expect(validateEvents({ version: 6, autoZoom: true, events })).toEqual([]);
   // unknown names must also fail in scripts written in plain JavaScript
   expect(() => sound("kaboom" as Sound)).toThrow('unknown sound "kaboom": use one of the Sounds constants from "flow-reel"');
   expect(events).toHaveLength(1);
-  expect(validateEvents({ version: 5, autoZoom: true, events: [{ t: 0, type: "sound", name: "kaboom" }] })).not.toEqual([]);
+  expect(validateEvents({ version: 6, autoZoom: true, events: [{ t: 0, type: "sound", name: "kaboom" }] })).not.toEqual([]);
 });
 
 it("replaces only nearby click audio at inclusive 150 ms boundaries and keeps every explicit cue", () => {

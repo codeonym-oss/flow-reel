@@ -4,6 +4,8 @@ import { resolve, join } from "node:path";
 import { beforeAll, expect, it } from "vitest";
 import { planTimeline } from "../../src/composer/timeline.ts";
 import { renderTimeline, videoFrames } from "../../src/composer/media/render.ts";
+import { THEMES } from "../../src/composer/cards/brand.ts";
+import { renderCardsInImage } from "./image.ts";
 
 const dir = resolve("test/e2e/out/render");
 const media = (args: string[]) => execFileSync("ffmpeg", ["-v", "error", "-y", ...args]);
@@ -211,23 +213,24 @@ it("plays a stretch with the planned frames, keeping source frame floor(i × fac
   expect(videoFrames(both.master)).toBe(fractional.frames);
 });
 
-it("cuts a skip and holds the frame before it as a dimmed card with its words (GH-62 decision 003)", () => {
-  // Video 0 ms is source frame 15; the skip cuts source 21-35, so red 15-20 plays as video 0-5, the card (source 20,
-  // red, dimmed) as 6-50, and blue resumes at 51 with source 36.
-  const timeline = planTimeline([], { fps: 30, frames: 60, cutMs: 500, skips: [{ t: 200, durationMs: 500, label: "{duration} skipped" }] });
+it("cuts a skip and shows its card over the blurred frame before it (GH-62 decision 003, GH-76 decision 008)", async () => {
+  // Video 0 ms is source frame 15; the skip cuts source 21-35, so red 15-20 plays as video 0-5, the card (over source
+  // 20, red) as 6-50, and blue resumes at 51 with source 36.
+  const timeline = planTimeline([], { fps: 30, frames: 60, cutMs: 500, skips: [{ t: 200, durationMs: 500 }] });
   const out = options("skip");
-  renderTimeline({ ...out, timeline });
+  const [{ frame, frames }] = timeline.cards;
+  const clips = await renderCardsInImage([{ id: "skip0", kind: "skip", props: { label: "{duration} skipped", style: "clock", durationMs: 500 },
+    theme: THEMES.ink, enter: "fade", exit: "fade", frame, frames }], { capture: out.capture, work: dir, scriptDir: dir, viewport: [160, 90], fps: 30, brand: {} });
+  renderTimeline({ ...out, timeline, clips });
   expect(videoFrames(out.master)).toBe(90);
   expect(videoFrames(out.video)).toBe(75);
   const pixels = execFileSync("ffmpeg", ["-v", "error", "-i", out.video, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { maxBuffer: 64 << 20 });
   const at = (frame: number, x: number, y: number) => [...pixels.subarray(((frame * 90 + y) * 160 + x) * 3, ((frame * 90 + y) * 160 + x) * 3 + 3)];
   expect(at(5, 5, 5)[0]).toBeGreaterThan(200);
-  expect(at(6, 5, 5)[0]).toBeGreaterThan(200); // fading in from the frame itself
-  expect(at(28, 5, 5)[0]).toBeGreaterThan(70);
-  expect(at(28, 5, 5)[0]).toBeLessThan(130); // dimmed to about 40 %
-  // White words across the middle of the card (the cursor, which sits there, isn't drawn over a card).
-  const white = (frame: number) => Array.from({ length: 160 * 12 }, (_, i) => at(frame, i % 160, 39 + Math.floor(i / 160)))
-    .filter((rgb) => rgb.every((v) => v > 180)).length;
-  expect(white(28)).toBeGreaterThan(10);
+  expect(at(6, 5, 5)[0]).toBeGreaterThan(180); // fading in from the frame itself
+  // The blurred red frame under the theme's scrim, and the panel in the middle in the theme's background.
+  expect(at(28, 5, 5)[0]).toBeGreaterThan(80);
+  expect(at(28, 5, 5)[0]).toBeLessThan(190);
+  expect(Math.max(...at(28, 62, 32))).toBeLessThan(60);
   expect(at(51, 5, 5)[2]).toBeGreaterThan(200);
 });

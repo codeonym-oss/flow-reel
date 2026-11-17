@@ -47,7 +47,7 @@ it("checks flow-reel.json", () => {
   expect(validateConfig({ version: 1, integration: "playwright", voice: { adapter: "a", speaker: "b", language: "c" } })).toEqual([]);
   expect(validateConfig([])).toEqual(["must be a JSON object"]);
   expect(validateConfig({ version: 2 })).toEqual(["version must be 1"]);
-  expect(validateConfig({ version: 1, env: ["KEY"] })).toEqual(['unknown key "env"; it takes version, integration, voice']);
+  expect(validateConfig({ version: 1, env: ["KEY"] })).toEqual(['unknown key "env"; it takes version, integration, voice, brand']);
   expect(validateConfig({ version: 1, voice: { seed: 1 } })).toEqual(['voice: unknown key "seed"; it takes adapter, speaker, language, model, apiKeyEnv, baseUrl']);
   expect(validateConfig({ version: 1, integration: 1, voice: { speaker: 2 } }))
     .toEqual(["integration must be a string", "voice.speaker must be a string"]);

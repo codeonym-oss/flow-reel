@@ -1,6 +1,7 @@
-// The composer's three ports (GH-27 decision 007). The core depends on these interfaces; the adapters in
+// The composer's ports (GH-27 decision 007; the card painter, GH-76 decision 003). The core depends on these interfaces; the adapters in
 // src/adapters implement them, and src/cli.ts chooses which.
 import type { ComposerEvent, EventLog, Sound } from "./schema/events.ts";
+import type { cardWords } from "./cards/words.ts";
 import type { ManifestAbout } from "./schema/manifest.ts";
 import type { Transcript } from "./schema/transcript.ts";
 
@@ -32,6 +33,8 @@ export interface Stage {
   skip(run: () => Promise<unknown>, options?: unknown): Promise<void>;
   /** Throws when the effect word `word` can't be used here: inside a skip, nothing is seen (GH-62 decision 004). */
   checkEffect(word: string): void;
+  /** The `card` words: each inserts a card into the video, as an action of its step (GH-76 decision 002). */
+  card: ReturnType<typeof cardWords>;
 }
 
 /** One script, open in its E2E tool and ready to replay. */
@@ -89,4 +92,25 @@ export interface Reel {
 export interface ReelStore {
   /** Starts a new reel for `scriptPath`, beside it or inside `outDir`. */
   open(scriptPath: string, outDir?: string): Reel;
+}
+
+/** One card page to draw, frame by frame. */
+export interface PaintRequest {
+  /** The page's URL on the card origin; its HTML is `html`. */
+  url: string;
+  html: string;
+  /** The file to serve for a path on the card origin, or undefined: nothing else may load, the network is off. */
+  file(pathname: string): string | undefined;
+  /** CSS pixels, drawn at device scale `scale`. */
+  viewport: [width: number, height: number];
+  scale: number;
+  fps: number;
+  frames: number;
+  /** Where frame `i` goes, as a PNG. */
+  frame(i: number): string;
+}
+
+/** Draws card pages on a frozen clock: frame i shows the page i / fps seconds after it loaded. */
+export interface CardPainter {
+  open(): Promise<{ paint(request: PaintRequest): Promise<void>; close(): Promise<void> }>;
 }

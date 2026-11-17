@@ -8,7 +8,7 @@ const transcript = () => ({ version: 2, script: "demo.ts",
   video: { file: "video.mp4", width: 960, height: 540, fps: 30, durationMs: 2000 },
   steps: [{ index: 0, comment: "Hello", startMs: 500, actionEndMs: 700, endMs: 1000 }] });
 
-const log = (color = "#ffffff") => ({ version: 5, autoZoom: true, events: [{ t: 600, type: "flash", color, ms: 250 }] });
+const log = (color = "#ffffff") => ({ version: 6, autoZoom: true, events: [{ t: 600, type: "flash", color, ms: 250 }] });
 
 /** A small reel on disk: its transcript, its event log, a stand-in video, and a manifest listing them. */
 function writeReel(dir: string, value: unknown, effects: unknown = log()) {

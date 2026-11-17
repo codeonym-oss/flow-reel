@@ -149,28 +149,125 @@ await speedUp(4, () => page.getByText("Done").waitFor({ timeout: 120_000 }));
   another `speedUp` or a `skip` throw there, since they would add time: put them before or after.
 - **A comment** spoken over the stretch keeps its normal speed. If it outlasts the shortened stretch, the last
   frame holds until it ends, as for any step.
-- **Reels** record each stretch as a `speed` event in the event log (version 5), and `compare` checks its factor.
+- **Reels** record each stretch as a `speed` event in the event log, and `compare` checks its factor.
 
 ### Skip a wait
 
 `await skip(fn, options?)` runs `fn` as one action of its step and cuts that stretch from the video. In its place, a
-card shows the frame before the wait, dimmed, with "⏭ 38 s skipped" in the middle. Use it for waits that show
-nothing worth watching, such as a build:
+card over the blurred frame before the wait says how long was cut. Use it for waits that show nothing worth watching,
+such as a build:
 
 ```ts
 comment("The build takes a while; here is the result.");
-await skip(() => page.waitForResponse(/\/api\/build/), { label: "{duration} plus tard" });
+await skip(() => page.waitForResponse(/\/api\/build/), { label: "{duration} plus tard", style: "bar" });
 ```
 
-- **The card** says how long was cut, in whole seconds: "38 s", "1 min 52 s". `label` replaces the words after
-  "⏭"; `{duration}` in it shows that length, and a label without it shows as written. The bundled Noto Sans covers
-  Latin, Greek and Cyrillic; other scripts show as boxes.
-- **It lasts** 1.5 s, or longer while a comment spoken over it hasn't finished: the comment is never cut. The card
-  and its words fade in and out over 200 ms, and no cursor or zoom is drawn over it.
-- **Inside `fn`** go actions and sounds; nothing of them is seen or heard. `comment`, `showFrame`, `flash`, zoom,
-  `speedUp` and another `skip` throw there: put them before or after.
-- **Reels** record each skip as a `skip` event in the event log, with the length cut and the label; `compare`
-  checks its label.
+- **The card** says how long was cut, in whole seconds: "38 s", "1 min 52 s". `label` replaces its words;
+  `{duration}` in it shows that length, and a label without it shows as written. `style: "clock"` (the default) is a
+  panel in the middle with a clock ring; `style: "bar"` a bar along the bottom. It follows the [brand](#brand).
+- **It lasts** 1.5 s, or longer while a comment spoken over it hasn't finished: the comment is never cut. It fades in
+  and out, and no cursor or zoom is drawn over it.
+- **Inside `fn`** go actions and sounds; nothing of them is seen or heard. `comment`, `showFrame`, a card, `flash`,
+  zoom, `speedUp` and another `skip` throw there: put them before or after.
+- **Reels** record each skip as a `skip` event in the event log, with the length cut, the label and the style;
+  `compare` checks them.
+
+## Cards
+
+Cards are designed screens inserted into the reel: an intro, chapters, an outro, or a card of your own written in
+HTML. Each is one word on `card`, awaited where it shows; the app stops on its frame, the card plays with a
+transition in and out, and the app resumes where it left.
+
+```ts
+export default script({ url: "http://localhost:4173" }, async ({ page, comment, card }) => {
+  comment("Orbit 2.4 brings saved views.");
+  await card.intro({ kicker: "Orbit 2.4", title: "Saved views", subtitle: "Your filters, one click away" });
+  await card.chapter({ title: "Name your view" });                 // "Chapter 01 / 02"
+  await page.getByLabel("Name").fill("Active work");
+  await card.custom("cards/pricing.html", { plan: "Team", price: 12 }, { enter: "zoom" });
+  await card.chapter({ title: "Share it", theme: "paper" });
+  await page.getByRole("button", { name: "Share" }).click();
+  await card.outro({ title: "Try saved views", url: "orbit.dev/views", links: ["Docs", "Changelog"] });
+});
+```
+
+| Word | Props |
+|---|---|
+| `card.intro({ … })` | `title`, `kicker?`, `subtitle?`, `layout?: "left" \| "center"` |
+| `card.chapter({ … })` | `title`, `subtitle?`; numbered among the script's chapters by itself |
+| `card.outro({ … })` | `title`, `url?` (shown as a button), `links?` (up to four) |
+| `card.custom(page, props?, options?)` | any JSON props, for your page |
+
+Every card also takes `ms`, `enter`, `exit` and `theme` (in its props object, or as `options` for `card.custom`):
+
+- **`ms`:** a card lasts 3 s, or until the comment before it has been spoken; `ms` (500 to 60000) sets an exact length,
+  transitions included.
+- **`enter` and `exit`:** `fade` (the default), `slide`, `wipe`, `zoom`, `blur`, `iris` or `cut`. The camera eases
+  back to the full screen as a card comes, so the transition starts from what was on screen.
+- **`theme`:** `ink` (the default), `paper`, `ocean` or `ember`.
+- A wrong prop, option or path throws where the card is written, naming it. Cards can't go inside `speedUp` or
+  `skip`.
+- **Reels** record each card as a `card` event in the event log (version 6), with its props, look and the hash of
+  each file it uses; `compare` checks them.
+
+### Custom cards
+
+A custom card is an HTML page in the script's folder: its own CSS, JavaScript, images and fonts, laid out at the
+reel's size. The composer draws it frame by frame on a frozen clock, so `setTimeout`, `requestAnimationFrame`,
+`performance.now()`, CSS animations and transitions all play the same way every time. The network is off: the page
+loads only files from the script's folder.
+
+```html
+<!doctype html>
+<html><head><style>.price { font-size: 6rem }</style></head>
+<body>
+  <div class="fr-card">
+    <span class="fr-kicker fr-enter">Pricing</span>
+    <h1 class="fr-title fr-enter fr-d1" data-prop="plan">Plan</h1>
+    <b class="price fr-enter fr-d2">$<span id="price">0</span></b>
+  </div>
+  <script>
+    // Counts up to the price over a second.
+    const { price } = window.flowReel.props, start = performance.now();
+    requestAnimationFrame(function tick(now) {
+      const k = Math.min(1, (now - start) / 1000);
+      document.getElementById("price").textContent = Math.round(price * k);
+      if (k < 1) requestAnimationFrame(tick);
+    });
+  </script>
+</body></html>
+```
+
+- **`data-prop="name"`** fills an element with `props.name`: its text, an image's `src`, or a list's items.
+- **`window.flowReel`** holds `props`, `theme` (its colours), `durationMs` and `logo`.
+- **The atoms** are always there: `--fr-bg`, `--fr-surface`, `--fr-line`, `--fr-fg`, `--fr-muted`, `--fr-accent` and
+  `--fr-on-accent` from the theme; `--fr-font-heading`, `--fr-font-body`, `--fr-font-mono`; and the classes `fr-card`
+  (a full-screen card), `fr-kicker`, `fr-title`, `fr-title-m`, `fr-subtitle`, `fr-mono`, `fr-muted`, `fr-accent`,
+  `fr-surface`, `fr-badge`, `fr-pill`, `fr-logo`, `fr-stack`, `fr-row`, and `fr-enter` with the delays `fr-d1` to
+  `fr-d5` to bring things in one after another. A rem is 1/54 of the screen's height, so a card fits any viewport.
+
+### Brand
+
+`brand` in `flow-reel.json` sets how every card looks; each key is optional, and a card's own options win:
+
+```json
+{
+  "version": 1,
+  "brand": {
+    "theme": "paper",
+    "accent": "#D6336C",
+    "logo": "brand/logo.svg",
+    "fonts": { "heading": "brand/Display.woff2", "body": "brand/Text.woff2" },
+    "enter": "fade",
+    "exit": "fade"
+  }
+}
+```
+
+- **`accent`** replaces the theme's accent colour; text on it is chosen to read against it.
+- **`logo`** (SVG, PNG, JPEG or WebP) shows on the intro and the outro.
+- **`fonts`** replace Inter Tight (titles) and Inter (text), which are bundled with JetBrains Mono (labels).
+- Paths are relative to `flow-reel.json`, inside the script's folder.
 
 ## Compose
 
@@ -185,7 +282,7 @@ instead, so one folder can collect the reels of many scripts. Every reel has the
 |---|---|
 | `video.mp4` | The polished video, 1920×1080, 30 fps, with AAC speech and interaction sounds. |
 | `transcript.json` | Each step's original `comment` and `startMs`, `actionEndMs` and `endMs` on the video's timeline (schema version 2). |
-| `events.json` | Every move, click, keystroke run, scroll, sound and effect, timed the same way, and whether zoom is automatic (schema version 5). |
+| `events.json` | Every move, click, keystroke run, scroll, sound, effect and card, timed the same way, and whether zoom is automatic (schema version 6). |
 | `captions.srt` | Captions for a subtitle-capable video player. |
 | `captions.vtt` | WebVTT captions for a browser's `<video>` / `<track>`. |
 | `audio/000.wav` | Local speech clips, named by zero-based step index. |
@@ -289,8 +386,8 @@ npx flow-reel compose demos/settings.ts --speaker Serena --language english
 | `--api-key-env` | `voice.apiKeyEnv` | the environment variable holding a cloud voice's key | the provider's |
 | `--base-url` | `voice.baseUrl` | a cloud voice's server | the provider's |
 
-Every key of the file is optional except `version`. An unknown name fails before the composer starts, with the list
-of known ones. When `--voice` picks another voice than the file's, the file's speaker and language are ignored.
+Every key of the file is optional except `version`. `brand` sets how cards look ([Brand](#brand)). An unknown name
+fails before the composer starts, with the list of known ones. When `--voice` picks another voice than the file's, the file's speaker and language are ignored.
 
 The first successful compose in a folder without `flow-reel.json` writes one with the settings it used, so the next
 compose, and everyone sharing the scripts, uses the same ones. An existing file is rewritten only with

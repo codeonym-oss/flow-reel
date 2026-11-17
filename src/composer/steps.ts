@@ -113,8 +113,8 @@ export function stepTimer({ clock, idle, sleep: wait = sleep, warn = console.war
   async function skip(run: () => Promise<unknown>, options: unknown, events: ComposerEvent[]): Promise<void> {
     outsideStretch("skip");
     if (typeof run !== "function") throw new Error("skip() takes a function whose wait to cut, as in skip(() => …)");
-    const { label } = skipSettings(options);
-    await stretchOf("skip", run, events, (t, durationMs) => ({ t, type: "skip", durationMs, label }));
+    const { label, style } = skipSettings(options);
+    await stretchOf("skip", run, events, (t, durationMs) => ({ t, type: "skip", durationMs, label, style }));
   }
 
   /** Throws when an effect word (`flash`, `zoomIn`, `zoomOut`) is used inside a skip, where nothing is seen. */

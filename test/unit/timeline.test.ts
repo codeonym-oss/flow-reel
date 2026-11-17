@@ -162,14 +162,14 @@ describe("speed-ups (GH-61 decisions 003, 007 and 008)", () => {
 });
 
 describe("skips (GH-62 decisions 003 and 004)", () => {
-  const skip = (t: number, durationMs: number, label = "{duration} skipped") => ({ t, durationMs, label });
+  const skip = (t: number, durationMs: number) => ({ t, durationMs });
 
   it("cuts a 60 s wait to a 1.5 s card holding the frame before it, and moves everything after it earlier", () => {
     // Capture frame 0 is video 0 ms (cutMs 0); the skip covers frames 30-1829, 1000-61000 ms.
     const plan = planTimeline([], { fps: 30, frames: 2000, cutMs: 0, skips: [skip(1000, 60_000)] });
     expect(plan.skips).toEqual([{ frame: 30, frames: 1800 }]);
-    expect(plan.insertions).toEqual([{ frame: 30, frames: 45, card: { text: "1 min skipped" } }]);
-    expect(plan.cardSpans).toEqual([{ startMs: 1000, endMs: 2500, text: "1 min skipped" }]);
+    expect(plan.insertions).toEqual([{ frame: 30, frames: 45, card: { id: "skip0" } }]);
+    expect(plan.cards).toEqual([{ id: "skip0", frame: 30, frames: 45, startMs: 1000, endMs: 2500 }]);
     expect(plan.stretches).toEqual([]);
     expect(plan.frames).toBe(2000 + 45 - 1800);
     expect([500, 62_000].map(plan.mapTime)).toEqual([500, 3500]);
@@ -178,9 +178,9 @@ describe("skips (GH-62 decisions 003 and 004)", () => {
   it("lasts until the comment spoken over it ends, in place of the step's hold", () => {
     // A 5 s comment from 500 ms needs the video until 5.7 s; the card starts at 1.5 s, so it lasts 4.2 s, and the step
     // ends after the 200 ms left of it, with nothing held.
-    const plan = planTimeline([step(0, 500, 61_700, 5000)], { fps: 30, frames: 2000, cutMs: 0, skips: [skip(1500, 60_000, "later")] });
-    expect(plan.insertions).toEqual([{ frame: 45, frames: 126, card: { text: "later" } }]);
-    expect(plan.cardSpans).toEqual([{ startMs: 1500, endMs: 5700, text: "later" }]);
+    const plan = planTimeline([step(0, 500, 61_700, 5000)], { fps: 30, frames: 2000, cutMs: 0, skips: [skip(1500, 60_000)] });
+    expect(plan.insertions).toEqual([{ frame: 45, frames: 126, card: { id: "skip0" } }]);
+    expect(plan.cards).toEqual([{ id: "skip0", frame: 45, frames: 126, startMs: 1500, endMs: 5700 }]);
     expect(plan.steps.map(({ startMs, actionEndMs, endMs }) => [startMs, actionEndMs, endMs])).toEqual([[500, 5800, 5900]]);
   });
 
@@ -188,7 +188,7 @@ describe("skips (GH-62 decisions 003 and 004)", () => {
     const { dropSkipped, retimeEvents } = await import("../../src/composer/timeline.ts");
     const events = [
       { t: 999, type: "sound" as const, name: "open" as const },
-      { t: 1000, type: "skip" as const, durationMs: 60_000, label: "{duration} skipped" },
+      { t: 1000, type: "skip" as const, durationMs: 60_000, label: "{duration} skipped", style: "clock" as const },
       { t: 1000, type: "click" as const, at: [1, 1] as [number, number], button: "left" as const, target: "Build" },
       { t: 60_999, type: "sound" as const, name: "success" as const },
       { t: 62_000, type: "flash" as const, color: "#ffffff", ms: 250 },
@@ -206,5 +206,34 @@ describe("skips (GH-62 decisions 003 and 004)", () => {
     // 11 s of capture before the stretch, less 10 s cut, plus the 1.5 s card.
     expect(plan.stretches[0]).toMatchObject({ frame: 360, kept: 15, startMs: 3500, endMs: 4000 });
     expect(plan.frames).toBe(2000 - 300 + 45 - 45);
+  });
+});
+
+describe("cards (GH-76 decision 002)", () => {
+  it("inserts a card for 3 s at its frame, and moves everything after it later", () => {
+    const plan = planTimeline([], { fps: 30, frames: 600, cutMs: 0, cards: [{ t: 1000 }] });
+    expect(plan.insertions).toEqual([{ frame: 30, frames: 90, card: { id: "card0" } }]);
+    expect(plan.cards).toEqual([{ id: "card0", frame: 30, frames: 90, startMs: 1000, endMs: 4000 }]);
+    expect(plan.frames).toBe(690);
+    expect([500, 2000].map(plan.mapTime)).toEqual([500, 5000]);
+  });
+
+  it("lasts until its step's comment ends, or exactly its ms", () => {
+    // A 6 s comment from 500 ms needs the video until 6.7 s; the card starts at 1 s, so it lasts 5.7 s.
+    const long = planTimeline([step(0, 500, 1200, 6000)], { fps: 30, frames: 600, cutMs: 0, cards: [{ t: 1000 }] });
+    expect(long.cards[0]).toMatchObject({ frames: 171, startMs: 1000, endMs: 6700 });
+    expect(long.steps[0].endMs).toBe(6900);
+    const exact = planTimeline([step(0, 500, 1200, 6000)], { fps: 30, frames: 600, cutMs: 0, cards: [{ t: 1000, ms: 2000 }] });
+    expect(exact.cards[0]).toMatchObject({ frames: 60, startMs: 1000, endMs: 3000 });
+    // The rest of the comment holds the app's frame after the card, as for an image.
+    expect(exact.steps[0].endMs).toBe(6700);
+  });
+
+  it("orders card words and skips by when they were shown, and retimes card events to their card", async () => {
+    const { retimeEvents } = await import("../../src/composer/timeline.ts");
+    const plan = planTimeline([], { fps: 30, frames: 2000, cutMs: 0, skips: [{ t: 2000, durationMs: 10_000 }], cards: [{ t: 1000 }, { t: 13_000, ms: 1000 }] });
+    expect(plan.cards.map(({ id, startMs, endMs }) => [id, startMs, endMs])).toEqual([["card0", 1000, 4000], ["skip0", 5000, 6500], ["card1", 7500, 8500]]);
+    const card = { type: "card" as const, card: "intro" as const, props: { title: "x" }, files: [], enter: "fade" as const, exit: "fade" as const, theme: "ink" as const };
+    expect(retimeEvents([{ t: 1000, ...card }, { t: 13_000, ...card }], plan).map((e) => e.t)).toEqual([1000, 7500]);
   });
 });

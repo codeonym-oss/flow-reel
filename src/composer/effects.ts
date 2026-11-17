@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import { extname, isAbsolute, relative, resolve, sep } from "node:path";
-import { type Bounds, type FlashEvent, type FrameEvent, type Point, type ZoomEvent, FITS, type Fit, HEX_COLOR, MAX_SPEED, MAX_ZOOM } from "./schema/events.ts";
+import { type Bounds, type FlashEvent, type FrameEvent, type Point, type ZoomEvent, FITS, type Fit, HEX_COLOR, MAX_SPEED, MAX_ZOOM, SKIP_STYLES, type SkipStyle } from "./schema/events.ts";
 
 export interface FlashOptions {
   /** `#rrggbb`; white by default. */
@@ -24,8 +24,10 @@ export interface ZoomInOptions {
   ms?: number;
 }
 export interface SkipOptions {
-  /** The card's words after "⏭"; `{duration}` shows the length cut, as "38 s". "{duration} skipped" by default. */
+  /** The card's words; `{duration}` shows the length cut, as "38 s". "{duration} skipped" by default. */
   label?: string;
+  /** A panel with a clock ring in the middle (`clock`, the default), or a bar along the bottom (`bar`). */
+  style?: SkipStyle;
 }
 export interface ZoomOutOptions {
   /** How long the return to the full screen takes, in milliseconds; 800 by default. */
@@ -86,12 +88,14 @@ export function speedFactor(value: unknown): number {
   return value;
 }
 
-/** Checks `skip`'s options (GH-62 decision 002). */
-export function skipSettings(value?: unknown): { label: string } {
-  const o = options<SkipOptions>("skip", value, ["label"]);
-  if (o.label === undefined) return { label: "{duration} skipped" };
+/** Checks `skip`'s options (GH-62 decision 002, GH-76 decision 008). */
+export function skipSettings(value?: unknown): { label: string; style: SkipStyle } {
+  const o = options<SkipOptions>("skip", value, ["label", "style"]);
+  const style = o.style ?? "clock";
+  if (!SKIP_STYLES.includes(style)) throw new Error(`skip(): style must be "clock" or "bar", got ${JSON.stringify(o.style)}`);
+  if (o.label === undefined) return { label: "{duration} skipped", style };
   if (typeof o.label !== "string" || !o.label.trim()) throw new Error(`skip(): label must be non-empty text, got ${JSON.stringify(o.label)}`);
-  return { label: o.label };
+  return { label: o.label, style };
 }
 
 /** A length in whole seconds, as a card shows it: "38 s", "1 min 52 s", "2 min" (GH-62 decision 002). */
@@ -102,8 +106,6 @@ export function formatDuration(ms: number): string {
   return `${Math.floor(seconds / 60)} min${rest ? ` ${rest} s` : ""}`;
 }
 
-/** A skip card's words: its label with every `{duration}` filled in. */
-export const cardText = (label: string, durationMs: number) => label.replaceAll("{duration}", formatDuration(durationMs));
 
 export const zoomInEvent = (t: number, at: Point, bounds: Bounds | undefined, settings: { scale: number; ms: number }): ZoomEvent =>
   ({ t, type: "zoom", zoom: "in", at, ...(bounds ? { bounds } : {}), ...settings });

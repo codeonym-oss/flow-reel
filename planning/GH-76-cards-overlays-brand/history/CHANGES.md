@@ -1,0 +1,2 @@
+- 2026-11-17: created from the design canvas (https://claude.ai/artifact/YaAajQV5VDssXY4Rfy8JCr); decisions 001-008.
+- 2026-11-17: draft.md written, five tickets drafted; issues #76-#81 created; status tracked.

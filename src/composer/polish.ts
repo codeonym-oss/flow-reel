@@ -24,8 +24,6 @@ export interface PolishOptions {
   imageSpans?: readonly { startMs: number; endMs: number }[];
   /** Where sped-up stretches play, in video milliseconds, each with its factor: each shows a badge (GH-61). */
   stretches?: readonly { startMs: number; endMs: number; factor: number }[];
-  /** Where skip cards show, in video milliseconds, with their words (GH-62); also among `imageSpans`. */
-  cards?: readonly { startMs: number; endMs: number; text: string }[];
 }
 const ZOOM_IN_MS = 650;
 const ZOOM_IDLE_MS = 2000;
@@ -62,9 +60,19 @@ export function planPolish(events: readonly ComposerEvent[], options: PolishOpti
   let target = [0, 0, 1];
   let cameraTarget = target;
   let held = false;
-  const sorted = events.filter((e) => e.type !== "sound" && e.type !== "flash" && e.type !== "frame").sort((a, b) => a.t - b.t);
+  const sorted = events.filter((e) => !["sound", "flash", "frame"].includes(e.type)).sort((a, b) => a.t - b.t);
   sorted.forEach((event, i) => {
     const previousDeadline = deadline;
+    if (event.type === "card" || event.type === "skip") {
+      // The camera eases back to the full screen as a card comes, so its transition starts from the frame the viewer
+      // saw (GH-76 decision 005); a zoom the script held ends there too.
+      const start = Math.max(sorted[i - 1]?.t ?? 0, event.t - ZOOM_OUT_MS);
+      change(camera, start, event.t - start, initial, initial);
+      held = false;
+      deadline = -Infinity;
+      cameraTarget = initial;
+      return;
+    }
     if (event.type === "zoom") {
       // An explicit zoom eases from wherever the camera is, so a second zoom in pans rather than snapping out first.
       held = event.zoom === "in";
