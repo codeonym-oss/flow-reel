@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/codeonym-oss/flow-reel/compare/flow-reel-plugin-v0.4.0...flow-reel-plugin-v0.5.0) (2026-11-17)
+
+
+### Features
+
+* teach cards, overlays and the brand in the plugin ([#81](https://github.com/codeonym-oss/flow-reel/issues/81)) ([#86](https://github.com/codeonym-oss/flow-reel/issues/86)) ([1de2549](https://github.com/codeonym-oss/flow-reel/commit/1de2549b1f0dbeaf0c6afe0e63e2ad0efc4cc85e))
+
 ## [0.4.0](https://github.com/codeonym-oss/flow-reel/compare/flow-reel-plugin-v0.3.0...flow-reel-plugin-v0.4.0) (2026-11-16)
 
 

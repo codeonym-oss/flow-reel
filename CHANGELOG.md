@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/codeonym-oss/flow-reel/compare/v0.4.0...v0.5.0) (2026-11-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* add feature, image and compare cards, and retire showFrame ([#78](https://github.com/codeonym-oss/flow-reel/issues/78)) (#83)
+
+### Features
+
+* add feature, image and compare cards, and retire showFrame ([#78](https://github.com/codeonym-oss/flow-reel/issues/78)) ([#83](https://github.com/codeonym-oss/flow-reel/issues/83)) ([9c82c07](https://github.com/codeonym-oss/flow-reel/commit/9c82c07af059216919c19a8c03d714f0fb266212))
+* insert cards into reels, drawn in the brand's theme with transitions ([#77](https://github.com/codeonym-oss/flow-reel/issues/77)) ([#82](https://github.com/codeonym-oss/flow-reel/issues/82)) ([86e5174](https://github.com/codeonym-oss/flow-reel/commit/86e5174388a8cea0d6400f81958888bf5be7d679))
+* show callouts, highlights and lower thirds over the app ([#79](https://github.com/codeonym-oss/flow-reel/issues/79)) ([#84](https://github.com/codeonym-oss/flow-reel/issues/84)) ([cec4323](https://github.com/codeonym-oss/flow-reel/commit/cec432357bf2ba3e114d9daf2affcac33fccc8e8))
+
 ## [0.4.0](https://github.com/codeonym-oss/flow-reel/compare/v0.3.1...v0.4.0) (2026-11-16)
 
 
