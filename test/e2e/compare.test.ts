@@ -33,7 +33,7 @@ it("compares reels on the host without external executables, with distinct failu
   writeReel(b, value, log("#ff0000"));
   expect(cli("compare", a, b)).toMatchObject({ status: 1, stdout: "effects[0] (flash) differs\n" });
   writeReel(b, value, { version: 3, events: [] });
-  expect(cli("compare", a, b)).toMatchObject({ status: 2, stderr: expect.stringContaining(`${b}: events.json: version must be 5`) });
+  expect(cli("compare", a, b)).toMatchObject({ status: 2, stderr: expect.stringContaining(`${b}: events.json: version must be 6`) });
   value.steps[0].comment = "Different"; writeReel(b, value);
   expect(cli("compare", a, b)).toMatchObject({ status: 1, stdout: expect.stringContaining("steps[0].comment") });
   value.steps[0].endMs = 3000; writeReel(b, value);
