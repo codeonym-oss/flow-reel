@@ -120,10 +120,10 @@ export default script({ url: "http://localhost:${port}/", viewport: [960, 540] }
 }, 120_000);
 
 describe("effect words in a composed reel (GH-32)", () => {
-  // Composed in the image, with a green image beside the script; no comments, so no voice to wait for.
+  // Composed in the image, with a green image beside the script shown as a card; no comments, so no voice to wait for.
   const effectsScript = (p: number, autoZoom: boolean) => `import { script } from "flow-reel";
-export default script({ url: "http://localhost:${p}/", viewport: [960, 540], autoZoom: ${autoZoom} }, async ({ page, flash, showFrame, zoomIn, zoomOut }) => {
-  await showFrame("img/green.png", 1000, { background: "#0000ff" });
+export default script({ url: "http://localhost:${p}/", viewport: [960, 540], autoZoom: ${autoZoom} }, async ({ page, card, flash, zoomIn, zoomOut }) => {
+  await card.image("img/green.png", { frame: "none", fit: "contain", ms: 1000, enter: "cut", exit: "cut" });
   await page.getByRole("button", { name: "Save" }).zoomIn({ scale: 1.5 }).flash({ color: "#ff0000" }).click();
   await page.getByRole("textbox", { name: "Name" }).fill("Ada");
   zoomOut();
@@ -154,13 +154,13 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540], aut
     second = await composeEffects("effects-b");
   }, 600_000);
 
-  it("logs each effect with its options and the image's hash, in the order the script used them", () => {
+  it("logs each effect and the card with the image's hash, in the order the script used them", () => {
     expect(validateEvents(first.events)).toEqual([]);
     expect(first.events.autoZoom).toBe(true);
-    const effects = first.events.events.filter((e) => ["flash", "frame", "zoom"].includes(e.type));
-    expect(effects.map((e) => e.type === "zoom" ? `zoom ${e.zoom}` : e.type)).toEqual(["frame", "zoom in", "flash", "zoom out", "flash"]);
-    expect(effects[0]).toMatchObject({ image: "img/green.png", durationMs: 1000, fit: "contain", background: "#0000ff",
-      sha256: createHash("sha256").update(readFileSync(join(first.dir, "img", "green.png"))).digest("hex") });
+    const effects = first.events.events.filter((e) => ["flash", "card", "zoom"].includes(e.type));
+    expect(effects.map((e) => e.type === "zoom" ? `zoom ${e.zoom}` : e.type)).toEqual(["card", "zoom in", "flash", "zoom out", "flash"]);
+    expect(effects[0]).toMatchObject({ card: "image", props: { image: "img/green.png", frame: "none", fit: "contain" }, ms: 1000,
+      files: [{ path: "img/green.png", sha256: createHash("sha256").update(readFileSync(join(first.dir, "img", "green.png"))).digest("hex") }] });
     expect(effects[1]).toMatchObject({ scale: 1.5, ms: 650, bounds: expect.any(Object) });
     expect(effects[2]).toMatchObject({ color: "#ff0000" });
     const click = first.events.events.find((e) => e.type === "click")!;
@@ -168,16 +168,18 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540], aut
     expect(effects[1].t).toBeLessThan(click.t);
   });
 
-  it("shows the image for its frames, uncovered, and flashes red at the click", () => {
+  it("shows the image card for its frames, uncovered, and flashes red at the click", () => {
     const raw = execFileSync("ffmpeg", ["-v", "error", "-i", join(first.reel, "video.mp4"), "-vf", "scale=96:54,format=rgb24",
       "-f", "rawvideo", "-"], { maxBuffer: 1 << 28 });
     const size = 96 * 54 * 3;
     const at = (frame: number, x: number, y: number) => [...raw.subarray(frame * size + (y * 96 + x) * 3, frame * size + (y * 96 + x) * 3 + 3)];
-    const [frame, , flash] = first.events.events.filter((e) => ["flash", "frame", "zoom"].includes(e.type));
-    const start = Math.round(frame.t * 30 / 1000);
-    for (const f of [start, start + 29]) {
+    const [shown, , flash] = first.events.events.filter((e) => ["flash", "card", "zoom"].includes(e.type));
+    const start = Math.round(shown.t * 30 / 1000);
+    // The image lifts in over its first second, then holds until the card's last frame.
+    expect(at(start, 48, 27)[1]).toBeLessThan(120);
+    for (const f of [start + 22, start + 29]) {
       expect(at(f, 48, 27)[1]).toBeGreaterThan(200); // the green image in the middle
-      expect(at(f, 2, 27)[2]).toBeGreaterThan(200);  // the blue background beside it
+      expect(Math.max(...at(f, 1, 27))).toBeLessThan(40);  // the ink card around it
     }
     expect(at(start + 30, 48, 27)[1] > 200 && at(start + 30, 48, 27)[0] < 60).toBe(false);
     const red = Math.ceil(flash.t * 30 / 1000 - 1e-9);
@@ -342,11 +344,11 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, a
   await page.getByRole("link", { name: "Settings" }).click();
   await card.outro({ title: "Try it", url: "orbit.dev/views" });
 });`;
-  const composeCards = async (name: string) => {
+  const composeCards = async (name: string, make = cardScript) => {
     const dir = join(OUT, name);
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(join(dir, "cards"), { recursive: true });
-    writeFileSync(join(dir, "demo.ts"), cardScript(port));
+    writeFileSync(join(dir, "demo.ts"), make(port));
     writeFileSync(join(dir, "flow-reel.json"), JSON.stringify({ version: 1, brand: { theme: "ocean", accent: "#46D3C8" } }));
     writeFileSync(join(dir, "cards/hello.html"), "<!doctype html><html><head><style>body{margin:0;background:#ffcc00}</style></head>" +
       "<body><h1 class=\"fr-title\" data-prop=\"name\">x</h1></body></html>");
@@ -399,6 +401,13 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, a
     const result = spawnSync(process.execPath, ["dist/cli.js", "compare", first.reel, second.reel], { encoding: "utf8" });
     expect(result).toMatchObject({ status: 0, stdout: "Reels match (step starts and effects within 150 ms).\n" });
   });
+
+  it("fails a script still calling showFrame, naming card.image (GH-76 decision 004)", async () => {
+    await expect(composeCards("cards-show-frame", (p) => `import { script } from "flow-reel";
+export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, async ({ showFrame }) => {
+  await showFrame("cards/hello.html", 1000);
+});`)).rejects.toMatchObject({ stderr: expect.stringContaining("showFrame() was replaced by card.image() in flow-reel 0.5") });
+  }, 300_000);
 });
 
 it("captures the settled response while keeping the callback finish time", async () => {

@@ -93,7 +93,6 @@ describe("validateEvents", () => {
   it("accepts the effect events of GH-32 decision 005", () => {
     expect(validateEvents({ version: 6, autoZoom: false, events: [
       { t: 1200, type: "flash", color: "#FFFFFF", ms: 250 },
-      { t: 1800, type: "frame", image: "img/diagram.png", sha256: "a".repeat(64), durationMs: 3000, fit: "contain", background: "#000000" },
       { t: 5000, type: "zoom", zoom: "in", at: [960, 540], bounds: { x: 900, y: 500, width: 120, height: 80 }, scale: 4 / 3, ms: 650 },
       { t: 5100, type: "zoom", zoom: "in", at: [960, 540], scale: 2, ms: 650 },
       { t: 9000, type: "zoom", zoom: "out", ms: 800 },
@@ -136,13 +135,9 @@ describe("validateEvents", () => {
     const one = (event: object) => validateEvents({ ...events, events: [{ t: 0, ...event }] });
     expect(one({ type: "flash", color: "white", ms: 0 })).toEqual([
       "events[0]: color must be a #rrggbb colour", "events[0]: ms must be a number > 0"]);
-    for (const image of ["/abs.png", "../up.png", "a/./b.png", ""]) {
-      expect(one({ type: "frame", image, sha256: "a".repeat(64), durationMs: 1, fit: "contain", background: "#000000" }))
-        .toEqual(["events[0]: image must be a path relative to the script's folder, without . or .."]);
-    }
-    expect(one({ type: "frame", image: "a.png", sha256: "x", durationMs: -1, fit: "stretch", background: "#000" })).toEqual([
-      "events[0]: sha256 must be a SHA-256 hex digest", "events[0]: durationMs must be a number > 0",
-      'events[0]: fit must be "contain" or "cover"', "events[0]: background must be a #rrggbb colour"]);
+    // showFrame's events went with it in version 6 (GH-76 decision 004).
+    expect(one({ type: "frame", image: "a.png", sha256: "a".repeat(64), durationMs: 1, fit: "contain", background: "#000000" }))
+      .toEqual(['events[0]: unknown type "frame"']);
     expect(one({ type: "zoom", zoom: "in", at: [0, 0], scale: 2.5, ms: 650 })).toEqual(["events[0]: scale must be from 1 to 2"]);
     expect(one({ type: "zoom", zoom: "sideways", ms: 650 })).toEqual(['events[0]: zoom must be "in" or "out"']);
   });

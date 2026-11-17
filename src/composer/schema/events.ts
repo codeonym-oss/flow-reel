@@ -1,6 +1,6 @@
 // The event log: v1 actions (story decision 013), v2 added sound cues, v3 names them `sound` (GH-30 decision 003),
 // v4 adds effects and `autoZoom` (GH-32 decision 005), v5 adds `speed` (GH-61 decision 005)
-// and `skip` (GH-62 decision 004), v6 adds `card` and the skip card's `style` (GH-76 decisions 001 and 008).
+// and `skip` (GH-62 decision 004), v6 adds `card` and the skip card's `style` and drops `frame` (GH-76 decisions 001, 004 and 008).
 import { type Errors, isObject, nonNegative, point, text } from "./check.ts";
 import { THEME_NAMES, TRANSITION_NAMES, type ThemeName, type Transition } from "../cards/brand.ts";
 
@@ -29,14 +29,9 @@ export type ComposerEvent =
   | { t: number; type: "type"; text: string; charDelayMs: number; target: string; bounds?: Bounds }
   | { t: number; type: "scroll"; delta: Point; durationMs: number }
   | { t: number; type: "sound"; name: SoundName }
-  | FlashEvent | FrameEvent | ZoomEvent | SpeedEvent | SkipEvent | CardEvent;
+  | FlashEvent | ZoomEvent | SpeedEvent | SkipEvent | CardEvent;
 
-export type Fit = "contain" | "cover";
 export interface FlashEvent { t: number; type: "flash"; color: string; ms: number }
-/** `image` is relative to the script's folder; `sha256` names the exact image used. */
-export interface FrameEvent {
-  t: number; type: "frame"; image: string; sha256: string; durationMs: number; fit: Fit; background: string;
-}
 /** A zoom in frames `bounds` when an element was the target, else the point `at`. */
 export type ZoomEvent =
   | { t: number; type: "zoom"; zoom: "in"; at: Point; bounds?: Bounds; scale: number; ms: number }
@@ -49,7 +44,7 @@ export type SkipStyle = "clock" | "bar";
 export const SKIP_STYLES: readonly SkipStyle[] = ["clock", "bar"];
 
 /** The cards a script's `card` words insert (GH-76 decision 001). */
-export const CARD_WORDS = ["intro", "chapter", "outro", "custom"] as const;
+export const CARD_WORDS = ["intro", "chapter", "feature", "image", "compare", "outro", "custom"] as const;
 export type CardWord = typeof CARD_WORDS[number];
 /**
  * A card inserted into the video (GH-76 decision 002): its kind and checked props, the files it uses by their path in
@@ -68,7 +63,6 @@ export interface EventLog {
 }
 
 export const HEX_COLOR = /^#[0-9a-f]{6}$/i;
-export const FITS: readonly Fit[] = ["contain", "cover"];
 export const MAX_ZOOM = 2;
 export const MAX_SPEED = 16;
 
@@ -123,18 +117,6 @@ export function validateEvents(value: unknown): Errors {
         color("color");
         positive("ms");
         break;
-      case "frame": {
-        const image = event.image;
-        if (typeof image !== "string" || !image || image.startsWith("/") ||
-          image.split("/").some((part) => !part || part === "." || part === "..")) {
-          errors.push(`${where}image must be a path relative to the script's folder, without . or ..`);
-        }
-        if (typeof event.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(event.sha256)) errors.push(`${where}sha256 must be a SHA-256 hex digest`);
-        positive("durationMs");
-        if (!FITS.includes(event.fit as Fit)) errors.push(`${where}fit must be "contain" or "cover"`);
-        color("background");
-        break;
-      }
       case "zoom":
         positive("ms");
         if (event.zoom === "in") {

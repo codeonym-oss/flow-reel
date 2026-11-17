@@ -101,9 +101,7 @@ The picture is polished automatically (see [Compose](#compose)). Effect words di
 alone, or are chained on the element they are about, like `comment` and `sound`.
 
 ```ts
-export default script({ url: "http://localhost:4173" }, async ({ page, comment, flash, showFrame, zoomIn, zoomOut }) => {
-  comment("Here is how the pieces fit.");
-  await showFrame("diagrams/overview.png", 3000);
+export default script({ url: "http://localhost:4173" }, async ({ page, flash, zoomIn, zoomOut }) => {
   await page.getByRole("button", { name: "Save" })
     .zoomIn({ scale: 1.5 })
     .flash()
@@ -116,20 +114,16 @@ export default script({ url: "http://localhost:4173" }, async ({ page, comment, 
 | Word | Options (defaults) | When it happens |
 |---|---|---|
 | `flash(options?)` | `color: "#ffffff"`, `ms: 250` (fade-out) | Standalone: now. Chained: when the action happens. |
-| `await showFrame(image, ms, options?)` | `fit: "contain"` or `"cover"`, `background: "#000000"` | As an action of its step. Standalone only. |
 | `zoomIn(options?)` | `scale: 4/3` (1 to 2), `ms: 650` | Standalone: on the pointer. Chained: as the pointer heads for the element. |
 | `zoomOut(options?)` | `ms: 800` | Standalone: now. Chained: after the action. |
 
-- **`showFrame`** inserts the image into the video for `ms` milliseconds: the app is shown again exactly where it
-  was, and nothing runs in the app meanwhile. A comment spoken in its step plays on over the image. The image is a
-  PNG, JPEG or WebP inside the script's folder, given relative to the script; the event log records its hash. No
-  cursor, ripple or zoom is drawn over it.
 - **Zoom:** `zoomIn` holds the camera until `zoomOut`, across steps and clicks; automatic zoom waits meanwhile, and
   a second `zoomIn` pans to its new target. A zoom still held when the script ends eases out. The camera still
   keeps the cursor in frame. A large element zooms less than `scale`, so it stays whole. Above 4/3 the picture is
   enlarged past the recording's resolution and softens.
 - **`autoZoom: false`** in the script's options turns automatic zoom off; the cursor, ripples and `zoomIn` stay.
-- A bad option, image path or duration throws where the word is written.
+- A bad option throws where the word is written.
+- To show a picture, use [`card.image`](#cards), which replaced `showFrame` in 0.5.
 
 ### Speed up a wait
 
@@ -145,7 +139,7 @@ await speedUp(4, () => page.getByText("Done").waitFor({ timeout: 120_000 }));
 
 - **The factor** is any number above 1 and at most 16, fractions included (`1.5`). Frames are dropped, not blended:
   the stretch reads as fast-forward.
-- **Inside `fn`** go actions, sounds, `flash` and zoom; they follow the faster pace. `comment`, `showFrame` and
+- **Inside `fn`** go actions, sounds, `flash` and zoom; they follow the faster pace. `comment`, a card and
   another `speedUp` or a `skip` throw there, since they would add time: put them before or after.
 - **A comment** spoken over the stretch keeps its normal speed. If it outlasts the shortened stretch, the last
   frame holds until it ends, as for any step.
@@ -167,15 +161,15 @@ await skip(() => page.waitForResponse(/\/api\/build/), { label: "{duration} plus
   panel in the middle with a clock ring; `style: "bar"` a bar along the bottom. It follows the [brand](#brand).
 - **It lasts** 1.5 s, or longer while a comment spoken over it hasn't finished: the comment is never cut. It fades in
   and out, and no cursor or zoom is drawn over it.
-- **Inside `fn`** go actions and sounds; nothing of them is seen or heard. `comment`, `showFrame`, a card, `flash`,
+- **Inside `fn`** go actions and sounds; nothing of them is seen or heard. `comment`, a card, `flash`,
   zoom, `speedUp` and another `skip` throw there: put them before or after.
 - **Reels** record each skip as a `skip` event in the event log, with the length cut, the label and the style;
   `compare` checks them.
 
 ## Cards
 
-Cards are designed screens inserted into the reel: an intro, chapters, an outro, or a card of your own written in
-HTML. Each is one word on `card`, awaited where it shows; the app stops on its frame, the card plays with a
+Cards are designed screens inserted into the reel: an intro, chapters, a feature, a framed screenshot, a before and
+after, an outro, or a card of your own written in HTML. Each is one word on `card`, awaited where it shows; the app stops on its frame, the card plays with a
 transition in and out, and the app resumes where it left.
 
 ```ts
@@ -184,6 +178,9 @@ export default script({ url: "http://localhost:4173" }, async ({ page, comment, 
   await card.intro({ kicker: "Orbit 2.4", title: "Saved views", subtitle: "Your filters, one click away" });
   await card.chapter({ title: "Name your view" });                 // "Chapter 01 / 02"
   await page.getByLabel("Name").fill("Active work");
+  await card.feature({ title: "One click", points: ["Save any filter", "Share it", "Pin it"], image: "shots/views.png" });
+  await card.image("shots/mobile.png", { title: "On your phone too", frame: "phone" });
+  await card.compare({ before: "shots/2.3.png", after: "shots/2.4.png", title: "Six filters, or one click" });
   await card.custom("cards/pricing.html", { plan: "Team", price: 12 }, { enter: "zoom" });
   await card.chapter({ title: "Share it", theme: "paper" });
   await page.getByRole("button", { name: "Share" }).click();
@@ -195,6 +192,9 @@ export default script({ url: "http://localhost:4173" }, async ({ page, comment, 
 |---|---|
 | `card.intro({ … })` | `title`, `kicker?`, `subtitle?`, `layout?: "left" \| "center"` |
 | `card.chapter({ … })` | `title`, `subtitle?`; numbered among the script's chapters by itself |
+| `card.feature({ … })` | `title`, `points` (one to five), `kicker?`, `image?` (in a browser window), `imageSide?: "right" \| "left"` |
+| `card.image(image, { … }?)` | `kicker?`, `title?`, `caption?`, `frame?: "browser" \| "phone" \| "none"`, `fit?: "cover" \| "contain"`, `url?` (the browser bar's) |
+| `card.compare({ … })` | `before`, `after`, `kicker?`, `title?`, `labels?` (two; "Before" and "After") |
 | `card.outro({ … })` | `title`, `url?` (shown as a button), `links?` (up to four) |
 | `card.custom(page, props?, options?)` | any JSON props, for your page |
 
@@ -205,6 +205,7 @@ Every card also takes `ms`, `enter`, `exit` and `theme` (in its props object, or
 - **`enter` and `exit`:** `fade` (the default), `slide`, `wipe`, `zoom`, `blur`, `iris` or `cut`. The camera eases
   back to the full screen as a card comes, so the transition starts from what was on screen.
 - **`theme`:** `ink` (the default), `paper`, `ocean` or `ember`.
+- **Images** are PNG, JPEG, WebP or SVG files in the script's folder, given relative to the script.
 - A wrong prop, option or path throws where the card is written, naming it. Cards can't go inside `speedUp` or
   `skip`.
 - **Reels** record each card as a `card` event in the event log (version 6), with its props, look and the hash of
@@ -530,6 +531,18 @@ These checks read the transcript and event log only. They do not open referenced
 equality, or promise identical encoded MP4 bytes. Valid action/end/video durations may differ between recordings;
 only step starts have the 150 ms comparison tolerance. Recording automatically checks that all clips fit their
 step windows, including the speech tail, before publishing its transcript.
+
+## From 0.4 to 0.5
+
+0.5 adds [cards](#cards) and the [brand](#brand), and retires `showFrame`: a script calling it fails with a pointer to
+`card.image`.
+
+| 0.4 | 0.5 |
+|---|---|
+| `await showFrame("diagram.png", 3000)` | `await card.image("diagram.png", { frame: "none", fit: "contain", ms: 3000 })` |
+| `showFrame(…, { background: "#1b1f2a" })` | the card's `theme`, or the brand's |
+| the skip card, dimmed with "⏭ 38 s skipped" | the skip card in the brand's theme, `style: "clock"` or `"bar"` |
+| event log version 5, `frame` events | event log version 6: `card` events, and the skip's `style` |
 
 ## From 0.1 to 0.2
 

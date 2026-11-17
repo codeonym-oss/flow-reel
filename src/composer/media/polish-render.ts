@@ -84,9 +84,9 @@ export function polishFilters(events: readonly ComposerEvent[], options: PolishO
     const first = Math.max(0, c.findLastIndex((s) => s.start <= start));
     return expression(c.slice(first).filter((s) => s.start <= end), clock, initial);
   };
-  // Over an inserted image the crop is full and nothing is drawn (GH-32 decision 003).
-  const inImage = (clock: string) => plan.imageSpans.length
-    ? `(${plan.imageSpans.map((s) => `gte(${clock},${s.startMs - 0.5})*lt(${clock},${s.endMs - 0.5})`).join("+")})` : "";
+  // Over a card the crop is full and nothing is drawn (GH-32 decision 003, GH-76 decision 002).
+  const inCard = (clock: string) => plan.cardSpans.length
+    ? `(${plan.cardSpans.map((s) => `gte(${clock},${s.startMs - 0.5})*lt(${clock},${s.endMs - 0.5})`).join("+")})` : "";
   const positions = (clock: string, start = 0, end = Infinity) => {
     const crop = plan.camera.map((c, i) => boundedExpression(c, clock, i === 2 ? 1 : 0, start, end));
     const pointer = plan.pointer.map((c) => `clip(${boundedExpression(c, clock, 0.5, start, end)},0,1)`);
@@ -95,13 +95,13 @@ export function polishFilters(events: readonly ComposerEvent[], options: PolishO
       crop[axis] = `clip(${crop[axis]},clip((${pointer[axis]})-(${crop[2]})+24*(${crop[2]})/${pixels},0,1-(${crop[2]})),` +
         `clip((${pointer[axis]})-(${crop[2]})/${pixels},0,1-(${crop[2]})))`;
     }
-    const masked = inImage(clock);
+    const masked = inCard(clock);
     if (masked) crop.forEach((c, i) => { crop[i] = `if(${masked},${i === 2 ? 1 : 0},${c})`; });
     return { crop, pointer };
   };
   const camera = positions(`on*1000/${options.fps}`).crop;
   const { crop, pointer } = positions("t*1000");
-  const visible = plan.imageSpans.length ? `*not(${inImage("t*1000")})` : "";
+  const visible = plan.cardSpans.length ? `*not(${inCard("t*1000")})` : "";
   const filters = [`[trimmed]zoompan=z='1/(${camera[2]})':x='(${camera[0]})*iw':y='(${camera[1]})*ih':d=1:s=${width}x${height}:fps=${options.fps}[camera]`];
   let previous = "camera";
   if (plan.clicks.length) {

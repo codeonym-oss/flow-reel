@@ -162,7 +162,7 @@ describe("explicit zoom, autoZoom and images (story decision 011, GH-32)", () =>
 
   it("draws nothing over an image and leaves it uncropped, and ignores flash and frame events", () => {
     const events = [click(1000), { t: 1100, type: "flash", color: "#ffffff", ms: 250 } as ComposerEvent];
-    const plan = planPolish(events, { ...options, imageSpans: [{ startMs: 1000, endMs: 2000 }] });
+    const plan = planPolish(events, { ...options, cardSpans: [{ startMs: 1000, endMs: 2000 }] });
     expect(plan.frame(29).hidden).toBe(false);
     for (const n of [30, 31, 59]) expect(plan.frame(n)).toMatchObject({ crop: [0, 0, 1], hidden: true, ripples: [] });
     expect(plan.frame(60)).toMatchObject({ hidden: false });

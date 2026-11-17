@@ -31,6 +31,11 @@ beforeAll(() => {
   // Red for frames 0-29, blue after: a card inserted before frame 30 goes from red to blue.
   media(["-f", "lavfi", "-i", "color=red:s=640x360:r=30:d=1", "-f", "lavfi", "-i", "color=blue:s=640x360:r=30:d=1",
     "-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0[v]", "-map", "[v]", "-c:v", "libx264", "-pix_fmt", "yuv420p", capture]);
+  // Screenshots standing in for an app's: a test pattern, and a darker one for "before".
+  mkdirSync(join(script, "shots"), { recursive: true });
+  media(["-f", "lavfi", "-i", "testsrc2=s=1280x800", "-frames:v", "1", join(script, "shots/app.png")]);
+  media(["-f", "lavfi", "-i", "testsrc2=s=1280x800,hue=s=0,eq=brightness=-0.2", "-frames:v", "1", join(script, "shots/old.png")]);
+  media(["-f", "lavfi", "-i", "testsrc2=s=390x844", "-frames:v", "1", join(script, "shots/phone.png")]);
   writeFileSync(join(script, "cards/clock.html"), `<!doctype html><html><head><style>
 body{margin:0;background:#000}#box{position:absolute;inset:0;background:#000}</style></head>
 <body><div id="box"></div><h1 data-prop="title" style="position:relative;color:#fff">placeholder</h1>
@@ -58,13 +63,17 @@ describe("built-in cards", () => {
       job("intro-center", "intro", { kicker: "Orbit 2.4", title: "Saved views", layout: "center" }, { frames: 60, enter: "cut", exit: "cut", theme: themeFor("paper") }),
       job("chapter", "chapter", { title: "Save a view", subtitle: "Two clicks, and it's in the sidebar" }, { frames: 60, enter: "cut", exit: "cut", chapter: { number: 2, total: 3 }, theme: themeFor("ocean") }),
       job("outro", "outro", { title: "Try saved views", url: "orbit.dev/views", links: ["docs", "changelog"] }, { frames: 60, enter: "cut", exit: "cut", theme: themeFor("ember") }),
+      job("feature", "feature", { kicker: "New", title: "Saved views", points: ["Save any filter", "Share with the team", "Pin to the sidebar"], image: "shots/app.png" }, { frames: 60, enter: "cut", exit: "cut" }),
+      job("image-browser", "image", { image: "shots/app.png", title: "Your views, one click away", url: "orbit.dev/projects" }, { frames: 60, enter: "cut", exit: "cut", theme: themeFor("paper") }),
+      job("image-phone", "image", { image: "shots/phone.png", kicker: "Mobile", title: "On your phone too", caption: "The same views, wherever you are", frame: "phone" }, { frames: 60, enter: "cut", exit: "cut" }),
+      job("compare", "compare", { before: "shots/old.png", after: "shots/app.png", kicker: "Before and after", title: "Six filters, or one click", labels: ["2.3", "2.4"] }, { frames: 75, enter: "cut", exit: "cut" }),
       job("skip-clock", "skip", { label: "{duration} skipped", style: "clock", durationMs: 38_000 }, { frames: 60, enter: "cut", exit: "cut" }),
       job("skip-bar", "skip", { label: "{duration} skipped", style: "bar", durationMs: 112_000 }, { frames: 60, enter: "cut", exit: "cut", theme: themeFor("paper") }),
     ];
     const clips = await render(jobs, join(dir, "catalog"));
-    for (const { id } of jobs) {
-      expect(frames(clips[id])).toBe(60);
-      still(clips[id], 59, join(dir, `${id}.png`));
+    for (const { id, frames: n } of jobs) {
+      expect(frames(clips[id])).toBe(n);
+      still(clips[id], n - 1, join(dir, `${id}.png`));
     }
     // The intro's background is the ink theme's, and its title is drawn in light text over it.
     const intro = rgb(clips.intro);

@@ -7,8 +7,8 @@ This file is the project's vocabulary. Use these words, with these meanings, in 
 messages, issues and the plugin. Each concept has one word; the "avoid" words are older or looser names for it.
 
 > **Status:** this is the 0.2 language, with cards (GH-76). Scripts use it (`script`, `comment`, `sound`, the effects
-> `flash`, `showFrame`, `zoomIn`, `zoomOut`, `speedUp` and `skip`, the `card` words, `flow-reel compose`), and a compose
-> writes a reel.
+> `flash`, `zoomIn`, `zoomOut`, `speedUp` and `skip`, the `card` words, `flow-reel compose`), and a compose writes a
+> reel. `showFrame` was retired for `card.image` in 0.5.
 
 ## What a person writes
 
@@ -29,8 +29,8 @@ A short sound effect placed at a moment.
 _Avoid:_ audio, SFX.
 
 **Effect**
-A change to the picture written in the script: a flash (`flash`), a shown frame (`showFrame`), a zoom in or out
-(`zoomIn`, `zoomOut`), a speed-up (`speedUp`), a skip (`skip`). An explicit zoom holds the camera until the zoom out.
+A change to the picture written in the script: a flash (`flash`), a zoom in or out (`zoomIn`, `zoomOut`), a speed-up
+(`speedUp`), a skip (`skip`). An explicit zoom holds the camera until the zoom out.
 _Avoid:_ visual effect, SFX.
 
 **Speed-up**
@@ -47,8 +47,8 @@ Comment, sound and effect are the three families of flow-reel words. Each can st
 on the element it is about. Cards are the fourth: they stand alone.
 
 **Card**
-A designed screen the composer inserts into the reel where the script awaits it: an intro, a chapter, an outro, or a
-custom card. The app stops on its frame, the card plays with a transition in and out, and the app resumes where it
+A designed screen the composer inserts into the reel where the script awaits it: an intro, a chapter, a feature, an
+image, a before and after, an outro, or a custom card. The app stops on its frame, the card plays with a transition in and out, and the app resumes where it
 left. The skip card is a card too.
 _Avoid:_ slide, title screen, frame (a frame is one picture of the video).
 
@@ -101,7 +101,7 @@ its zoom off.
 
 **Insertion**
 Frames the composer puts into the video's timeline that the recording doesn't have: a hold, which repeats a frame so
-a comment can finish, a shown frame's image, or a card. The recording resumes on the frame it left.
+a comment can finish, or a card. The recording resumes on the frame it left.
 
 **Port**
 A boundary of the composer's core that has more than one possible implementation. There are four: integration,

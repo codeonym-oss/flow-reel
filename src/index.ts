@@ -2,9 +2,9 @@
 // GH-61; the cards, GH-76 decisions 001-008).
 import type { Page } from "playwright";
 import type { Sound } from "./composer/schema/events.ts";
-import type { FlashOptions, ShowFrameOptions, SkipOptions, ZoomInOptions, ZoomOutOptions } from "./composer/effects.ts";
+import type { FlashOptions, SkipOptions, ZoomInOptions, ZoomOutOptions } from "./composer/effects.ts";
 export { Sounds, type Sound } from "./composer/schema/events.ts";
-export type { FlashOptions, ShowFrameOptions, SkipOptions, ZoomInOptions, ZoomOutOptions } from "./composer/effects.ts";
+export type { FlashOptions, SkipOptions, ZoomInOptions, ZoomOutOptions } from "./composer/effects.ts";
 export type { Brand, BrandFonts, ThemeName, Transition } from "./composer/cards/brand.ts";
 import type { CardOptions } from "./composer/cards/words.ts";
 export type { CardOptions } from "./composer/cards/words.ts";
@@ -22,6 +22,41 @@ export interface IntroCard extends CardOptions {
 export interface ChapterCard extends CardOptions {
   title: string;
   subtitle?: string;
+}
+/** A card that lists what a feature does, with a checkmark each, beside a screenshot in a browser window. */
+export interface FeatureCard extends CardOptions {
+  kicker?: string;
+  title: string;
+  /** One to five short lines. */
+  points: string[];
+  /** A screenshot (PNG, JPEG, WebP or SVG in the script's folder), shown in a browser window. */
+  image?: string;
+  /** Where the screenshot goes: `right` (the default) or `left`. */
+  imageSide?: "right" | "left";
+}
+/** What `card.image` shows around the image. */
+export interface ImageCard extends CardOptions {
+  kicker?: string;
+  title?: string;
+  /** A line under the title. */
+  caption?: string;
+  /** `browser` (the default) puts the image in a browser window, `phone` in a phone beside the words, `none` alone. */
+  frame?: "browser" | "phone" | "none";
+  /** `cover` (the default) fills the frame and crops; `contain` shows the whole image. */
+  fit?: "cover" | "contain";
+  /** The address shown in the browser window's bar. */
+  url?: string;
+}
+/** A before and after: the second image wipes in over the first, and they stay split down the middle. */
+export interface CompareCard extends CardOptions {
+  /** The image before (PNG, JPEG, WebP or SVG in the script's folder). */
+  before: string;
+  /** The image after. */
+  after: string;
+  kicker?: string;
+  title?: string;
+  /** The two images' labels; "Before" and "After" by default. */
+  labels?: [before: string, after: string];
 }
 /** A card that closes the reel: the title, a link to go to, and a few more links. */
 export interface OutroCard extends CardOptions {
@@ -45,6 +80,15 @@ export interface Cards {
   intro(card: IntroCard): Promise<void>;
   /** A chapter card, numbered among the script's chapters: `await card.chapter({ title: "Save a view" })`. */
   chapter(card: ChapterCard): Promise<void>;
+  /** What a feature does, point by point: `await card.feature({ title: "…", points: ["…", "…"], image: "shots/app.png" })`. */
+  feature(card: FeatureCard): Promise<void>;
+  /**
+   * A picture, framed: `await card.image("shots/mobile.png", { title: "On your phone too", frame: "phone" })`. The
+   * image is a PNG, JPEG, WebP or SVG in the script's folder, relative to the script.
+   */
+  image(image: string, card?: ImageCard): Promise<void>;
+  /** A before and after: `await card.compare({ before: "shots/2.3.png", after: "shots/2.4.png", title: "…" })`. */
+  compare(card: CompareCard): Promise<void>;
   /** A closing card: `await card.outro({ title: "Try saved views", url: "orbit.dev/views" })`. */
   outro(card: OutroCard): Promise<void>;
   /**
@@ -88,18 +132,18 @@ export interface ScriptContext {
   sound(sound: Sound): void;
   /** Flashes the screen at this moment. */
   flash(options?: FlashOptions): void;
-  /**
-   * Shows `image` (a PNG, JPEG or WebP in the script's folder, relative to the script) for `ms` milliseconds, inserted
-   * into the video; the app is shown again exactly where it was. An action of its step.
-   */
-  showFrame(image: string, ms: number, options?: ShowFrameOptions): Promise<void>;
   /** Zooms in on wherever the pointer is; the zoom holds until `zoomOut`, and automatic zoom waits meanwhile. */
   zoomIn(options?: ZoomInOptions): void;
   /** Zooms back out to the full screen. */
   zoomOut(options?: ZoomOutOptions): void;
   /**
+   * @deprecated Replaced by `card.image()` in flow-reel 0.5: `await card.image("diagram.png", { frame: "none", ms: 3000 })`.
+   * Calling it fails the compose with that hint.
+   */
+  showFrame(image: string, ms: number, options?: { fit?: "contain" | "cover"; background?: string }): Promise<void>;
+  /**
    * Runs `fn` as one action, played `factor` times faster in the video (above 1, at most 16), with a "▶▶ ×N" badge in
-   * the top-right corner. For waits: only actions, sounds, `flash` and zoom go inside; `comment`, `showFrame` and
+   * the top-right corner. For waits: only actions, sounds, `flash` and zoom go inside; `comment`, a card and
    * another `speedUp` or a `skip` throw. A comment spoken over it keeps its normal speed.
    */
   speedUp(factor: number, fn: () => Promise<unknown>): Promise<void>;
@@ -107,11 +151,11 @@ export interface ScriptContext {
    * Runs `fn` as one action, cut from the video: a card over the blurred last frame shows "38 s skipped" instead, for
    * at least 1.5 s or until the comment spoken over it ends. `label` replaces the words; `{duration}` in it shows the
    * length cut. The card follows the brand, as a clock ring (the default) or a bar along the bottom (`style: "bar"`).
-   * For waits: only actions and sounds go inside, and nothing of them is seen or heard; `comment`, `showFrame`,
-   * `flash`, zoom, `speedUp`, a card and another `skip` throw.
+   * For waits: only actions and sounds go inside, and nothing of them is seen or heard; `comment`, a card,
+   * `flash`, zoom, `speedUp` and another `skip` throw.
    */
   skip(fn: () => Promise<unknown>, options?: SkipOptions): Promise<void>;
-  /** The cards: `await card.intro({ title: "…" })`, `card.chapter`, `card.outro`, `card.custom`. */
+  /** The cards: `await card.intro({ title: "…" })`, `card.chapter`, `card.feature`, `card.image`, `card.compare`, `card.outro`, `card.custom`. */
   card: Cards;
 }
 

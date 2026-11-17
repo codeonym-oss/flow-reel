@@ -44,17 +44,16 @@ describe("compareEffects (GH-32 decision 007)", () => {
   const log = (): EventLog => ({ version: 6, autoZoom: true, events: [
     { t: 100, type: "click", at: [1, 1], button: "left", target: "a" },
     { t: 200, type: "flash", color: "#ffffff", ms: 250 },
-    { t: 300, type: "frame", image: "a.png", sha256: "a".repeat(64), durationMs: 1000, fit: "contain", background: "#000000" },
+    { t: 300, type: "card", card: "image", props: { image: "a.png" }, files: [{ path: "a.png", sha256: "a".repeat(64) }], enter: "fade", exit: "fade", theme: "ink" },
     { t: 1400, type: "zoom", zoom: "in", at: [5, 5], scale: 4 / 3, ms: 650 },
     { t: 2000, type: "zoom", zoom: "out", ms: 800 },
   ] });
 
-  it("matches effects within 150 ms, whatever the clicks, sounds and image paths", () => {
+  it("matches effects within 150 ms, whatever the clicks and sounds", () => {
     const a = log(); const b = log();
     b.events = b.events.map((e) => ({ ...e, t: e.t + 150 }));
     b.events[0] = { t: 900, type: "click", at: [500, 500], button: "left", target: "b" };
     b.events.push({ t: 50, type: "sound", name: "open" });
-    (b.events[2] as { image: string }).image = "moved/a.png";
     expect(compareEffects(a, b)).toEqual({ errors: [], differences: [] });
     b.events[1].t += 1;
     expect(compareEffects(a, b).differences).toEqual(["effects[0] (flash) starts 151 ms apart (maximum 150 ms)"]);
@@ -64,10 +63,10 @@ describe("compareEffects (GH-32 decision 007)", () => {
     const a = log(); const b = log();
     b.autoZoom = false;
     (b.events[1] as { color: string }).color = "#ff0000";
-    (b.events[2] as { sha256: string }).sha256 = "b".repeat(64);
+    (b.events[2] as { files: { sha256: string }[] }).files[0].sha256 = "b".repeat(64);
     (b.events[3] as { scale: number }).scale = 2;
     expect(compareEffects(a, b).differences).toEqual(["autoZoom differs",
-      "effects[0] (flash) differs", "effects[1] (frame) differs", "effects[2] (zoom) differs"]);
+      "effects[0] (flash) differs", "effects[1] (card) differs", "effects[2] (zoom) differs"]);
     expect(compareEffects(a, log()).differences).toEqual([]);
     expect(compareEffects(a, { ...log(), events: log().events.slice(0, 4) }).differences).toEqual(["effect count differs (4 and 3)"]);
   });

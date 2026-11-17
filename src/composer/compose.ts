@@ -16,7 +16,7 @@ import { soundLogger } from "./sounds.ts";
 import { stepTimer } from "./steps.ts";
 import { dropSkipped, planTimeline, retimeEvents } from "./timeline.ts";
 import { voiceSteps } from "./voicing.ts";
-import { frameRequest, zoomOutEvent, zoomOutSettings } from "./effects.ts";
+import { zoomOutEvent, zoomOutSettings } from "./effects.ts";
 import { checkBrandFiles, themeFor } from "./cards/brand.ts";
 import { cardRequest, cardWords } from "./cards/words.ts";
 import { type CardJob, renderCards } from "./media/cards.ts";
@@ -60,8 +60,6 @@ export async function compose(scriptPath: string, { integration, voice, store, p
   const out = reel.work;
   const { viewport } = script;
   const events: ComposerEvent[] = [];
-  // Each showFrame's image, in the order the frame events were logged.
-  const imageFiles: string[] = [];
   let steps: ReturnType<typeof stepTimer>["steps"] = [];
 
   let deliveryCutMs = 0;
@@ -92,14 +90,7 @@ export async function compose(scriptPath: string, { integration, voice, store, p
             const request = cardRequest(word, args, scriptDir, brand);
             await timer.action(async () => { events.push({ t: recording.now(), ...request }); });
           }),
-          async showFrame(image, durationMs, options) {
-            timer.outsideStretch("showFrame");
-            const request = frameRequest(scriptDir, image, durationMs, options);
-            await timer.action(async () => {
-              events.push({ t: recording.now(), ...request.event });
-              imageFiles.push(request.file);
-            });
-          } });
+        });
         // A zoom the script never zoomed out of eases out as the script ends (story decision 011).
         const lastZoom = events.findLast((e) => e.type === "zoom");
         if (lastZoom?.type === "zoom" && lastZoom.zoom === "in") {
@@ -146,14 +137,12 @@ export async function compose(scriptPath: string, { integration, voice, store, p
   if (voiced.voiced + voiced.reused) {
     console.error(`flow-reel: voiced ${voiced.voiced} of ${voiced.voiced + voiced.reused} comments (${voiced.reused} reused)`);
   }
-  const images = events.flatMap((e) => e.type === "frame" ? [e] : []).map((e, i) =>
-    ({ t: e.t, durationMs: e.durationMs, file: imageFiles[i], fit: e.fit, background: e.background }));
   const speedUps = events.flatMap((e) => e.type === "speed" ? [{ t: e.t, durationMs: e.durationMs, factor: e.factor }] : []);
   // Nothing inside a skip is seen, so its events go (GH-62 decision 004).
   const seen = dropSkipped(events);
   const skipEvents = seen.flatMap((e) => e.type === "skip" ? [e] : []);
   const cardEvents = seen.flatMap((e) => e.type === "card" ? [e] : []);
-  const timeline = planTimeline(voiced.steps, { fps: FPS, frames: videoFrames(out.capture), cutMs: deliveryCutMs, images, speedUps,
+  const timeline = planTimeline(voiced.steps, { fps: FPS, frames: videoFrames(out.capture), cutMs: deliveryCutMs, speedUps,
     skips: skipEvents.map(({ t, durationMs }) => ({ t, durationMs })), cards: cardEvents.map(({ t, ms }) => ({ t, ms })) });
   const log = { version: 6 as const, autoZoom: script.autoZoom, events: retimeEvents(seen, timeline) };
   const eventErrors = validateEvents(log);

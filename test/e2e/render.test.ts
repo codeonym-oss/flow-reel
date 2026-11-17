@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { beforeAll, expect, it } from "vitest";
 import { planTimeline } from "../../src/composer/timeline.ts";
@@ -158,36 +158,27 @@ it("places a later clip after prior holds while preserving the final speech tail
   expect(raw.length / 4 / 48).toBeGreaterThanOrEqual(2600);
 });
 
-it("inserts images into the master and the video, and resumes on the capture frame it left (GH-32 decision 003)", () => {
-  media(["-f", "lavfi", "-i", "color=lime:s=80x90", "-frames:v", "1", join(dir, "narrow.png")]);
-  media(["-f", "lavfi", "-i", "color=yellow:s=320x90", "-frames:v", "1", join(dir, "wide.jpg")]);
-  // A committed WebP: FFmpeg builds without a WebP encoder still decode it, as the composer must.
-  copyFileSync(resolve("test/e2e/fixtures/magenta.webp"), join(dir, "full.webp"));
-  const image = (t: number, file: string, fit: "contain" | "cover", background = "#000000") =>
-    ({ t, durationMs: 300, file: join(dir, file), fit, background });
-  const timeline = planTimeline([], { fps: 30, frames: 60, cutMs: 500, images: [
-    image(200, "narrow.png", "contain", "#ffffff"), image(200, "wide.jpg", "cover"), image(800, "full.webp", "contain"),
-  ] });
-  const out = options("images");
-  renderTimeline({ ...out, timeline });
-  expect(videoFrames(out.master)).toBe(87);
-  expect(videoFrames(out.video)).toBe(72);
+it("inserts card clips into the master and the video, and resumes on the capture frame it left (GH-32 decision 003)", () => {
+  // Two clips standing in for drawn cards: green, then yellow, each 9 frames.
+  media(["-f", "lavfi", "-i", "color=lime:s=160x90:r=30:d=0.3", "-c:v", "libx264", "-pix_fmt", "yuv420p", join(dir, "green.mp4")]);
+  media(["-f", "lavfi", "-i", "color=yellow:s=160x90:r=30:d=0.3", "-c:v", "libx264", "-pix_fmt", "yuv420p", join(dir, "yellow.mp4")]);
+  const timeline = planTimeline([], { fps: 30, frames: 60, cutMs: 500, cards: [{ t: 200, ms: 300 }, { t: 800, ms: 300 }] });
+  const out = options("cards");
+  renderTimeline({ ...out, timeline, clips: { card0: join(dir, "green.mp4"), card1: join(dir, "yellow.mp4") } });
+  expect(videoFrames(out.master)).toBe(78);
+  expect(videoFrames(out.video)).toBe(63);
   const pixels = execFileSync("ffmpeg", ["-v", "error", "-i", out.video, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { maxBuffer: 64 << 20 });
   const at = (frame: number, x: number, y: number) => [...pixels.subarray(((frame * 90 + y) * 160 + x) * 3, ((frame * 90 + y) * 160 + x) * 3 + 3)];
   const near = (rgb: number[], want: number[]) => rgb.every((v, i) => Math.abs(v - want[i]) < 60);
-  // Capture source frames 15-20 (red), the two images at 6-14 and 15-23, red resumes at 24 with source frame 21.
+  // Capture source frames 15-20 (red), the green card at 6-14, red resumes at 15 with source frame 21.
   expect(near(at(5, 20, 20), [255, 0, 0])).toBe(true);
-  for (const f of [6, 14]) {
-    expect(near(at(f, 60, 45), [0, 255, 0])).toBe(true);  // contained image in the middle
-    expect(near(at(f, 5, 5), [255, 255, 255])).toBe(true); // its background in the bars
-  }
-  for (const f of [15, 23]) expect(near(at(f, 2, 2), [255, 255, 0])).toBe(true); // covered: no bars
-  expect(near(at(24, 20, 20), [255, 0, 0])).toBe(true);
-  // Blue capture at 33-41, the WebP at 42-50, blue again from 51.
-  expect(near(at(41, 20, 20), [0, 0, 255])).toBe(true);
-  expect(near(at(42, 20, 20), [255, 0, 255])).toBe(true);
-  expect(near(at(50, 150, 80), [255, 0, 255])).toBe(true);
-  expect(near(at(51, 20, 20), [0, 0, 255])).toBe(true);
+  for (const f of [6, 14]) expect(near(at(f, 80, 45), [0, 255, 0])).toBe(true);
+  expect(near(at(15, 20, 20), [255, 0, 0])).toBe(true);
+  // Blue capture at 24-32, the yellow card at 33-41, blue again from 42.
+  expect(near(at(32, 20, 20), [0, 0, 255])).toBe(true);
+  expect(near(at(33, 20, 20), [255, 255, 0])).toBe(true);
+  expect(near(at(41, 150, 80), [255, 255, 0])).toBe(true);
+  expect(near(at(42, 20, 20), [0, 0, 255])).toBe(true);
 });
 
 it("plays a stretch with the planned frames, keeping source frame floor(i × factor) (GH-61 decision 008)", () => {
