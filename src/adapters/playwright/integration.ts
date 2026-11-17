@@ -38,9 +38,13 @@ export const playwright: Integration = {
               await page.evaluate((id) => document.getElementById(id)?.remove(), MARK_ID);
             },
             async run(stage) {
-              const { clock, events, fps, comment, sound, showFrame, speedUp, skip, card } = stage;
+              const { clock, events, fps, comment, sound, speedUp, skip, card } = stage;
               const { page: wrapped, flash, zoomIn, zoomOut } = wrapScript(page, { clock, events, fps, viewport, stage });
-              await script.body({ page: wrapped, comment, sound, showFrame, flash, zoomIn, zoomOut, speedUp, skip, card: card as ScriptContext["card"] });
+              // showFrame was retired in 0.5 (GH-76 decision 004): a script still calling it is told what replaced it.
+              const showFrame = () => Promise.reject(new Error("showFrame() was replaced by card.image() in flow-reel 0.5: " +
+                'await card.image("diagram.png", { frame: "none", ms: 3000 })'));
+              await script.body({ page: wrapped, comment, sound, flash, zoomIn, zoomOut, speedUp, skip, showFrame,
+                card: card as ScriptContext["card"] });
             },
             close: () => context.close(),
           };

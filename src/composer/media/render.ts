@@ -77,8 +77,8 @@ function normalizeAudio(bus: string, voice: string, samples: number): void {
 }
 
 /**
- * The capture with the timeline's insertions: spans of the capture, cloned frames, images (GH-32 decision 003) and
- * cards, each from its rendered clip (GH-76 decision 003).
+ * The capture with the timeline's insertions: spans of the capture, cloned frames (GH-32 decision 003) and cards,
+ * each from its rendered clip (GH-76 decision 003).
  */
 function renderMaster(capture: string, master: string, timeline: Timeline, clips: Readonly<Record<string, string>>): void {
   const { width, height } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries",
@@ -87,7 +87,7 @@ function renderMaster(capture: string, master: string, timeline: Timeline, clips
   const filters: string[] = [];
   const labels: string[] = [];
   let from = 0;
-  let images = 0;
+  let clipInputs = 0;
   const span = (to: number, clone: number) => {
     if (to === from) return;
     const label = `s${labels.length}`;
@@ -123,27 +123,14 @@ function renderMaster(capture: string, master: string, timeline: Timeline, clips
       span(insertion.frame, 0);
       const clip = clips[insertion.card.id];
       if (!clip) throw new Error(`card ${insertion.card.id} wasn't rendered`);
-      const input = 1 + images++;
+      const input = 1 + clipInputs++;
       inputs.push("-i", clip);
       const label = `s${labels.length}`;
       filters.push(`[${input}:v]scale=${width}:${height},setsar=1,format=yuv420p,trim=end_frame=${insertion.frames},setpts=PTS-STARTPTS[${label}]`);
       labels.push(`[${label}]`);
       continue;
     }
-    if (!insertion.image) {
-      span(insertion.frame, insertion.frames);
-      continue;
-    }
-    span(insertion.frame, 0);
-    const { file, fit, background } = insertion.image;
-    const input = 1 + images++;
-    inputs.push("-loop", "1", "-framerate", String(timeline.fps), "-i", file);
-    const sized = fit === "contain"
-      ? `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=0x${background.slice(1)}`
-      : `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}`;
-    const label = `s${labels.length}`;
-    filters.push(`[${input}:v]${sized},setsar=1,format=yuv420p,trim=end_frame=${insertion.frames},setpts=PTS-STARTPTS[${label}]`);
-    labels.push(`[${label}]`);
+    span(insertion.frame, insertion.frames);
   }
   span(timeline.sourceFrames, 0);
   filters.push(`${labels.join("")}concat=n=${labels.length}:v=1:a=0,setpts=N/(${timeline.fps}*TB)[v]`);
@@ -183,7 +170,7 @@ export function renderTimeline({ capture, master, video, voice, audioDir, viewpo
   const polish = polishFilters(events, { viewport: [width, height], source: [dimensions.width, dimensions.height],
     fps: timeline.fps, frames: timeline.frames - timeline.cutFrames, autoZoom, stretches: timeline.stretches,
     // Nothing is drawn over a card either, and the crop is full (GH-62 decision 003).
-    imageSpans: [...timeline.imageSpans, ...timeline.cards.map(({ startMs, endMs }) => ({ startMs, endMs }))] },
+    cardSpans: timeline.cards.map(({ startMs, endMs }) => ({ startMs, endMs })) },
     video, audio ? 2 : 1);
   const graph = video + ".filters";
   writeFileSync(graph, `[0:v]trim=start_frame=${timeline.cutFrames},setpts=PTS-STARTPTS[trimmed];${polish.filters}`);

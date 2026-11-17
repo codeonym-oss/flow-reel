@@ -49,8 +49,16 @@ export function cardRequest(word: CardWord, args: readonly unknown[], scriptDir:
     if (unknown) throw new Error(`${who}: unknown option ${JSON.stringify(unknown)}; it takes ${OPTION_KEYS.join(", ")}`);
     return { type: "card", card: word, props: checkCustomProps(props), files: [{ path: inside, sha256: fileHash(file) }], ...cardOptions(who, o, brand) };
   }
-  if (args.length > 1) throw new Error(`card.${word}() takes one object, with its props and options together`);
-  const value = args[0];
+  let value = args[0];
+  if (word === "image") {
+    // The image first, as the word reads: card.image("shots/app.png", { title: "…" }).
+    if (typeof args[0] !== "string") throw new Error('card.image() takes the image\'s path first: card.image("shots/app.png", { title: "…" })');
+    if (args.length > 2) throw new Error("card.image() takes the image's path and one object, with its props and options together");
+    if (args[1] !== undefined && (typeof args[1] !== "object" || args[1] === null || Array.isArray(args[1]))) {
+      throw new Error('card.image() takes its props and options as an object, after the path: card.image("shots/app.png", { frame: "phone" })');
+    }
+    value = { ...(args[1] as object | undefined), image: args[0] };
+  } else if (args.length > 1) throw new Error(`card.${word}() takes one object, with its props and options together`);
   const { props, files } = checkProps(word, value, scriptDir, OPTION_KEYS);
   return { type: "card", card: word, props, files, ...cardOptions(`card.${word}()`, pick(value as Record<string, unknown>, OPTION_KEYS), brand) };
 }
@@ -60,6 +68,9 @@ export function cardWords(show: (word: CardWord, args: unknown[]) => Promise<voi
   return {
     intro: (...args: unknown[]) => show("intro", args),
     chapter: (...args: unknown[]) => show("chapter", args),
+    feature: (...args: unknown[]) => show("feature", args),
+    image: (...args: unknown[]) => show("image", args),
+    compare: (...args: unknown[]) => show("compare", args),
     outro: (...args: unknown[]) => show("outro", args),
     custom: (...args: unknown[]) => show("custom", args),
   };

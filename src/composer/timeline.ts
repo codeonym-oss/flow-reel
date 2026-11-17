@@ -1,22 +1,19 @@
 // The video's timeline: the capture plus insertions (GH-32 decision 003). A hold repeats the frame before it, so a
-// comment can finish; an image shows a `showFrame` picture. Both are placed at a capture frame, and every time on the
+// comment can finish; a card shows a card's clip. Both are placed at a capture frame, and every time on the
 // capture's clock moves to the video's through one mapping, `mapTime`. A stretch (GH-61) plays a run of capture
 // frames faster: output frame i of it is source frame floor(i × factor), so it keeps ceil(frames / factor) of them
 // (GH-61 decisions 007 and 008). A skip (GH-62) cuts a run of capture frames and inserts a card in their place: the
 // frame before them, held for at least 1.5 s or until the step's comment ends (GH-62 decision 003). A card (GH-76
 // decision 002) is inserted at its frame for 3 s, or until its step's comment ends, or for exactly its `ms`; the skip
 // card is a card too, drawn by the same renderer (GH-76 decision 008).
-import type { ComposerEvent, Fit } from "./schema/events.ts";
+import type { ComposerEvent } from "./schema/events.ts";
 import type { TranscriptStep } from "./schema/transcript.ts";
 
-export interface InsertedImage { file: string; fit: Fit; background: string }
 /**
  * Inserts `frames` frames before source frame `frame` (indices include calibration pre-roll): clones of frame - 1
- * for a hold, or `image`. `startMs` is where it starts in the video.
+ * for a hold, or the clip of the card `id`.
  */
-export interface Insertion { frame: number; frames: number; image?: InsertedImage; card?: { id: string } }
-/** A `showFrame` call: when it was made on the capture's clock, for how long, and the checked image. */
-export interface TimelineImage extends InsertedImage { t: number; durationMs: number }
+export interface Insertion { frame: number; frames: number; card?: { id: string } }
 /** A `speedUp` call: when it started on the capture's clock, how long it ran, and its factor. */
 export interface TimelineSpeedUp { t: number; durationMs: number; factor: number }
 /** A `skip` call: when it started on the capture's clock and how long it ran. */
@@ -38,10 +35,8 @@ export interface Timeline {
   sourceFrames: number;
   cutFrames: number;
   frames: number;
-  /** In video order; at one frame, holds come before images, and images keep the order they were shown in. */
+  /** In video order; at one frame, holds come before cards, and cards keep the order they were shown in. */
   insertions: Insertion[];
-  /** Where each image starts and ends in the video, in the order the images were shown. */
-  imageSpans: { startMs: number; endMs: number }[];
   /** In video order; none overlaps an insertion. */
   stretches: Stretch[];
   /** Source frames [frame, frame + frames) that skips cut, in source order. */
@@ -61,18 +56,13 @@ const CARD_MS = 3000;
 
 export function planTimeline(
   steps: readonly TranscriptStep[],
-  { fps, frames, cutMs, images = [], speedUps = [], skips = [], cards = [] }:
-    { fps: number; frames: number; cutMs: number; images?: readonly TimelineImage[]; speedUps?: readonly TimelineSpeedUp[];
+  { fps, frames, cutMs, speedUps = [], skips = [], cards = [] }:
+    { fps: number; frames: number; cutMs: number; speedUps?: readonly TimelineSpeedUp[];
       skips?: readonly TimelineSkip[]; cards?: readonly TimelineCard[] },
 ): Timeline {
   const cutFrames = Math.round(cutMs * fps / 1000);
   const ms = (n: number) => n * 1000 / fps;
   const frameAt = (t: number) => Math.ceil((t + ms(cutFrames)) * fps / 1000 - 1e-9);
-  const imageInsertions = images.map(({ t, durationMs, file, fit, background }): Insertion => {
-    const frame = frameAt(t);
-    if (frame <= 0 || frame > frames) throw new Error(`an image shown at ${Math.round(t)} ms is beyond the capture`);
-    return { frame, frames: Math.max(1, Math.round(durationMs * fps / 1000)), image: { file, fit, background } };
-  });
   const sped = speedUps.map(({ t, durationMs, factor }) => {
     const frame = frameAt(t);
     const end = frameAt(t + durationMs);
@@ -98,9 +88,9 @@ export function planTimeline(
   const dropped = (at: number) => [...sped, ...cut].reduce((n, s) => n + (at <= s.frame ? 0 : at >= s.frame + s.frames - 1e-9
     ? s.frames - s.kept : (at - s.frame) * (1 - 1 / s.factor)), 0);
   const sourceAt = (t: number) => t * fps / 1000 + cutFrames;
-  const insertions: Insertion[] = [...imageInsertions];
+  const insertions: Insertion[] = [];
   const order = () => insertions.sort((a, b) => a.frame - b.frame ||
-    Number(Boolean(a.image || a.card)) - Number(Boolean(b.image || b.card)));
+    Number(Boolean(a.card)) - Number(Boolean(b.card)));
   const framesOf = (ms: number) => Math.max(1, Math.round(ms * fps / 1000));
   order();
   const mapWith = (t: number) => t - ms(dropped(sourceAt(t))) +
@@ -141,7 +131,6 @@ export function planTimeline(
     const startMs = ms(insertion.frame - cutFrames - dropped(insertion.frame) + before);
     return { startMs, endMs: startMs + ms(insertion.frames) };
   };
-  const imageSpans = imageInsertions.map(spanOf);
   const cardSpans = placed.map((card): CardSpan => ({ id: card.card!.id, frame: card.frame, frames: card.frames, ...spanOf(card) }))
     .sort((a, b) => a.startMs - b.startMs);
   for (const s of cut) {
@@ -149,7 +138,7 @@ export function planTimeline(
   }
   const stretches = sped.map((s): Stretch => {
     if (insertions.some((i) => i.frame > s.frame && i.frame < s.frame + s.frames)) throw new Error("a speed-up overlaps an insertion");
-    // Holds and images at the stretch's first frame play before it.
+    // Holds and cards at the stretch's first frame play before it.
     const before = insertions.filter((i) => i.frame <= s.frame).reduce((n, i) => n + i.frames, 0);
     const startMs = ms(s.frame - cutFrames - dropped(s.frame) + before);
     return { ...s, startMs, endMs: startMs + ms(s.kept) };
@@ -157,7 +146,7 @@ export function planTimeline(
   return {
     fps, sourceFrames: frames, cutFrames,
     frames: frames + insertions.reduce((n, i) => n + i.frames, 0) - [...sped, ...cut].reduce((n, s) => n + s.frames - s.kept, 0),
-    insertions, imageSpans, stretches, skips: cut.map(({ frame, frames: n }) => ({ frame, frames: n })), cards: cardSpans,
+    insertions, stretches, skips: cut.map(({ frame, frames: n }) => ({ frame, frames: n })), cards: cardSpans,
     steps: finalSteps, mapTime: mapWith,
     mapDuration: (t, durationMs) => durationMs - ms(dropped(sourceAt(t + durationMs)) - dropped(sourceAt(t))),
   };
@@ -174,17 +163,14 @@ export function dropSkipped(events: readonly ComposerEvent[]): ComposerEvent[] {
 }
 
 /**
- * Each frame event moves to where its image starts in the video, and each skip and card to where its card starts;
- * every other event through `mapTime`, and its
+ * Each skip and card event moves to where its card starts in the video; every other event through `mapTime`, and its
  * duration shrinks by what stretches drop inside it (GH-61 decision 003), so it lasts as long as its picture does.
  */
 export function retimeEvents(events: readonly ComposerEvent[], timeline: Timeline): ComposerEvent[] {
-  let image = 0;
   let skip = 0;
   let card = 0;
   const start = (id: string) => timeline.cards.find((c) => c.id === id)!.startMs;
   return events.map((event): ComposerEvent => {
-    if (event.type === "frame") return { ...event, t: timeline.imageSpans[image++].startMs };
     // A skip keeps its length: the real time cut, which its card shows.
     if (event.type === "skip") return { ...event, t: start(`skip${skip++}`) };
     if (event.type === "card") return { ...event, t: start(`card${card++}`) };

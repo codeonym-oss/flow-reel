@@ -114,25 +114,24 @@ it("keeps the arrow sprite visible during a fast cross-screen move in zoom-out",
   }
 }, 120_000);
 
-it("flashes over everything, and draws no cursor, ripple or zoom over an inserted image (GH-32)", async () => {
+it("flashes over everything, and draws no cursor, ripple or zoom over a card (GH-32, GH-76)", async () => {
   const { retimeEvents } = await import("../../src/composer/timeline.ts");
   mkdirSync(dir, { recursive: true });
   const capture = join(dir, "effects-capture.mp4");
   media(["-f", "lavfi", "-i", "color=black:s=640x360:r=30:d=3", "-c:v", "libx264", capture]);
-  const image = join(dir, "framed.png");
-  // Green with a magenta border: a zoomed (cropped) image would lose the border.
-  media(["-f", "lavfi", "-i", "color=lime:s=320x180,drawbox=x=0:y=0:w=320:h=180:color=magenta:t=8", "-frames:v", "1", image]);
-  const timeline = planTimeline([], { fps: 30, frames: 90, cutMs: 0,
-    images: [{ t: 1000, durationMs: 500, file: image, fit: "contain", background: "#000000" }] });
+  const clip = join(dir, "framed.mp4");
+  // Green with a magenta border: a zoomed (cropped) card would lose the border.
+  media(["-f", "lavfi", "-i", "color=lime:s=640x360:r=30:d=0.5,drawbox=x=0:y=0:w=640:h=360:color=magenta:t=16", "-c:v", "libx264", "-pix_fmt", "yuv420p", clip]);
+  const timeline = planTimeline([], { fps: 30, frames: 90, cutMs: 0, cards: [{ t: 1000, ms: 500 }] });
   const events = retimeEvents([
     { t: 0, type: "zoom", zoom: "in", at: [160, 90], scale: 2, ms: 300 },
     { t: 900, type: "click", at: [160, 90], button: "left", target: "middle" },
-    { t: 1000, type: "frame", image: "framed.png", sha256: "a".repeat(64), durationMs: 500, fit: "contain", background: "#000000" },
+    { t: 1000, type: "card", card: "image", props: { image: "framed.png" }, files: [], ms: 500, enter: "cut", exit: "cut", theme: "ink" },
     { t: 2000, type: "flash", color: "#ff0000", ms: 250 },
   ], timeline);
   const video = join(dir, "effects.mp4");
   renderTimeline({ capture, master: join(dir, "effects-master.mp4"), video, voice: join(dir, "effects-voice.wav"),
-    audioDir: dir, viewport: [320, 180], timeline, events });
+    audioDir: dir, viewport: [320, 180], timeline, clips: { card0: clip }, events });
   const raw = media(["-i", video, "-pix_fmt", "rgb24", "-an", "-fps_mode", "passthrough", "-f", "rawvideo", "-"]);
   const size = 320 * 180 * 3;
   expect(raw.length / size).toBe(105);

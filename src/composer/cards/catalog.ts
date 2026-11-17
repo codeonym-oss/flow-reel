@@ -9,7 +9,7 @@ import { formatDuration } from "../effects.ts";
 /** How a prop is checked: text, a list of texts, one of a few words, or an image in the script's folder. */
 type PropSpec =
   | { type: "text"; required?: boolean }
-  | { type: "texts"; required?: boolean; max: number }
+  | { type: "texts"; required?: boolean; min?: number; max: number }
   | { type: "choice"; choices: readonly string[] }
   | { type: "image"; required?: boolean };
 
@@ -30,6 +30,33 @@ const ORBIT = `<svg class="orbit" viewBox="0 0 800 800" aria-hidden="true">
 <g fill="none" stroke="var(--fr-line)" stroke-width="1.5"><circle cx="400" cy="400" r="150"/><circle cx="400" cy="400" r="250"/>
 <circle cx="400" cy="400" r="350"/></g><g class="spin"><circle cx="400" cy="50" r="9" fill="var(--fr-accent)"/></g>
 <g class="spin slow"><circle cx="650" cy="400" r="6" fill="var(--fr-muted)"/></g></svg>`;
+
+const CHECK = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="var(--fr-on-accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+
+/** A screenshot in a browser window, a phone, or on its own. */
+function framed(src: string, frame: unknown, fit: unknown, url?: unknown): string {
+  const image = `<img class="shot" src="${src}" alt="" style="object-fit:${fit === "contain" ? "contain" : "cover"}">`;
+  if (frame === "phone") return `<div class="phone"><div class="screen">${image}<span class="notch"></span></div></div>`;
+  if (frame === "none") return `<div class="bare">${image}</div>`;
+  return `<div class="browser"><div class="bar"><i></i><i></i><i></i>${url ? `<span class="url fr-mono">${esc(url)}</span>` : ""}</div>${image}</div>`;
+}
+const FRAMES = `
+.browser{display:flex;flex-direction:column;border-radius:1.2rem;overflow:hidden;background:var(--fr-surface);
+  box-shadow:0 0 0 1px var(--fr-line),0 3rem 7rem rgba(0,0,0,.38)}
+.browser .bar{flex:none;height:3rem;display:flex;align-items:center;gap:.6rem;padding:0 1.2rem;background:var(--fr-surface);border-bottom:1px solid var(--fr-line)}
+.browser .bar i{width:.85rem;height:.85rem;border-radius:50%;background:var(--fr-line)}
+.browser .url{margin:0 auto;padding:.35rem 1.4rem;border-radius:99rem;background:var(--fr-bg);color:var(--fr-muted);font-size:.95rem}
+.browser .shot{flex:1;min-height:0;width:100%;display:block;background:var(--fr-bg)}
+.phone{height:100%;aspect-ratio:9/19.5;padding:1rem;border-radius:4.2rem;background:#0a0b0e;
+  box-shadow:0 0 0 2px var(--fr-line),0 3rem 7rem rgba(0,0,0,.45)}
+.phone .screen{position:relative;width:100%;height:100%;border-radius:3.3rem;overflow:hidden;background:var(--fr-bg)}
+.phone .shot{width:100%;height:100%;display:block}
+.phone .notch{position:absolute;top:1rem;left:50%;width:30%;height:2.2rem;margin-left:-15%;border-radius:99rem;background:#0a0b0e}
+.bare{border-radius:1.2rem;overflow:hidden;box-shadow:0 0 0 1px var(--fr-line),0 3rem 7rem rgba(0,0,0,.38)}
+.bare .shot{width:100%;height:100%;display:block}
+@keyframes fr-lift{from{opacity:0;transform:translateY(3rem) scale(.97)}to{opacity:1;transform:none}}
+.fr-lift{animation:fr-lift 1.1s cubic-bezier(.2,.7,.2,1) both}
+`;
 
 const FORWARD = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="var(--fr-accent)" d="M3 6.5v11l8-5.5zM12 6.5v11l8-5.5z"/></svg>`;
 
@@ -72,6 +99,62 @@ export const KINDS = {
 </style><div class="fr-card fr-center"><div class="fr-stack" style="align-items:center;gap:2.6rem">${logoOf(c, "fr-enter-fade")}
 <h1 class="fr-title fr-enter fr-d1">${esc(p.title)}</h1>${p.url ? `<span class="fr-pill cta fr-enter fr-d2">${esc(p.url)}<span aria-hidden="true">→</span></span>` : ""}
 ${Array.isArray(p.links) ? `<div class="links fr-mono fr-muted fr-enter fr-d3">${p.links.map((l) => `<span>${esc(l)}</span>`).join("")}</div>` : ""}</div></div>`,
+  },
+  feature: {
+    props: { kicker: { type: "text" }, title: { type: "text", required: true }, points: { type: "texts", required: true, max: 5 },
+      image: { type: "image" }, imageSide: { type: "choice", choices: ["right", "left"] } },
+    body: (p, c) => `<style>${FRAMES}
+.split{display:grid;grid-template-columns:${p.image ? "minmax(0,.9fr) minmax(0,1.1fr)" : "1fr"};gap:5rem;align-items:center;height:100%}
+.split.left .copy{order:2}
+.points{list-style:none;margin:1.4rem 0 0;padding:0;display:flex;flex-direction:column;gap:1.4rem;font-size:1.9rem;line-height:1.3}
+.points li{display:flex;gap:1.1rem;align-items:flex-start}
+.points li b{flex:none;width:2.2rem;height:2.2rem;margin-top:.05rem;border-radius:.7rem;background:var(--fr-accent);display:flex;align-items:center;justify-content:center}
+.points li b svg{width:1.4rem;height:1.4rem}
+.media{height:36rem;display:flex;justify-content:center}.media>*{width:100%}.media>.phone{width:auto}
+</style><div class="fr-card" style="padding:5rem 6rem"><div class="split${p.imageSide === "left" ? " left" : ""}"><div class="copy fr-stack">
+${p.kicker ? `<span class="fr-kicker fr-enter">${esc(p.kicker)}</span>` : ""}<h1 class="fr-title fr-title-m fr-enter fr-d1">${esc(p.title)}</h1>
+<ul class="points">${(p.points as string[]).map((point, i) => `<li class="fr-enter fr-d${Math.min(5, i + 2)}"><b>${CHECK}</b><span>${esc(point)}</span></li>`).join("")}</ul></div>
+${p.image ? `<div class="media fr-lift fr-d2">${framed(String(p.image), "browser", "cover")}</div>` : ""}</div></div>`,
+  },
+  image: {
+    props: { image: { type: "image", required: true }, kicker: { type: "text" }, title: { type: "text" }, caption: { type: "text" },
+      frame: { type: "choice", choices: ["browser", "phone", "none"] }, fit: { type: "choice", choices: ["cover", "contain"] }, url: { type: "text" } },
+    body: (p) => {
+      const words = p.kicker || p.title || p.caption ? `<div class="fr-stack" style="gap:1.2rem">${p.kicker ? `<span class="fr-kicker fr-enter">${esc(p.kicker)}</span>` : ""}
+${p.title ? `<h1 class="fr-title fr-title-m fr-enter fr-d1">${esc(p.title)}</h1>` : ""}${p.caption ? `<p class="fr-subtitle fr-enter fr-d2">${esc(p.caption)}</p>` : ""}</div>` : "";
+      const shot = framed(String(p.image), p.frame, p.fit, p.url);
+      if (p.frame === "phone") {
+        return `<style>${FRAMES}.side{display:grid;grid-template-columns:${words ? "minmax(0,1fr) auto" : "auto"};justify-content:center;gap:6rem;align-items:center;height:100%}
+.side .media{height:44rem}</style><div class="fr-card" style="padding:4rem 8rem"><div class="side">${words}<div class="media fr-lift fr-d1">${shot}</div></div></div>`;
+      }
+      return `<style>${FRAMES}.stage{flex:1;min-height:0;display:flex;justify-content:center}.stage>*{width:100%;height:100%}.browser .shot,.bare .shot{height:100%}</style>
+<div class="fr-card" style="padding:${words ? "4.4rem" : "4rem"} 7rem 4rem;justify-content:flex-start;gap:2.8rem">${words}<div class="stage fr-lift fr-d1">${shot}</div></div>`;
+    },
+  },
+  compare: {
+    props: { before: { type: "image", required: true }, after: { type: "image", required: true }, kicker: { type: "text" },
+      title: { type: "text" }, labels: { type: "texts", min: 2, max: 2 } },
+    body: (p) => {
+      const [left, right] = (p.labels as string[] | undefined) ?? ["Before", "After"];
+      return `<style>
+.stage{position:relative;flex:1;min-height:0;border-radius:1.4rem;overflow:hidden;box-shadow:0 0 0 1px var(--fr-line),0 3rem 7rem rgba(0,0,0,.35)}
+.stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.after{clip-path:inset(0 0 0 50%);animation:reveal 1.6s cubic-bezier(.65,0,.3,1) .5s both}
+@keyframes reveal{from{clip-path:inset(0 0 0 100%)}to{clip-path:inset(0 0 0 50%)}}
+.handle{position:absolute;top:0;bottom:0;left:50%;width:0;animation:slide 1.6s cubic-bezier(.65,0,.3,1) .5s both}
+@keyframes slide{from{left:100%}to{left:50%}}
+.handle::before{content:"";position:absolute;top:0;bottom:0;left:-.15rem;width:.3rem;background:var(--fr-accent)}
+.handle b{position:absolute;top:50%;left:-2.2rem;margin-top:-2.2rem;width:4.4rem;height:4.4rem;border-radius:50%;background:var(--fr-accent);
+  box-shadow:0 .6rem 1.6rem rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center}
+.handle svg{width:2.2rem;height:2.2rem}
+.tag{position:absolute;bottom:1.6rem;padding:.5rem 1rem;border-radius:.6rem;font-size:1.1rem;background:rgba(10,11,14,.78);color:#fff}
+.tag.l{left:1.6rem}.tag.r{right:1.6rem;background:var(--fr-accent);color:var(--fr-on-accent)}
+</style><div class="fr-card" style="padding:4.4rem 7rem 4rem;justify-content:flex-start;gap:2.6rem">
+${p.kicker || p.title ? `<div class="fr-stack" style="gap:1rem">${p.kicker ? `<span class="fr-kicker fr-enter">${esc(p.kicker)}</span>` : ""}${p.title ? `<h1 class="fr-title fr-title-m fr-enter fr-d1">${esc(p.title)}</h1>` : ""}</div>` : ""}
+<div class="stage fr-lift"><img src="${p.before}" alt=""><img class="after" src="${p.after}" alt="">
+<span class="tag l fr-mono">${esc(left)}</span><span class="tag r fr-mono fr-enter-fade fr-d5">${esc(right)}</span>
+<div class="handle"><b><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="var(--fr-on-accent)" stroke-width="2.4" d="M9 6l-6 6 6 6M15 6l6 6-6 6"/></svg></b></div></div></div>`;
+    },
   },
   // The card a skip shows (GH-76 decision 008), over the blurred last frame; `durationMs` is the length cut.
   skip: {
@@ -139,8 +222,10 @@ export function checkProps(kind: Exclude<BuiltInKind, "skip">, value: unknown, s
       continue;
     }
     if (rule.type === "text" && (typeof v !== "string" || !v.trim())) throw new Error(`${word}: ${name} must be non-empty text, got ${JSON.stringify(v)}`);
-    if (rule.type === "texts" && (!Array.isArray(v) || !v.length || v.length > rule.max || v.some((x) => typeof x !== "string" || !x.trim()))) {
-      throw new Error(`${word}: ${name} must be a list of 1 to ${rule.max} non-empty texts, got ${JSON.stringify(v)}`);
+    if (rule.type === "texts" && (!Array.isArray(v) || v.length < (rule.min ?? 1) || v.length > rule.max ||
+      v.some((x) => typeof x !== "string" || !x.trim()))) {
+      const count = (rule.min ?? 1) === rule.max ? `${rule.max}` : `${rule.min ?? 1} to ${rule.max}`;
+      throw new Error(`${word}: ${name} must be a list of ${count} non-empty texts, got ${JSON.stringify(v)}`);
     }
     if (rule.type === "choice" && !rule.choices.includes(v as string)) {
       throw new Error(`${word}: ${name} must be ${rule.choices.map((c) => JSON.stringify(c)).join(" or ")}, got ${JSON.stringify(v)}`);

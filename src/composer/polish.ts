@@ -20,8 +20,8 @@ export interface PolishOptions {
   viewport: [number, number]; source: [number, number]; fps: number; frames: number;
   /** False when the script turned automatic zoom off; explicit zoom and the cursor still work (story decision 011). */
   autoZoom?: boolean;
-  /** Where inserted images show, in video milliseconds: nothing is drawn over them, and the crop is full. */
-  imageSpans?: readonly { startMs: number; endMs: number }[];
+  /** Where cards show, in video milliseconds: nothing is drawn over them, and the crop is full. */
+  cardSpans?: readonly { startMs: number; endMs: number }[];
   /** Where sped-up stretches play, in video milliseconds, each with its factor: each shows a badge (GH-61). */
   stretches?: readonly { startMs: number; endMs: number; factor: number }[];
 }
@@ -34,7 +34,7 @@ const ZOOM_OUT_MS = 800;
  * `zoom in` holds the camera until its `zoom out`, and automatic zoom waits meanwhile (story decision 011).
  */
 export function planPolish(events: readonly ComposerEvent[], options: PolishOptions) {
-  const { viewport: [width, height], source: [sw, sh], fps, frames, autoZoom = true, imageSpans = [] } = options;
+  const { viewport: [width, height], source: [sw, sh], fps, frames, autoZoom = true, cardSpans = [] } = options;
   const minShare = 1 / Math.max(1, Math.min(4 / 3, sw / width, sh / height));
   const camera: [Curve, Curve, Curve] = [[], [], []];
   const pointer: [Curve, Curve] = [[], []];
@@ -60,7 +60,7 @@ export function planPolish(events: readonly ComposerEvent[], options: PolishOpti
   let target = [0, 0, 1];
   let cameraTarget = target;
   let held = false;
-  const sorted = events.filter((e) => !["sound", "flash", "frame"].includes(e.type)).sort((a, b) => a.t - b.t);
+  const sorted = events.filter((e) => !["sound", "flash"].includes(e.type)).sort((a, b) => a.t - b.t);
   sorted.forEach((event, i) => {
     const previousDeadline = deadline;
     if (event.type === "card" || event.type === "skip") {
@@ -116,8 +116,8 @@ export function planPolish(events: readonly ComposerEvent[], options: PolishOpti
   // A double-click's two presses share one ripple rather than doubling its opacity.
   const clicks = sorted.filter((e) => e.type === "click")
     .filter((e, i, all) => i === 0 || e.t - all[i - 1].t > SAME_CLICK_MS);
-  const inImage = (t: number) => imageSpans.some((s) => t >= s.startMs - 0.5 && t < s.endMs - 0.5);
-  return { frames, fps, camera, pointer, clicks, imageSpans, frame(n: number) {
+  const inCard = (t: number) => cardSpans.some((s) => t >= s.startMs - 0.5 && t < s.endMs - 0.5);
+  return { frames, fps, camera, pointer, clicks, cardSpans, frame(n: number) {
     const t = n * 1000 / fps;
     const crop = value(camera, t, initial);
     const at = value(pointer, t, [0.5, 0.5]);
@@ -128,8 +128,8 @@ export function planPolish(events: readonly ComposerEvent[], options: PolishOpti
       crop[axis] = clamp(crop[axis], clamp(at[axis] - crop[2] + 24 * crop[2] / pixels, 0, 1 - crop[2]),
         clamp(at[axis] - crop[2] / pixels, 0, 1 - crop[2]));
     }
-    // Nothing is drawn over an inserted image, and the image is never cropped.
-    if (inImage(t)) return { crop: [...initial], zoom: 1, cursor: [at[0] * width, at[1] * height], hidden: true, ripples: [] };
+    // Nothing is drawn over a card, and a card is never cropped.
+    if (inCard(t)) return { crop: [...initial], zoom: 1, cursor: [at[0] * width, at[1] * height], hidden: true, ripples: [] };
     return { crop, zoom: 1 / crop[2], hidden: false, cursor: [(at[0] - crop[0]) * width / crop[2], (at[1] - crop[1]) * height / crop[2]],
       ripples: clicks.filter((e) => t >= e.t && t < e.t + 400).map((e) => ({
         x: (e.at[0] / width - crop[0]) * width / crop[2], y: (e.at[1] / height - crop[1]) * height / crop[2],

@@ -14,6 +14,8 @@ mkdirSync(join(dir, "cards"));
 writeFileSync(join(dir, "cards/pricing.html"), "<!doctype html><html><head><title>p</title></head><body><b data-prop=\"plan\">Plan</b></body></html>");
 writeFileSync(join(dir, "logo.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\"/>");
 writeFileSync(join(dir, "Display.woff2"), "font");
+mkdirSync(join(dir, "shots"));
+for (const name of ["app.png", "old.png", "new.webp"]) writeFileSync(join(dir, "shots", name), name);
 
 describe("card words (GH-76 decisions 001 and 002)", () => {
   it("checks a built-in card's props and fills in the brand's look", () => {
@@ -37,6 +39,26 @@ describe("card words (GH-76 decisions 001 and 002)", () => {
     expect(call("intro", { title: "x", ms: 100 })).toThrow("card.intro(): ms must be a number of milliseconds from 500 to 60000, got 100");
     expect(call("intro", { title: "x", enter: "spin" })).toThrow('card.intro(): enter must be one of "fade", "slide", "wipe", "zoom", "blur", "iris", "cut", got "spin"');
     expect(call("intro", { title: "x", theme: "neon" })).toThrow('card.intro(): theme must be one of "ink", "paper", "ocean", "ember", got "neon"');
+  });
+
+  it("checks the feature, image and compare cards, hashing each image they show", () => {
+    const feature = cardRequest("feature", [{ title: "Saved views", points: ["One click", "Shared"], image: "shots/app.png", imageSide: "left" }], dir, {});
+    expect(feature).toMatchObject({ card: "feature", props: { title: "Saved views", points: ["One click", "Shared"], image: "shots/app.png", imageSide: "left" } });
+    expect(feature.files).toEqual([{ path: "shots/app.png", sha256: expect.stringMatching(/^[a-f0-9]{64}$/) }]);
+    expect(cardRequest("image", ["./shots/app.png", { title: "On your phone", frame: "phone", ms: 2000 }], dir, {}))
+      .toMatchObject({ card: "image", props: { image: "shots/app.png", title: "On your phone", frame: "phone" }, ms: 2000 });
+    expect(cardRequest("image", ["shots/app.png"], dir, {})).toMatchObject({ props: { image: "shots/app.png" } });
+    const compare = cardRequest("compare", [{ before: "shots/old.png", after: "shots/new.webp", labels: ["2.3", "2.4"] }], dir, {});
+    expect(compare.files.map((f) => f.path)).toEqual(["shots/old.png", "shots/new.webp"]);
+    const call = (word: "feature" | "image" | "compare", ...args: unknown[]) => () => cardRequest(word, args, dir, {});
+    expect(call("feature", { title: "x", points: ["1", "2", "3", "4", "5", "6"] })).toThrow("card.feature(): points must be a list of 1 to 5 non-empty texts");
+    expect(call("feature", { title: "x" })).toThrow("card.feature() needs points");
+    expect(call("image", { title: "x" })).toThrow('card.image() takes the image\'s path first: card.image("shots/app.png", { title: "…" })');
+    expect(call("image", "shots/app.png", "phone")).toThrow("card.image() takes its props and options as an object, after the path");
+    expect(call("image", "shots/missing.png")).toThrow("card.image(): image: shots/missing.png doesn't exist");
+    expect(call("image", "shots/app.png", { frame: "tablet" })).toThrow('card.image(): frame must be "browser" or "phone" or "none", got "tablet"');
+    expect(call("compare", { before: "shots/old.png", after: "shots/new.webp", labels: ["only"] })).toThrow("card.compare(): labels must be a list of 2 non-empty texts");
+    expect(call("compare", { before: "shots/old.png" })).toThrow("card.compare() needs after");
   });
 
   it("takes a custom card's page from the script's folder, with JSON props and options apart", () => {
@@ -110,6 +132,10 @@ describe("card pages (GH-76 decision 003)", () => {
     expect(body).toContain("A &lt;b&gt;bold&lt;/b&gt; title");
     expect(body).toContain("fr-center");
     expect(builtInBody("chapter", { title: "Save" }, { ...context, chapter: { number: 2, total: 3 } })).toContain("Chapter 02 <span class=\"fr-muted\">/ 03</span>");
+    const image = builtInBody("image", { image: "shots/my app.png", frame: "phone" }, context);
+    expect(image).toContain('src="/script/shots/my%20app.png"');
+    expect(image).toContain('class="phone"');
+    expect(builtInBody("compare", { before: "a.png", after: "b.png" }, context)).toMatch(/>Before<.*>After</s);
     const skip = builtInBody("skip", { label: "{duration} skipped", style: "clock" }, { ...context, props: { durationMs: 38_000 } });
     expect(skip).toContain("38 s");
     expect(skip).toContain(">skipped<");

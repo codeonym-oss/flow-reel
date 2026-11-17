@@ -125,17 +125,17 @@ describe("speedUp (GH-61 decisions 001, 004 and 005)", () => {
       .toThrow("speedUp() takes a function to run faster, as in speedUp(4, () => …)");
   });
 
-  it("refuses comments, showFrame and nesting inside, and allows them again after", async () => {
+  it("refuses comments, cards and nesting inside, and allows them again after", async () => {
     const { timer } = fake();
     const inside: unknown[] = [];
     await timer.speedUp(2, async () => {
       try { timer.comment("Hi."); } catch (e) { inside.push((e as Error).message); }
-      try { timer.outsideStretch("showFrame"); } catch (e) { inside.push((e as Error).message); }
+      try { timer.outsideStretch("card.image"); } catch (e) { inside.push((e as Error).message); }
       await timer.speedUp(2, async () => {}, []).catch((e: Error) => inside.push(e.message));
     }, []);
     expect(inside).toEqual([
       "comment() can't be used inside speedUp(); put it before or after",
-      "showFrame() can't be used inside speedUp(); put it before or after",
+      "card.image() can't be used inside speedUp(); put it before or after",
       "speedUp() can't be used inside speedUp(); put it before or after",
     ]);
     expect(() => timer.comment("After.")).not.toThrow();

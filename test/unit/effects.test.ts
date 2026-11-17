@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { flashSettings, frameRequest, zoomInSettings, zoomOutSettings } from "../../src/composer/effects.ts";
+import { flashSettings, zoomInSettings, zoomOutSettings } from "../../src/composer/effects.ts";
 
 const dirs: string[] = [];
 afterEach(() => dirs.forEach((dir) => rmSync(dir, { recursive: true, force: true })));
@@ -31,30 +31,6 @@ it("names each bad option at the call", () => {
   expect(() => zoomInSettings({ scale: 3 })).toThrow("zoomIn(): scale must be a number from 1 to 2, got 3");
   expect(() => zoomInSettings({ scale: 0.5 })).toThrow("scale must be a number from 1 to 2");
   expect(() => zoomOutSettings({ ms: -1 })).toThrow("zoomOut(): ms must be a number of milliseconds > 0");
-});
-
-it("checks a showFrame image and records its relative path and hash", () => {
-  const dir = folder();
-  expect(frameRequest(dir, "img/diagram.PNG", 3000)).toEqual({
-    file: join(dir, "img", "diagram.PNG"),
-    event: { type: "frame", image: "img/diagram.PNG", sha256: createHash("sha256").update("png").digest("hex"),
-      durationMs: 3000, fit: "contain", background: "#000000" },
-  });
-  expect(frameRequest(dir, "./img/../img/diagram.PNG", 10, { fit: "cover", background: "#123ABC" }).event)
-    .toMatchObject({ image: "img/diagram.PNG", fit: "cover", background: "#123abc" });
-});
-
-it("rejects images the composer can't read or render", () => {
-  const dir = folder();
-  writeFileSync(join(dir, "notes.txt"), "");
-  expect(() => frameRequest(dir, "/etc/hosts.png", 10)).toThrow("must be relative to the script's folder, not absolute");
-  expect(() => frameRequest(dir, "../outside.png", 10)).toThrow("../outside.png is outside the script's folder");
-  expect(() => frameRequest(dir, "notes.txt", 10)).toThrow("notes.txt must be a PNG, JPEG or WebP image");
-  expect(() => frameRequest(dir, "missing.png", 10)).toThrow("showFrame(): missing.png doesn't exist");
-  expect(() => frameRequest(dir, "img/diagram.PNG", undefined)).toThrow("showFrame() takes how long to show the image");
-  expect(() => frameRequest(dir, "img/diagram.PNG", 0)).toThrow("the duration must be a number of milliseconds > 0");
-  expect(() => frameRequest(dir, "img/diagram.PNG", 10, { fit: "stretch" })).toThrow('fit must be "contain" or "cover"');
-  expect(() => frameRequest(dir, 42, 10)).toThrow("showFrame() takes the image's path");
 });
 
 describe("skip (GH-62 decision 002, GH-76 decision 008)", () => {

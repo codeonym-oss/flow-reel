@@ -42,23 +42,44 @@ describe("Sounds", () => {
 });
 
 describe("effect words (GH-32 decisions 001 and 002)", () => {
-  it("take options objects, standalone and chained; showFrame is awaited", () => {
-    const check = async ({ flash, showFrame, zoomIn, zoomOut }: ScriptContext, locator: Locator) => {
+  it("take options objects, standalone and chained", () => {
+    const check = async ({ flash, zoomIn, zoomOut }: ScriptContext, locator: Locator) => {
       flash();
       flash({ color: "#ff0000", ms: 100 });
       zoomIn({ scale: 1.5 });
       zoomOut({ ms: 400 });
-      await showFrame("diagram.png", 3000, { fit: "cover", background: "#ffffff" });
       await locator.zoomIn().flash({ ms: 300 }).sound(Sounds.feedback.SUCCESS).zoomOut().click();
       // @ts-expect-error an unknown option
       flash({ colour: "#ffffff" });
-      // @ts-expect-error fit is contain or cover
-      await showFrame("a.png", 10, { fit: "stretch" });
-      // @ts-expect-error showFrame needs a duration
-      await showFrame("a.png");
     };
     expect(typeof check).toBe("function");
     expect(script({ url: "http://x", autoZoom: false }, async () => {}).options.autoZoom).toBe(false);
+  });
+});
+
+describe("cards (GH-76 decision 001)", () => {
+  it("are typed words on card, each awaited with its props and options", () => {
+    const check = async ({ card }: ScriptContext) => {
+      await card.intro({ kicker: "Orbit 2.4", title: "Saved views", layout: "center", ms: 4000, enter: "zoom", theme: "paper" });
+      await card.chapter({ title: "Save a view" });
+      await card.feature({ title: "Saved views", points: ["One click", "Shared"], image: "shots/app.png", imageSide: "left" });
+      await card.image("shots/mobile.png", { title: "On your phone", frame: "phone", fit: "contain" });
+      await card.image("diagram.png");
+      await card.compare({ before: "a.png", after: "b.png", labels: ["2.3", "2.4"] });
+      await card.outro({ title: "Try it", url: "orbit.dev", links: ["Docs"] });
+      await card.custom("cards/pricing.html", { plan: "Team", seats: 5, tags: ["a"] }, { exit: "cut" });
+      // @ts-expect-error a title is needed
+      await card.intro({ kicker: "x" });
+      // @ts-expect-error layout is left or center
+      await card.intro({ title: "x", layout: "right" });
+      // @ts-expect-error an unknown transition
+      await card.chapter({ title: "x", enter: "spin" });
+      // @ts-expect-error frame is browser, phone or none
+      await card.image("a.png", { frame: "tablet" });
+      // @ts-expect-error two labels
+      await card.compare({ before: "a.png", after: "b.png", labels: ["only"] });
+    };
+    expect(typeof check).toBe("function");
   });
 });
 
