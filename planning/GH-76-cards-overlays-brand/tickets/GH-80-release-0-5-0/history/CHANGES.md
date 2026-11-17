@@ -1,1 +1,2 @@
 - 2026-11-17: drafted with the story; issue #80 created; status tracked.
+- 2026-11-17: release PR #85 merged (def8448), once main's CI was green; 0.5.0 on npm and the image on amd64 and arm64. The installed check first got a 404 for the tarball, seconds after publishing (npm's CDN), and passed on a rerun of those jobs; status done.

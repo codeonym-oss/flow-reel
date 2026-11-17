@@ -32,3 +32,9 @@ than what isn't; jobs that a change doesn't need are skipped at the job level, n
 once per Node version; a release manifest counts as runtime only together with `package.json`; and the branch
 protection's required checks are adjusted so skipped jobs still let a PR merge. It is a `ci:` change, worth a ticket
 of its own.
+
+**Seen again on 2026-11-18 (GH-81):** `minimum-node` was cancelled at its 15-minute limit twice. On main at
+de9f45c it hung in `sudo apt-get update && sudo apt-get install ffmpeg` (the Ubuntu mirror); on #88 every step
+reported success and the job was still marked cancelled. A rerun passed both times. The job installs ffmpeg on the
+host, which the follow-up "run every ffmpeg use in the composer image" (2026-11-16) would remove; until then the
+install wants a short timeout of its own, so a slow mirror can't cancel the job.

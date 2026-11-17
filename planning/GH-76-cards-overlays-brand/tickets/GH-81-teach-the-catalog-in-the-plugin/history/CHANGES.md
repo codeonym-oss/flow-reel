@@ -1,1 +1,3 @@
 - 2026-11-17: drafted with the story; issue #81 created; status tracked.
+- 2026-11-17: PR #86 merged (plugin 0.5.0, with runtime 0.5.0 in #85), range widened to `>=0.4.0 <0.6.0`.
+- 2026-11-18: PR #87 (tests on 0.5) and PR #88 (0.5 only) merged; plugin 0.6.0 released (#89); status done.
