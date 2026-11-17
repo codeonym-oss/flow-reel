@@ -266,6 +266,9 @@ describe("wrapPage with a stage", () => {
       sound: (name: string) => { log.push(`sound ${name}`); events.push({ t: now, type: "sound", name: name as "success" }); },
       async action<T>(run: () => Promise<T>) { log.push("action"); const result = await run(); log.push("done"); return result; },
       checkEffect: (word: string) => void log.push(`check ${word}`),
+      async overlay(kind: string, props: Record<string, unknown>, _options: unknown, bounds?: () => Promise<unknown>) {
+        log.push(`overlay ${kind} ${JSON.stringify(props)} ${JSON.stringify(await bounds?.())}`);
+      },
     };
     const script = wrapScript(page, { clock, events, sleep, warn: (m) => warnings.push(m), stage });
     return { log, p: script.page, script };
@@ -282,6 +285,14 @@ describe("wrapPage with a stage", () => {
     await p.keyboard.type("a");
     await p.evaluate(() => 1);
     expect(log).toEqual(Array(5).fill(["action", "done"]).flat());
+  });
+
+  it("hands a callout and a highlight to the stage with their element's box (GH-76 decision 007)", async () => {
+    const { page } = fakePage(boxes());
+    const { log, p } = staged(page);
+    await p.getByRole("button", { name: "Save" }).callout("Save it here");
+    await p.getByRole("button", { name: "Save" }).highlight();
+    expect(log).toEqual([`overlay callout {"text":"Save it here"} ${JSON.stringify(save)}`, `overlay highlight {} ${JSON.stringify(save)}`]);
   });
 
   it("asks the stage whether each effect word may be used, chained or standalone (GH-62 decision 004)", async () => {

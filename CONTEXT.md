@@ -44,7 +44,8 @@ actions go inside it.
 _Avoid:_ cut, jump, time skip.
 
 Comment, sound and effect are the three families of flow-reel words. Each can stand alone in a script or be chained
-on the element it is about. Cards are the fourth: they stand alone.
+on the element it is about. Cards are the fourth: they stand alone. Overlays are the fifth: a callout and a highlight
+chain on their element, and a lower third stands alone.
 
 **Card**
 A designed screen the composer inserts into the reel where the script awaits it: an intro, a chapter, a feature, an
@@ -57,12 +58,18 @@ A card the person writes as an HTML page in the script's folder, with its own CS
 shows with `card.custom(page, props)`.
 _Avoid:_ template, component.
 
+**Overlay**
+Something drawn over the app while it runs, from where the script awaits it until the script's next action: a callout
+or a highlight on an element (`locator.callout`, `locator.highlight`), drawn on the app so it moves with the camera,
+or a lower third (`lowerThird`), drawn on the screen.
+_Avoid:_ annotation, tooltip, badge (the speed-up's).
+
 **Transition**
 How a card comes in or goes out: `fade`, `slide`, `wipe`, `zoom`, `blur`, `iris` or `cut`.
 _Avoid:_ animation (what moves inside a card).
 
 **Brand**
-How a reel's cards look, set once in `flow-reel.json`: the theme, an accent colour, a logo, fonts and the default
+How a reel's cards and overlays look, set once in `flow-reel.json`: the theme, an accent colour, a logo, fonts and the default
 transitions.
 _Avoid:_ style, skin.
 
@@ -108,7 +115,7 @@ A boundary of the composer's core that has more than one possible implementation
 voice, reel store and card painter.
 
 **Card painter**
-What draws a card's page frame by frame, on a frozen clock, with the network off. Today it is a headless Chromium.
+What draws a card's or an overlay's page frame by frame, on a frozen clock, with the network off. Today it is a headless Chromium.
 
 **Reel store**
 Where a reel is written and read. Today it is a folder.
@@ -146,7 +153,8 @@ The skills and references that teach an agent this language: what to use, when, 
 ## How the terms relate
 
 - A **script** is made of **steps**. A step can carry **comments**, **sounds** and **effects**, and show **cards**.
-- A card follows the **brand**: its **theme** and its **transitions**, unless the card sets its own.
+- A card follows the **brand**: its **theme** and its **transitions**, unless the card sets its own. An **overlay**
+  follows its theme too.
 - The **composer** composes one script into one **reel**.
 - The composer replays the script through an **integration** and speaks its comments with a **voice**.
 - While replaying, the composer makes a **recording** and an **event log**. It then applies **polish** and the

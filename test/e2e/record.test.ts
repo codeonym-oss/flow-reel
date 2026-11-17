@@ -410,6 +410,58 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, a
   }, 300_000);
 });
 
+describe("overlays in a composed reel (GH-79)", () => {
+  // No comments, so no voice to wait for: each overlay shows for its ms, until the next action.
+  const overlayScript = (p: number) => `import { script } from "flow-reel";
+export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, async ({ page, lowerThird }) => {
+  await lowerThird({ title: "Saved views", subtitle: "New in Orbit 2.4", ms: 2000 });
+  await page.getByRole("textbox", { name: "Name" }).fill("Ada");
+  await page.getByRole("textbox", { name: "Name" }).callout("Name the view", { detail: "Any name", ms: 2000 });
+  await page.getByRole("link", { name: "Settings" }).highlight({ ms: 1000, theme: "paper" });
+  await page.getByRole("link", { name: "Settings" }).click();
+});`;
+  let run: { dir: string; reel: string; events: EventLog };
+  beforeAll(async () => {
+    const dir = join(OUT, "overlays");
+    rmSync(dir, { recursive: true, force: true });
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "demo.ts"), overlayScript(port));
+    const container = `flow-reel-overlays-${randomUUID()}`;
+    try {
+      const { stderr } = await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g",
+        "--network", "host", "--user", `${process.getuid!()}:${process.getgid!()}`, "-v", `${dir}:/work`, image,
+        "compose", "/work/demo.ts"], { timeout: 300_000 });
+      if (stderr) writeFileSync(join(dir, "record.log"), stderr);
+    } finally {
+      spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
+    }
+    const reel = join(dir, "demo.reel");
+    run = { dir, reel, events: JSON.parse(readFileSync(join(reel, "events.json"), "utf8")) };
+  }, 600_000);
+
+  it("logs each overlay with its words, its element and how long it showed", () => {
+    expect(validateEvents(run.events)).toEqual([]);
+    const overlays = run.events.events.flatMap((e) => e.type === "overlay" ? [e] : []);
+    expect(overlays.map(({ overlay, props, theme }) => [overlay, props, theme])).toEqual([
+      ["lowerThird", { title: "Saved views", subtitle: "New in Orbit 2.4" }, "ink"],
+      ["callout", { text: "Name the view", detail: "Any name" }, "ink"], ["highlight", {}, "paper"]]);
+    expect(overlays[0].bounds).toBeUndefined();
+    expect(overlays[1].bounds).toMatchObject({ width: expect.any(Number), height: expect.any(Number) });
+    for (const o of overlays) expect(o.durationMs).toBeGreaterThanOrEqual(o.ms - 50);
+  });
+
+  it("draws the lower third at the bottom left and dims the app around a callout", () => {
+    const [third, callout] = run.events.events.flatMap((e) => e.type === "overlay" ? [e] : []);
+    const still = (ms: number) => execFileSync("ffmpeg", ["-v", "error", "-ss", String(ms / 1000), "-i", join(run.reel, "video.mp4"),
+      "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"], { maxBuffer: 1 << 24 });
+    // The lower third's ink panel over the fixture's light page.
+    expect(still(third.t + 1000)[480 * 960 + 60]).toBeLessThan(60);
+    expect(still(third.t + third.durationMs + 600)[480 * 960 + 60]).toBeGreaterThan(150);
+    // Away from the element, the app is dimmed while the callout shows.
+    expect(still(callout.t + 1000)[300 * 960 + 900]).toBeLessThan(still(callout.t - 300)[300 * 960 + 900] * 0.7);
+  });
+});
+
 it("captures the settled response while keeping the callback finish time", async () => {
   const dir = join(OUT, "settled");
   mkdirSync(dir, { recursive: true });

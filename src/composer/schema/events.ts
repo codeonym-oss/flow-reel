@@ -1,6 +1,6 @@
 // The event log: v1 actions (story decision 013), v2 added sound cues, v3 names them `sound` (GH-30 decision 003),
 // v4 adds effects and `autoZoom` (GH-32 decision 005), v5 adds `speed` (GH-61 decision 005)
-// and `skip` (GH-62 decision 004), v6 adds `card` and the skip card's `style` and drops `frame` (GH-76 decisions 001, 004 and 008).
+// and `skip` (GH-62 decision 004), v6 adds `card`, `overlay` and the skip card's `style` and drops `frame` (GH-76 decisions 001, 004, 007 and 008).
 import { type Errors, isObject, nonNegative, point, text } from "./check.ts";
 import { THEME_NAMES, TRANSITION_NAMES, type ThemeName, type Transition } from "../cards/brand.ts";
 
@@ -29,7 +29,7 @@ export type ComposerEvent =
   | { t: number; type: "type"; text: string; charDelayMs: number; target: string; bounds?: Bounds }
   | { t: number; type: "scroll"; delta: Point; durationMs: number }
   | { t: number; type: "sound"; name: SoundName }
-  | FlashEvent | ZoomEvent | SpeedEvent | SkipEvent | CardEvent;
+  | FlashEvent | ZoomEvent | SpeedEvent | SkipEvent | CardEvent | OverlayEvent;
 
 export interface FlashEvent { t: number; type: "flash"; color: string; ms: number }
 /** A zoom in frames `bounds` when an element was the target, else the point `at`. */
@@ -42,6 +42,18 @@ export interface SpeedEvent { t: number; type: "speed"; factor: number; duration
 export interface SkipEvent { t: number; type: "skip"; durationMs: number; label: string; style: SkipStyle }
 export type SkipStyle = "clock" | "bar";
 export const SKIP_STYLES: readonly SkipStyle[] = ["clock", "bar"];
+
+/** The overlays (GH-76 decision 007). */
+export const OVERLAY_KINDS = ["callout", "highlight", "lowerThird"] as const;
+export type OverlayKind = typeof OVERLAY_KINDS[number];
+/**
+ * An overlay over the app: its kind and words, the element it points at, the least time the script showed it (`ms`),
+ * and how long it shows: until the script's next action on the composer's clock, the video's once retimed.
+ */
+export interface OverlayEvent {
+  t: number; type: "overlay"; overlay: OverlayKind; props: Record<string, unknown>; bounds?: Bounds; ms: number; durationMs: number;
+  theme: ThemeName;
+}
 
 /** The cards a script's `card` words insert (GH-76 decision 001). */
 export const CARD_WORDS = ["intro", "chapter", "feature", "image", "compare", "outro", "custom"] as const;
@@ -84,7 +96,7 @@ export function validateEvents(value: unknown): Errors {
     const color = (key: string) => {
       if (typeof event[key] !== "string" || !HEX_COLOR.test(event[key] as string)) errors.push(`${where}${key} must be a #rrggbb colour`);
     };
-    if ((event.type === "click" || event.type === "type" || event.type === "zoom") && event.bounds !== undefined) {
+    if ((event.type === "click" || event.type === "type" || event.type === "zoom" || event.type === "overlay") && event.bounds !== undefined) {
       const b = event.bounds;
       if (!isObject(b) || ![b.x, b.y, b.width, b.height].every((v) => typeof v === "number" && Number.isFinite(v)) ||
         Number(b.width) <= 0 || Number(b.height) <= 0) errors.push(`${where}bounds must have finite x/y and positive width/height`);
@@ -135,6 +147,13 @@ export function validateEvents(value: unknown): Errors {
         nonNegative(errors, where, event, "durationMs");
         if (typeof event.label !== "string" || !event.label.trim()) errors.push(`${where}label must be non-empty text`);
         if (!SKIP_STYLES.includes(event.style as SkipStyle)) errors.push(`${where}style must be "clock" or "bar"`);
+        break;
+      case "overlay":
+        if (!OVERLAY_KINDS.includes(event.overlay as OverlayKind)) errors.push(`${where}unknown overlay ${JSON.stringify(event.overlay)}`);
+        if (!isObject(event.props)) errors.push(`${where}props must be an object`);
+        positive("ms");
+        nonNegative(errors, where, event, "durationMs");
+        if (!THEME_NAMES.includes(event.theme as ThemeName)) errors.push(`${where}theme is not a theme`);
         break;
       case "card": {
         if (!CARD_WORDS.includes(event.card as CardWord)) errors.push(`${where}unknown card ${JSON.stringify(event.card)}`);

@@ -20,6 +20,8 @@ import { zoomOutEvent, zoomOutSettings } from "./effects.ts";
 import { checkBrandFiles, themeFor } from "./cards/brand.ts";
 import { cardRequest, cardWords } from "./cards/words.ts";
 import { type CardJob, renderCards } from "./media/cards.ts";
+import { renderOverlays } from "./media/overlays.ts";
+import { overlayRequest } from "./cards/overlays.ts";
 import { readConfig } from "../settings.ts";
 
 // A still moment before the first step and after the last (story decision 009).
@@ -90,6 +92,16 @@ export async function compose(scriptPath: string, { integration, voice, store, p
             const request = cardRequest(word, args, scriptDir, brand);
             await timer.action(async () => { events.push({ t: recording.now(), ...request }); });
           }),
+          // An overlay is an action of its step, shown until the script's next action (GH-76 decision 007).
+          async overlay(kind, props, options, bounds) {
+            const word = `${kind}()`;
+            const request = overlayRequest(kind, word, props, options, brand);
+            await timer.overlay(kind, (t) => ({ t, type: "overlay", overlay: kind, ...request, durationMs: 0 }), events, bounds && (async () => {
+              const box = await bounds();
+              if (!box) throw new Error(`${word}: the element has no box on the page; is it visible?`);
+              return { x: Math.round(box.x), y: Math.round(box.y), width: Math.round(box.width), height: Math.round(box.height) };
+            }));
+          },
         });
         // A zoom the script never zoomed out of eases out as the script ends (story decision 011).
         const lastZoom = events.findLast((e) => e.type === "zoom");
@@ -163,8 +175,10 @@ export async function compose(scriptPath: string, { integration, voice, store, p
       ...(number ? { chapter: { number, total: chapters.length } } : {}) };
   });
   const clips = await renderCards(jobs, { capture: out.capture, work: dirname(out.master), scriptDir, viewport, fps: FPS, brand, painter });
+  const overlays = await renderOverlays(log.events.flatMap((e) => e.type === "overlay" ? [e] : []),
+    { work: dirname(out.master), scriptDir, viewport, fps: FPS, brand, painter });
   renderTimeline({ capture: out.capture, master: out.master, video: out.stagedVideo,
-    voice: out.voiceBus, audioDir: reel.audioRoot, viewport, timeline, clips, events: log.events, sound, autoZoom: script.autoZoom });
+    voice: out.voiceBus, audioDir: reel.audioRoot, viewport, timeline, clips, overlays, events: log.events, sound, autoZoom: script.autoZoom });
   const transcript: Transcript = {
     version: 2,
     script: basename(scriptPath),

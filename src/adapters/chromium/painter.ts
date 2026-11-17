@@ -1,6 +1,7 @@
-// The card painter (GH-76 decision 003): a headless Chromium draws each card page at the reel's size with its clock
-// frozen (Playwright's clock fakes timers, `Date`, `performance` and `requestAnimationFrame`), seeks every CSS and Web
-// animation to the frame's time, and screenshots it. Only what the request serves loads: the network is off.
+// The card painter (GH-76 decisions 003 and 007): a headless Chromium draws each card or overlay page at the reel's
+// size with its clock frozen (Playwright's clock fakes timers, `Date`, `performance` and `requestAnimationFrame`),
+// seeks every CSS and Web animation to the frame's time, and screenshots it. Only what the request serves loads: the
+// network is off.
 import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { extname } from "node:path";
 import { chromium } from "playwright";
@@ -38,9 +39,10 @@ export const chromiumPainter: CardPainter = {
             await document.fonts.ready;
             await Promise.all([...document.images].map((image) => image.decode().catch(() => undefined)));
           });
-          const frameMs = 1000 / request.fps;
-          for (let i = 0; i < request.frames; i++) {
-            if (i) await page.clock.runFor(frameMs);
+          let now = 0;
+          for (const [i, t] of request.times.entries()) {
+            if (t > now) await page.clock.runFor(t - now);
+            now = Math.max(now, t);
             // Each animation's time is how long since it appeared, on the frozen clock.
             await page.evaluate((now) => {
               for (const animation of document.getAnimations() as (Animation & { flowReelBorn?: number })[]) {
@@ -48,8 +50,8 @@ export const chromiumPainter: CardPainter = {
                 animation.pause();
                 animation.currentTime = now - animation.flowReelBorn;
               }
-            }, i * frameMs);
-            writeFileSync(request.frame(i), await page.screenshot({ type: "png", caret: "hide" }));
+            }, now);
+            writeFileSync(request.frame(i), await page.screenshot({ type: "png", caret: "hide", omitBackground: Boolean(request.transparent) }));
           }
         } finally {
           await context.close();

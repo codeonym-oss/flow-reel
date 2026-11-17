@@ -207,3 +207,31 @@ describe("skip (GH-62 decisions 002 and 004)", () => {
     expect(error).toMatchObject({ message: 'step 0 ("Build.") failed: timed out' });
   });
 });
+
+describe("overlays (GH-76 decision 007)", () => {
+  const callout = (t: number) => ({ t, type: "overlay" as const, overlay: "callout" as const, props: { text: "Here" }, ms: 1500, durationMs: 0, theme: "ink" as const });
+
+  it("logs an overlay with its element's box, waits its ms, and closes it when the next step's action starts", async () => {
+    const { timer, advance } = fake();
+    const events: ComposerEvent[] = [];
+    timer.comment("Look at the chart.");
+    await timer.overlay("callout", callout, events, async () => ({ x: 1, y: 2, width: 3, height: 4 }));
+    timer.comment("Now save.");
+    await timer.action(advance(10));
+    await timer.finish();
+    expect(timer.steps[0]).toEqual({ index: 0, comment: "Look at the chart.", startMs: 100, actionEndMs: 1600, endMs: 1700 });
+    // Closed at the next action's start, after the step before ended and the next one settled.
+    expect(events).toEqual([{ ...callout(100), bounds: { x: 1, y: 2, width: 3, height: 4 }, durationMs: 1700 }]);
+  });
+
+  it("closes an overlay when the script ends, and refuses one inside a stretch", async () => {
+    const { timer, advance } = fake();
+    const events: ComposerEvent[] = [];
+    await timer.overlay("lowerThird", (t) => ({ ...callout(t), overlay: "lowerThird", props: { title: "x" } }), events);
+    await timer.finish();
+    expect(events[0]).toMatchObject({ t: 100, durationMs: 1600 });
+    await expect(timer.speedUp(2, () => timer.overlay("callout", callout, events), events))
+      .rejects.toThrow("callout() can't be used inside speedUp(); put it before or after");
+    void advance;
+  });
+});

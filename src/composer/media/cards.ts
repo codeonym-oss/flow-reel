@@ -95,8 +95,8 @@ export async function renderCards(jobs: readonly CardJob[], options: CardRenderO
         ? customPage(context, readFileSync(join(scriptDir, job.page!), "utf8"))
         : builtInPage(context, builtInBody(job.kind, job.props, { ...context, ...(job.chapter ? { chapter: job.chapter } : {}) }));
       const url = job.kind === "custom" ? `${ORIGIN}${scriptUrl(job.page!)}` : `${ORIGIN}/card.html`;
-      await canvas.paint({ url, html, file: (path) => fileFor(path, before, scriptDir), viewport, scale: SCALE, fps,
-        frames: job.frames, frame: (i) => join(dir, `${String(i).padStart(5, "0")}.png`) });
+      await canvas.paint({ url, html, file: (path) => fileFor(path, before, scriptDir), viewport, scale: SCALE,
+        times: Array.from({ length: job.frames }, (_, i) => i * 1000 / fps), frame: (i) => join(dir, `${String(i).padStart(5, "0")}.png`) });
       clips[job.id] = join(work, `${job.id}.mp4`);
       assemble(job, dir, before, after, clips[job.id], fps, size);
       rmSync(dir, { recursive: true, force: true });

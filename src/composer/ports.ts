@@ -1,6 +1,6 @@
 // The composer's ports (GH-27 decision 007; the card painter, GH-76 decision 003). The core depends on these interfaces; the adapters in
 // src/adapters implement them, and src/cli.ts chooses which.
-import type { ComposerEvent, EventLog, Sound } from "./schema/events.ts";
+import type { Bounds, ComposerEvent, EventLog, OverlayKind, Sound } from "./schema/events.ts";
 import type { cardWords } from "./cards/words.ts";
 import type { ManifestAbout } from "./schema/manifest.ts";
 import type { Transcript } from "./schema/transcript.ts";
@@ -33,6 +33,11 @@ export interface Stage {
   checkEffect(word: string): void;
   /** The `card` words: each inserts a card into the video, as an action of its step (GH-76 decision 002). */
   card: ReturnType<typeof cardWords>;
+  /**
+   * Shows an overlay as an action of its step, until the script's next action (GH-76 decision 007): `bounds` finds the
+   * element a callout or a highlight points at.
+   */
+  overlay(kind: OverlayKind, props: Record<string, unknown>, options: unknown, bounds?: () => Promise<Bounds | undefined>): Promise<void>;
 }
 
 /** One script, open in its E2E tool and ready to replay. */
@@ -102,13 +107,15 @@ export interface PaintRequest {
   /** CSS pixels, drawn at device scale `scale`. */
   viewport: [width: number, height: number];
   scale: number;
-  fps: number;
-  frames: number;
-  /** Where frame `i` goes, as a PNG. */
+  /** When to draw each frame, in milliseconds after the page loaded, in order. */
+  times: readonly number[];
+  /** Where frame `i` (drawn at `times[i]`) goes, as a PNG. */
   frame(i: number): string;
+  /** Draws on a transparent page, for an overlay. */
+  transparent?: boolean;
 }
 
-/** Draws card pages on a frozen clock: frame i shows the page i / fps seconds after it loaded. */
+/** Draws card and overlay pages on a frozen clock. */
 export interface CardPainter {
   open(): Promise<{ paint(request: PaintRequest): Promise<void>; close(): Promise<void> }>;
 }

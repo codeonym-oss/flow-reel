@@ -5,6 +5,7 @@ import type { Timeline } from "../timeline.ts";
 import type { ComposerEvent } from "../schema/events.ts";
 import { assembleSfx } from "./sound-mix.ts";
 import { polishFilters } from "./polish-render.ts";
+import type { DrawnOverlay } from "./overlays.ts";
 
 function ffmpeg(args: string[]): string {
   return execFileSync("ffmpeg", ["-hide_banner", "-nostdin", "-y", ...args], {
@@ -148,13 +149,15 @@ interface RenderOptions {
   timeline: Timeline;
   /** Each card's rendered clip, by its id in the timeline. */
   clips?: Readonly<Record<string, string>>;
+  /** The drawn overlays (GH-76 decision 007). */
+  overlays?: readonly DrawnOverlay[];
   events?: readonly ComposerEvent[];
   sound?: boolean;
   /** False when the script turned automatic zoom off. */
   autoZoom?: boolean;
 }
 
-export function renderTimeline({ capture, master, video, voice, audioDir, viewport: [width, height], timeline, clips = {}, events = [], sound = true, autoZoom = true }: RenderOptions): void {
+export function renderTimeline({ capture, master, video, voice, audioDir, viewport: [width, height], timeline, clips = {}, overlays = [], events = [], sound = true, autoZoom = true }: RenderOptions): void {
   if (!timeline.insertions.length && !timeline.stretches.length) copyFileSync(capture, master);
   else renderMaster(capture, master, timeline, clips);
   if (videoFrames(master) !== timeline.frames) throw new Error("rendered master frame count disagrees with timeline");
@@ -170,7 +173,7 @@ export function renderTimeline({ capture, master, video, voice, audioDir, viewpo
   const polish = polishFilters(events, { viewport: [width, height], source: [dimensions.width, dimensions.height],
     fps: timeline.fps, frames: timeline.frames - timeline.cutFrames, autoZoom, stretches: timeline.stretches,
     // Nothing is drawn over a card either, and the crop is full (GH-62 decision 003).
-    cardSpans: timeline.cards.map(({ startMs, endMs }) => ({ startMs, endMs })) },
+    cardSpans: timeline.cards.map(({ startMs, endMs }) => ({ startMs, endMs })), overlays },
     video, audio ? 2 : 1);
   const graph = video + ".filters";
   writeFileSync(graph, `[0:v]trim=start_frame=${timeline.cutFrames},setpts=PTS-STARTPTS[trimmed];${polish.filters}`);

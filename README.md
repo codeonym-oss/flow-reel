@@ -247,9 +247,36 @@ loads only files from the script's folder.
   `fr-surface`, `fr-badge`, `fr-pill`, `fr-logo`, `fr-stack`, `fr-row`, and `fr-enter` with the delays `fr-d1` to
   `fr-d5` to bring things in one after another. A rem is 1/54 of the screen's height, so a card fits any viewport.
 
+## Overlays
+
+Overlays are drawn over the app while it runs: a callout or a highlight points at an element, a lower third titles
+what is on screen. Each is awaited: the script waits `ms` (1.5 s by default) with it shown, and it stays until the
+script's next action, through the hold that lets its step's comment finish.
+
+```ts
+comment("Saved views are new in Orbit 2.4.");
+await lowerThird({ title: "Saved views", subtitle: "New in Orbit 2.4" });
+comment("The chart follows whichever view you pick.");
+await page.getByTestId("chart").callout("The chart follows the filter", { detail: "Pick a view to see it change" });
+await page.getByRole("button", { name: "Share" }).highlight();
+```
+
+| Word | Options | Drawn |
+|---|---|---|
+| `await locator.callout(text, options?)` | `detail?`, `ms?`, `theme?` | A spotlight on the element and a bubble beside it, below or above. |
+| `await locator.highlight(options?)` | `ms?`, `theme?` | The spotlight alone. |
+| `await lowerThird({ title, … })` | `subtitle?`, `ms?`, `theme?` | A bar at the bottom left of the screen. |
+
+- **The camera** shows the whole screen while a callout or a highlight is on, and zooms again after. A lower third is
+  drawn on the screen, so the camera goes on as before under it.
+- An element that isn't on screen is scrolled in first. An overlay stops where a card starts, and can't go inside
+  `speedUp` or `skip`.
+- **Reels** record each overlay as an `overlay` event, with its words, its element's box and how long it showed;
+  `compare` checks all of it but how long.
+
 ### Brand
 
-`brand` in `flow-reel.json` sets how every card looks; each key is optional, and a card's own options win:
+`brand` in `flow-reel.json` sets how every card and overlay looks; each key is optional, and a card's own options win:
 
 ```json
 {
@@ -267,6 +294,7 @@ loads only files from the script's folder.
 
 - **`accent`** replaces the theme's accent colour; text on it is chosen to read against it.
 - **`logo`** (SVG, PNG, JPEG or WebP) shows on the intro and the outro.
+- **`theme`** and **`accent`** colour the overlays and the skip card too.
 - **`fonts`** replace Inter Tight (titles) and Inter (text), which are bundled with JetBrains Mono (labels).
 - Paths are relative to `flow-reel.json`, inside the script's folder.
 
@@ -283,7 +311,7 @@ instead, so one folder can collect the reels of many scripts. Every reel has the
 |---|---|
 | `video.mp4` | The polished video, 1920×1080, 30 fps, with AAC speech and interaction sounds. |
 | `transcript.json` | Each step's original `comment` and `startMs`, `actionEndMs` and `endMs` on the video's timeline (schema version 2). |
-| `events.json` | Every move, click, keystroke run, scroll, sound, effect and card, timed the same way, and whether zoom is automatic (schema version 6). |
+| `events.json` | Every move, click, keystroke run, scroll, sound, effect, card and overlay, timed the same way, and whether zoom is automatic (schema version 6). |
 | `captions.srt` | Captions for a subtitle-capable video player. |
 | `captions.vtt` | WebVTT captions for a browser's `<video>` / `<track>`. |
 | `audio/000.wav` | Local speech clips, named by zero-based step index. |

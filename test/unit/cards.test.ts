@@ -150,3 +150,44 @@ describe("card pages (GH-76 decision 003)", () => {
     expect(fileFor("/elsewhere", "", dir)).toBeUndefined();
   });
 });
+
+describe("overlays (GH-76 decision 007)", () => {
+  it("checks each overlay's words and options, and fills in the brand's theme", async () => {
+    const { overlayRequest } = await import("../../src/composer/cards/overlays.ts");
+    expect(overlayRequest("callout", "callout()", { text: "The chart" }, { detail: "It follows the filter" }, { theme: "ocean" }))
+      .toEqual({ props: { text: "The chart", detail: "It follows the filter" }, ms: 1500, theme: "ocean" });
+    expect(overlayRequest("lowerThird", "lowerThird()", {}, { title: "Saved views", ms: 3000, theme: "paper" }, {}))
+      .toEqual({ props: { title: "Saved views" }, ms: 3000, theme: "paper" });
+    expect(overlayRequest("highlight", "highlight()", {}, undefined, {})).toEqual({ props: {}, ms: 1500, theme: "ink" });
+    const call = (kind: "callout" | "highlight" | "lowerThird", props: object, options?: unknown) => () =>
+      overlayRequest(kind, `${kind}()`, props as Record<string, unknown>, options, {});
+    expect(call("callout", { text: "" })).toThrow('callout() takes the words to show, as in callout("The chart follows the filter")');
+    expect(call("callout", { text: "x" }, { detial: "y" })).toThrow('callout(): unknown option "detial"; it takes detail, ms, theme');
+    expect(call("lowerThird", {}, { subtitle: "x" })).toThrow('lowerThird() needs a title, as in lowerThird({ title: "Saved views" })');
+    expect(call("highlight", {}, { ms: 100 })).toThrow("highlight(): ms must be a number of milliseconds from 500 to 60000, got 100");
+    expect(call("highlight", {}, "now")).toThrow("highlight() takes an options object");
+  });
+
+  it("puts the callout's bubble below its element, or above when there is more room there", async () => {
+    const { overlayBody } = await import("../../src/composer/cards/overlays.ts");
+    const below = overlayBody("callout", { text: "A <b>chart</b>" }, [1920, 1080], { x: 300, y: 100, width: 400, height: 200 });
+    expect(below).toContain('class="bubble below"');
+    expect(below).toContain("top:326px");
+    expect(below).toContain("A &lt;b&gt;chart&lt;/b&gt;");
+    expect(overlayBody("callout", { text: "x" }, [1920, 1080], { x: 300, y: 800, width: 400, height: 200 })).toContain('class="bubble above"');
+    expect(overlayBody("highlight", {}, [1920, 1080], { x: 10, y: 10, width: 20, height: 20 })).not.toContain("class=\"bubble");
+    expect(overlayBody("lowerThird", { title: "Saved views", subtitle: "New" }, [1920, 1080])).toMatch(/class="third".*Saved views.*New/s);
+  });
+
+  it("shows an overlay until the next action on the video's clock, holds included, and never over a card", async () => {
+    const { planTimeline, retimeEvents } = await import("../../src/composer/timeline.ts");
+    const overlay = { type: "overlay" as const, overlay: "callout" as const, props: { text: "x" }, ms: 1500, theme: "ink" as const };
+    // A 3 s comment over a 1.5 s step: 1.7 s held at its end, which the callout lasts through.
+    const plan = planTimeline([{ index: 0, comment: "Look.", startMs: 500, actionEndMs: 2000, endMs: 2000,
+      audio: { file: "a.wav", durationMs: 3000, sha256: "a".repeat(64) } }], { fps: 30, frames: 300, cutMs: 0, cards: [{ t: 2500, ms: 1000 }] });
+    const [held, cut] = retimeEvents([{ t: 500, ...overlay, durationMs: 1700 }, { t: 500, ...overlay, durationMs: 5000 }], plan);
+    expect(held).toMatchObject({ t: 500, durationMs: 3400 }); // to 2.2 s, plus the 1.7 s held
+    // One running past the card stops where the card starts.
+    expect((cut as { durationMs: number }).durationMs).toBe(plan.cards[0].startMs - 500);
+  });
+});
