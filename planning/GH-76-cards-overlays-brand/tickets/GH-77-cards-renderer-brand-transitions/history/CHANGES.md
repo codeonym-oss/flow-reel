@@ -1,2 +1,3 @@
 - 2026-11-17: drafted with the story; issue #77 created; status tracked.
 - 2026-11-17: ticket pass and build in one session; impl.md written; status in-review.
+- 2026-11-17: #82 merged (86e5174); released in 0.5.0 (#85); status done.

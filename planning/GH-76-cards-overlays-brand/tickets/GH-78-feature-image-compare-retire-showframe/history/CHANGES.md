@@ -1,2 +1,3 @@
 - 2026-11-17: drafted with the story; issue #78 created; status tracked.
 - 2026-11-17: ticket pass and build; impl.md written; status in-review.
+- 2026-11-17: #83 merged (9c82c07) after its image-card check waited for the image to lift in; released in 0.5.0 (#85); status done.

@@ -1,2 +1,3 @@
 - 2026-11-17: created from the design canvas (https://claude.ai/artifact/YaAajQV5VDssXY4Rfy8JCr); decisions 001-008.
 - 2026-11-17: draft.md written, five tickets drafted; issues #76-#81 created; status tracked.
+- 2026-11-18: all five tickets done; runtime 0.5.0 and plugins 0.5.0 and 0.6.0 released; status done.
