@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "flow-reel",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Make narrated, polished reels of a web app's features with flow-reel: plan the story, explore the app, write the script with comments, sounds and effects, compose it, and screen the reel.",
   "author": {
     "name": "codeonym",
