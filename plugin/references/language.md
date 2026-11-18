@@ -1,6 +1,6 @@
 # The flow-reel language
 
-**Supported runtime:** `>=0.4.0 <0.6.0`
+**Supported runtime:** `>=0.5.0 <0.6.0`
 
 Everything a script can say, and every command, for the runtime versions above. Cards, overlays and the brand need
 0.5; on 0.4, use none of them. If a word, option or flag is not
