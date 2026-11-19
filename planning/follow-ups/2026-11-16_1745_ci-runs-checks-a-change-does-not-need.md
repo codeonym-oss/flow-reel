@@ -1,8 +1,8 @@
 ---
-status: open
+status: done
 from: person
 found-while: GH-66
-resolved-by:
+resolved-by: GH-92
 ---
 
 # CI runs checks a change doesn't need, and misses the cheap ones it does

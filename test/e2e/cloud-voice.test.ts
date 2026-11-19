@@ -7,21 +7,15 @@ import type { AddressInfo } from "node:net";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, expect, it } from "vitest";
+import { FAKE_KEY, tone } from "./fixture-app.ts";
 import { prepareImage } from "./image.ts";
 
 const OUT = resolve("test/e2e/out/cloud-voice");
 const html = readFileSync(resolve("test/e2e/app/index.html"));
-const KEY = "sk-e2e-fake-key";
+const KEY = FAKE_KEY;
 let server: Server;
 let port: number;
 const requests: { auth?: string; body: { model: string; input: string; voice: string; response_format: string } }[] = [];
-
-/** 1.2 s of a 440 Hz tone: raw 24 kHz 16-bit mono, as OpenAI's `pcm` format is. */
-const tone = () => {
-  const buffer = Buffer.alloc(24000 * 1.2 * 2);
-  for (let i = 0; i < buffer.length / 2; i++) buffer.writeInt16LE(Math.round(6000 * Math.sin((2 * Math.PI * 440 * i) / 24000)), i * 2);
-  return buffer;
-};
 
 beforeAll(async () => {
   mkdirSync(OUT, { recursive: true });
