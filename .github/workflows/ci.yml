@@ -10,32 +10,20 @@ permissions:
   contents: read
 
 jobs:
-  # package.json promises Node >=22.18 for the host CLI and for script loading; check that floor, not only Node 26.
-  minimum-node:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: 22.18.0
-          cache: npm
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
-      - run: npm ci
-      - run: npm test
-      - name: Built CLI runs on the minimum Node
-        run: |
-          npm run build
-          node dist/cli.js compare 2>&1 | grep -q "usage: flow-reel"
-
-  # Whether a pull request, or a push to main, changes anything the package or the image is built from (GH-66): the
-  # plugin (but its examples), the planning tree, the docs site and Markdown don't, so the image build and the e2e tests are skipped
-  # for them. A manual run, or a push whose previous commit isn't known, always runs them; releases rerun them anyway.
+  # Which checks a pull request, or a push to main, needs (GH-66, GH-92). The rules list what each check reads, so a new
+  # kind of file runs nothing until it's added here:
+  # - code: the typecheck, unit tests and pack check read the package, its tests, scripts, plugin and release config.
+  # - runtime: the image and the e2e tests read the package's source, the image, the e2e tests and the plugin's examples.
+  #   A release manifest alone (a plugin release PR) isn't runtime; a runtime release also changes package.json.
+  # Docs, planning and Markdown elsewhere run neither. A manual run, or a push whose previous commit isn't known, runs
+  # everything; releases rerun the e2e from the tag anyway (publish.yml).
   changes:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
+      code: ${{ steps.paths.outputs.code }}
       runtime: ${{ steps.paths.outputs.runtime }}
+      shards: ${{ steps.shards.outputs.shards }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -53,44 +41,94 @@ jobs:
             *) range="" ;;
           esac
           if [ -z "$range" ] || ! changed=$(git diff --name-only "$range" 2>/dev/null); then
+            echo "code=true" | tee -a "$GITHUB_OUTPUT"
             echo "runtime=true" | tee -a "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "$changed"
-          runtime=$(printf '%s\n' "$changed" | awk '!/^planning\// && !/\.md$/ && !/^docs\// && !/^\.readthedocs\.yaml$/ &&
-            !(/^plugin\// && !/^plugin\/examples\//) && NF { n++ } END { print n ? "true" : "false" }')
-          echo "runtime=$runtime" | tee -a "$GITHUB_OUTPUT"
+          runtime='^(src/|docker/|test/e2e/|plugin/examples/|scripts/(consumer|package)\.ts$|package(-lock)?\.json$|tsconfig(\.build)?\.json$|\.dockerignore$|\.github/workflows/ci\.yml$)'
+          code="$runtime|^(test/|plugin/|scripts/|vitest\.config\.ts$|release-please-config\.json$|\.release-please-manifest\.json$|\.github/workflows/)"
+          any() { printf '%s\n' "$changed" | grep -qE "$1" && echo true || echo false; }
+          echo "code=$(any "$code")" | tee -a "$GITHUB_OUTPUT"
+          echo "runtime=$(any "$runtime")" | tee -a "$GITHUB_OUTPUT"
+      # The e2e shards, from test/e2e/shards.json; every e2e test file must be in exactly one.
+      - id: shards
+        run: |
+          node --input-type=module -e '
+            import { readFileSync, readdirSync, appendFileSync } from "node:fs";
+            const shards = JSON.parse(readFileSync("test/e2e/shards.json", "utf8"));
+            const listed = shards.flatMap((s) => s.files).sort();
+            const files = readdirSync("test/e2e").filter((f) => f.endsWith(".test.ts")).sort();
+            if (JSON.stringify(listed) !== JSON.stringify(files)) {
+              console.error(`test/e2e/shards.json lists ${listed.join(", ")}\nbut test/e2e has ${files.join(", ")}`);
+              process.exit(1);
+            }
+            const matrix = shards.map((s) => ({ name: s.name, files: s.files.map((f) => `test/e2e/${f}`).join(" "), consumer: !!s.consumer }));
+            appendFileSync(process.env.GITHUB_OUTPUT, `shards=${JSON.stringify(matrix)}\n`);
+            console.log(JSON.stringify(matrix, null, 2));'
 
-  test:
-    name: test (${{ matrix.arch }})
+  # Once on the minimum Node that package.json promises (>=22.18) and once on Node 26.
+  unit:
+    name: unit (node ${{ matrix.node }})
     needs: changes
+    if: needs.changes.outputs.code == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.18.0, 26]
+    # The arm64 runners' Ubuntu mirror installs ffmpeg in seconds; the amd64 one has taken 7 to 27 minutes.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      # A slow mirror has held this install for 27 minutes: give each attempt 3, and try again.
+      - name: Install ffmpeg
+        timeout-minutes: 10
+        run: |
+          for attempt in 1 2 3; do
+            timeout 180 sh -c 'sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg' && exit 0
+            echo "::warning::ffmpeg install attempt $attempt failed or took over 3 minutes"
+          done
+          exit 1
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run pack:check
+      - name: Built CLI runs
+        run: |
+          node dist/cli.js compare 2>&1 | grep -q "usage: flow-reel"
+
+  # The image, built per architecture, and the e2e tests in parallel shards on each (GH-92).
+  e2e:
+    name: e2e (${{ matrix.arch }}, ${{ matrix.shard.name }})
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
     strategy:
       fail-fast: false
       matrix:
         arch: [amd64, arm64]
+        shard: ${{ fromJSON(needs.changes.outputs.shards) }}
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 26
           cache: npm
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run pack:check
+      # The image copies dist/.
+      - run: npm run build
       - name: Reserve space for the model and image layers
-        if: needs.changes.outputs.runtime == 'true'
         run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
       - id: package
-        if: needs.changes.outputs.runtime == 'true'
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
-        if: needs.changes.outputs.runtime == 'true'
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
-        if: needs.changes.outputs.runtime == 'true'
         with:
           context: .
           file: docker/Dockerfile
@@ -98,20 +136,32 @@ jobs:
           load: true
           tags: ghcr.io/codeonym-oss/flow-reel:${{ steps.package.outputs.version }}
           cache-from: type=gha,scope=flow-reel-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=flow-reel-${{ matrix.arch }}
-      - run: npm run test:e2e
-        if: needs.changes.outputs.runtime == 'true'
+          # One shard per architecture writes the cache, so the shards don't race to export the same layers.
+          cache-to: ${{ matrix.shard.consumer && format('type=gha,mode=max,scope=flow-reel-{0}', matrix.arch) || '' }}
+      # The tests' own ffmpeg and ffprobe run in the image just built, not on the runner: the runner installs no ffmpeg.
+      - name: Run ffmpeg in the image
+        env:
+          IMAGE: ghcr.io/codeonym-oss/flow-reel:${{ steps.package.outputs.version }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          for tool in ffmpeg ffprobe; do
+            printf '#!/bin/sh\nexec docker run --rm --user %s -v "%s:%s" -v /tmp:/tmp -w "$PWD" --entrypoint %s %s "$@"\n' \
+              "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE" "$tool" "$IMAGE" > "$RUNNER_TEMP/bin/$tool"
+            chmod +x "$RUNNER_TEMP/bin/$tool"
+          done
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/bin/ffmpeg" -version | head -1
+      # The same flags as npm run test:e2e, on this shard's files.
+      - run: npx vitest run ${{ matrix.shard.files }} --no-file-parallelism --testTimeout=900000 --hookTimeout=900000
         env:
           FLOW_REEL_TEST_IMAGE: ghcr.io/codeonym-oss/flow-reel:${{ steps.package.outputs.version }}
-      - run: node scripts/consumer.ts release/flow-reel-${{ steps.package.outputs.version }}.tgz
-        if: needs.changes.outputs.runtime == 'true'
+      - if: matrix.shard.consumer
+        run: npm run pack:check && node scripts/consumer.ts release/flow-reel-${{ steps.package.outputs.version }}.tgz
       - run: docker image inspect ghcr.io/codeonym-oss/flow-reel:${{ steps.package.outputs.version }} --format '{{.Id}} {{.Architecture}} {{.Size}}'
-        if: needs.changes.outputs.runtime == 'true'
       - run: df -h /
-        if: needs.changes.outputs.runtime == 'true'
-      - if: always() && needs.changes.outputs.runtime == 'true'
+      - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: e2e-${{ matrix.arch }}
+          name: e2e-${{ matrix.arch }}-${{ matrix.shard.name }}
           path: test/e2e/out/
           retention-days: 7

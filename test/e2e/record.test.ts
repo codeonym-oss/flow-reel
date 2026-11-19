@@ -1,8 +1,6 @@
 import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { type Server, createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -12,16 +10,15 @@ import { validateSync } from "../../src/composer/schema/sync.ts";
 import { type Transcript, validateTranscript } from "../../src/composer/schema/transcript.ts";
 import { planPolish } from "../../src/composer/polish.ts";
 import { verifyReel } from "../../src/reel.ts";
+import { startFixtureApp } from "./fixture-app.ts";
 import { prepareImage } from "./image.ts";
 
-// The whole recorder, in Docker, against a fixture app served from the host's 127.0.0.1 (GH-2 impl.md step 12).
+// The whole recorder, in Docker, against a fixture app served from the host's 127.0.0.1 (GH-2 impl.md step 12), with
+// the local voice. Effects, overlays, waits and cards are in record-*.test.ts, so CI can run them in parallel (GH-92).
 const OUT = resolve("test/e2e/out/record");
-const html = readFileSync(resolve("test/e2e/app/index.html"));
-let server: Server;
+let app: Awaited<ReturnType<typeof startFixtureApp>>;
 let port: number;
 let image: string;
-// The slow reply a speedUp waits for (GH-61): 20 s at ×4 checks the same ratio as the story's 60 s, in less CI time.
-const SLOW_MS = 20_000;
 const COMMENTS = ["  Type <b>Ada</b> & &lt; --> 保存.\r\n  ", "Scroll down and save.", "Open the settings."];
 
 const script = (p: number, viewport?: [number, number]) => `import { script, Sounds } from "flow-reel";
@@ -79,16 +76,11 @@ let b: Run;
 beforeAll(async () => {
   mkdirSync(OUT, { recursive: true });
   image = prepareImage();
-  server = createServer((req, res) => {
-    if (req.url === "/delayed") return void setTimeout(() => res.writeHead(200).end("ready"), 350);
-    if (req.url === "/slow") return void setTimeout(() => res.writeHead(200).end("reply"), SLOW_MS);
-    res.writeHead(200, { "content-type": "text/html" }).end(html);
-  });
-  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
-  port = (server.address() as AddressInfo).port;
+  app = await startFixtureApp();
+  port = app.port;
 }, 900_000);
 
-afterAll(() => server?.close());
+afterAll(() => app?.close());
 
 it("records all eight sounds without comments and keeps them in the event log when muted", async () => {
   const dir = join(OUT, "muted-cues");
@@ -118,349 +110,6 @@ export default script({ url: "http://localhost:${port}/", viewport: [960, 540] }
   expect(streams.map((s: { codec_type: string }) => s.codec_type)).toEqual(["video"]);
   expect(existsSync(join(dir, "demo.reel/work/sound.wav"))).toBe(false);
 }, 120_000);
-
-describe("effect words in a composed reel (GH-32)", () => {
-  // Composed in the image, with a green image beside the script shown as a card; no comments, so no voice to wait for.
-  const effectsScript = (p: number, autoZoom: boolean) => `import { script } from "flow-reel";
-export default script({ url: "http://localhost:${p}/", viewport: [960, 540], autoZoom: ${autoZoom} }, async ({ page, card, flash, zoomIn, zoomOut }) => {
-  await card.image("img/green.png", { frame: "none", fit: "contain", ms: 1000, enter: "cut", exit: "cut" });
-  await page.getByRole("button", { name: "Save" }).zoomIn({ scale: 1.5 }).flash({ color: "#ff0000" }).click();
-  await page.getByRole("textbox", { name: "Name" }).fill("Ada");
-  zoomOut();
-  flash();
-  await page.getByRole("link", { name: "Settings" }).click();
-});`;
-  const composeEffects = async (name: string, autoZoom = true) => {
-    const dir = join(OUT, name);
-    rmSync(dir, { recursive: true, force: true });
-    mkdirSync(join(dir, "img"), { recursive: true });
-    execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "color=lime:s=480x540", "-frames:v", "1", join(dir, "img", "green.png")]);
-    writeFileSync(join(dir, "demo.ts"), effectsScript(port, autoZoom));
-    const container = `flow-reel-${name}-${randomUUID()}`;
-    try {
-      const { stderr } = await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g",
-        "--network", "host", "--user", `${process.getuid!()}:${process.getgid!()}`, "-v", `${dir}:/work`, image,
-        "compose", "/work/demo.ts"], { timeout: 180_000 });
-      if (stderr) writeFileSync(join(dir, "record.log"), stderr);
-    } finally {
-      spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
-    }
-    return { dir, reel: join(dir, "demo.reel"), events: JSON.parse(readFileSync(join(dir, "demo.reel/events.json"), "utf8")) as EventLog };
-  };
-  let first: Awaited<ReturnType<typeof composeEffects>>;
-  let second: Awaited<ReturnType<typeof composeEffects>>;
-  beforeAll(async () => {
-    first = await composeEffects("effects-a");
-    second = await composeEffects("effects-b");
-  }, 600_000);
-
-  it("logs each effect and the card with the image's hash, in the order the script used them", () => {
-    expect(validateEvents(first.events)).toEqual([]);
-    expect(first.events.autoZoom).toBe(true);
-    const effects = first.events.events.filter((e) => ["flash", "card", "zoom"].includes(e.type));
-    expect(effects.map((e) => e.type === "zoom" ? `zoom ${e.zoom}` : e.type)).toEqual(["card", "zoom in", "flash", "zoom out", "flash"]);
-    expect(effects[0]).toMatchObject({ card: "image", props: { image: "img/green.png", frame: "none", fit: "contain" }, ms: 1000,
-      files: [{ path: "img/green.png", sha256: createHash("sha256").update(readFileSync(join(first.dir, "img", "green.png"))).digest("hex") }] });
-    expect(effects[1]).toMatchObject({ scale: 1.5, ms: 650, bounds: expect.any(Object) });
-    expect(effects[2]).toMatchObject({ color: "#ff0000" });
-    const click = first.events.events.find((e) => e.type === "click")!;
-    expect(Math.abs(effects[2].t - click.t)).toBeLessThan(1); // logged right after the click
-    expect(effects[1].t).toBeLessThan(click.t);
-  });
-
-  it("shows the image card for its frames, uncovered, and flashes red at the click", () => {
-    const raw = execFileSync("ffmpeg", ["-v", "error", "-i", join(first.reel, "video.mp4"), "-vf", "scale=96:54,format=rgb24",
-      "-f", "rawvideo", "-"], { maxBuffer: 1 << 28 });
-    const size = 96 * 54 * 3;
-    const at = (frame: number, x: number, y: number) => [...raw.subarray(frame * size + (y * 96 + x) * 3, frame * size + (y * 96 + x) * 3 + 3)];
-    const [shown, , flash] = first.events.events.filter((e) => ["flash", "card", "zoom"].includes(e.type));
-    const start = Math.round(shown.t * 30 / 1000);
-    // The image lifts in over its first second, then holds until the card's last frame.
-    expect(at(start, 48, 27)[1]).toBeLessThan(120);
-    for (const f of [start + 22, start + 29]) {
-      expect(at(f, 48, 27)[1]).toBeGreaterThan(200); // the green image in the middle
-      expect(Math.max(...at(f, 1, 27))).toBeLessThan(40);  // the ink card around it
-    }
-    expect(at(start + 30, 48, 27)[1] > 200 && at(start + 30, 48, 27)[0] < 60).toBe(false);
-    const red = Math.ceil(flash.t * 30 / 1000 - 1e-9);
-    expect(at(red, 2, 2)[0]).toBeGreaterThan(200);
-    expect(at(red, 2, 2)[1]).toBeLessThan(60);
-  });
-
-  it("verifies, and gives the same effects on a second compose, which compare checks", () => {
-    expect(verifyReel(first.reel)).toMatchObject({ errors: [], differences: [] });
-    const result = spawnSync(process.execPath, ["dist/cli.js", "compare", first.reel, second.reel], { encoding: "utf8" });
-    expect(result).toMatchObject({ status: 0, stdout: "Reels match (step starts and effects within 150 ms).\n" });
-  });
-
-  it("records autoZoom: false and draws no automatic zoom then", async () => {
-    const off = await composeEffects("effects-off", false);
-    expect(off.events.autoZoom).toBe(false);
-    // The Settings click after zoomOut would zoom automatically; with autoZoom off the picture stays full.
-    const out = off.events.events.find((e) => e.type === "zoom" && e.zoom === "out")!;
-    const click = off.events.events.findLast((e) => e.type === "click")!;
-    expect(click.t).toBeGreaterThan(out.t);
-    const plan = planPolish(off.events.events, { viewport: [960, 540], source: [1280, 720], fps: 30,
-      frames: Math.ceil(click.t * 30 / 1000) + 90, autoZoom: off.events.autoZoom });
-    for (let n = Math.ceil((out.t + 800) * 30 / 1000); n < plan.frames; n++) expect(plan.frame(n).zoom).toBe(1);
-  }, 240_000);
-});
-
-describe("speedUp in a composed reel (GH-61)", () => {
-  const speedScript = (p: number, inside = "") => `import { script } from "flow-reel";
-export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, async ({ page, comment, speedUp }) => {
-  comment("Ask for the slow reply.");
-  await speedUp(4, async () => {
-    ${inside}
-    await page.evaluate(() => fetch("/slow").then((r) => r.text()));
-  });
-  await page.getByRole("link", { name: "Settings" }).click();
-});`;
-  const composeSpeed = async (name: string, inside?: string, make = speedScript) => {
-    const dir = join(OUT, name);
-    rmSync(dir, { recursive: true, force: true });
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "demo.ts"), make(port, inside));
-    const container = `flow-reel-${name}-${randomUUID()}`;
-    try {
-      const { stderr } = await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g",
-        "--network", "host", "--user", `${process.getuid!()}:${process.getgid!()}`, "-v", `${dir}:/work`, image,
-        "compose", "/work/demo.ts"], { timeout: 300_000 });
-      if (stderr) writeFileSync(join(dir, "record.log"), stderr);
-    } finally {
-      spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
-    }
-    const reel = join(dir, "demo.reel");
-    return { reel, events: JSON.parse(readFileSync(join(reel, "events.json"), "utf8")) as EventLog,
-      transcript: JSON.parse(readFileSync(join(reel, "transcript.json"), "utf8")) as Transcript };
-  };
-  let first: Awaited<ReturnType<typeof composeSpeed>>;
-  let second: Awaited<ReturnType<typeof composeSpeed>>;
-  beforeAll(async () => {
-    first = await composeSpeed("speed-a");
-    second = await composeSpeed("speed-b");
-  }, 900_000);
-
-  it("plays the 20 s wait in about 5 s, with the comment spoken whole", () => {
-    expect(validateEvents(first.events)).toEqual([]);
-    const speed = first.events.events.find((e) => e.type === "speed")!;
-    expect(speed).toMatchObject({ type: "speed", factor: 4 });
-    if (speed.type !== "speed") throw new Error("no speed event");
-    expect(speed.durationMs).toBeGreaterThan(SLOW_MS / 4 - 100);
-    expect(speed.durationMs).toBeLessThan(SLOW_MS / 4 + 1000);
-    expect(first.transcript.video.durationMs).toBeLessThan(SLOW_MS - 5000);
-    const [step] = first.transcript.steps;
-    expect(step.endMs - step.startMs).toBeGreaterThanOrEqual(step.audio!.durationMs);
-  });
-
-  it("shows the badge in the top-right corner while the stretch plays, and not after", () => {
-    const speed = first.events.events.find((e) => e.type === "speed")!;
-    if (speed.type !== "speed") throw new Error("no speed event");
-    const raw = execFileSync("ffmpeg", ["-v", "error", "-i", join(first.reel, "video.mp4"), "-vf", "scale=96:54,format=rgb24",
-      "-f", "rawvideo", "-"], { maxBuffer: 1 << 28 });
-    const size = 96 * 54 * 3;
-    const light = (frame: number) => raw[frame * size + (3 * 96 + 92) * 3];
-    const mid = Math.round((speed.t + speed.durationMs / 2) * 30 / 1000);
-    const after = Math.round((speed.t + speed.durationMs) * 30 / 1000) + 15;
-    expect(light(mid)).toBeLessThan(light(after) - 60);
-  });
-
-  it("verifies, and a second compose matches it", () => {
-    expect(verifyReel(first.reel)).toMatchObject({ errors: [], differences: [] });
-    const result = spawnSync(process.execPath, ["dist/cli.js", "compare", first.reel, second.reel], { encoding: "utf8" });
-    expect(result).toMatchObject({ status: 0, stdout: "Reels match (step starts and effects within 150 ms).\n" });
-  });
-
-  it("fails the compose with a clear error when a comment is used inside", async () => {
-    await expect(composeSpeed("speed-comment", `comment("Too late.");`)).rejects
-      .toMatchObject({ stderr: expect.stringContaining("comment() can't be used inside speedUp(); put it before or after") });
-  }, 300_000);
-
-  describe("skip (GH-62)", () => {
-    const skipScript = (p: number, inside = "") => `import { script, Sounds } from "flow-reel";
-export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, async ({ page, comment, skip, sound }) => {
-  comment("The reply takes a while; here it is.");
-  await skip(async () => {
-    ${inside}
-    sound(Sounds.feedback.SUCCESS);
-    await page.evaluate(() => fetch("/slow").then((r) => r.text()));
-  }, { label: "{duration} plus tard" });
-  await page.getByRole("link", { name: "Settings" }).click();
-});`;
-    let a: Awaited<ReturnType<typeof composeSpeed>>;
-    let b: Awaited<ReturnType<typeof composeSpeed>>;
-    beforeAll(async () => {
-      a = await composeSpeed("skip-a", undefined, skipScript);
-      b = await composeSpeed("skip-b", undefined, skipScript);
-    }, 900_000);
-
-    it("cuts the 20 s wait to a card, drops what happened inside, and speaks the comment whole", () => {
-      expect(validateEvents(a.events)).toEqual([]);
-      const cut = a.events.events.find((e) => e.type === "skip")!;
-      if (cut.type !== "skip") throw new Error("no skip event");
-      expect(cut.label).toBe("{duration} plus tard");
-      expect(cut.durationMs).toBeGreaterThan(SLOW_MS - 100);
-      expect(cut.durationMs).toBeLessThan(SLOW_MS + 1000);
-      expect(a.events.events.some((e) => e.type === "sound")).toBe(false);
-      expect(a.transcript.video.durationMs).toBeLessThan(SLOW_MS - 12_000);
-      const [step] = a.transcript.steps;
-      expect(step.endMs - step.startMs).toBeGreaterThanOrEqual(step.audio!.durationMs);
-    });
-
-    it("shows the card over the blurred, dimmed app, with the length cut in the middle (GH-76 decision 008)", () => {
-      const cut = a.events.events.find((e) => e.type === "skip")!;
-      const still = (ms: number) => execFileSync("ffmpeg", ["-v", "error", "-ss", String(ms / 1000), "-i", join(a.reel, "video.mp4"),
-        "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"], { maxBuffer: 1 << 24 });
-      const card = still(cut.t + 750), before = still(cut.t - 100);
-      expect(card[500 * 960 + 50]).toBeLessThan(before[500 * 960 + 50] * 0.7);
-      // The ink panel in the middle, dark, with the length cut written in light text on it.
-      expect(card[200 * 960 + 400]).toBeLessThan(40);
-      const band = card.subarray(230 * 960, 310 * 960);
-      expect(band.filter((v) => v > 200).length).toBeGreaterThan(200);
-    });
-
-    it("verifies, and a second compose matches it", () => {
-      expect(verifyReel(a.reel)).toMatchObject({ errors: [], differences: [] });
-      const result = spawnSync(process.execPath, ["dist/cli.js", "compare", a.reel, b.reel], { encoding: "utf8" });
-      expect(result).toMatchObject({ status: 0, stdout: "Reels match (step starts and effects within 150 ms).\n" });
-    });
-
-    it("fails the compose with a clear error when flash is used inside", async () => {
-      await expect(composeSpeed("skip-flash", "flash();", (p, inside) => skipScript(p, inside).replace("sound })", "sound, flash })"))).rejects
-        .toMatchObject({ stderr: expect.stringContaining("flash() can't be used inside skip(); put it before or after") });
-    }, 300_000);
-  });
-});
-
-describe("cards in a composed reel (GH-77)", () => {
-  const cardScript = (p: number) => `import { script } from "flow-reel";
-export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, async ({ page, comment, card }) => {
-  comment("Saved views, new in Orbit.");
-  await card.intro({ kicker: "Orbit 2.4", title: "Saved views", subtitle: "Your filters, one click away" });
-  await card.chapter({ title: "Name it", enter: "slide" });
-  await page.getByRole("textbox", { name: "Name" }).fill("Ada");
-  await card.custom("cards/hello.html", { name: "Ada" }, { ms: 1500, exit: "cut" });
-  await card.chapter({ title: "Settings", theme: "paper" });
-  await page.getByRole("link", { name: "Settings" }).click();
-  await card.outro({ title: "Try it", url: "orbit.dev/views" });
-});`;
-  const composeCards = async (name: string, make = cardScript) => {
-    const dir = join(OUT, name);
-    rmSync(dir, { recursive: true, force: true });
-    mkdirSync(join(dir, "cards"), { recursive: true });
-    writeFileSync(join(dir, "demo.ts"), make(port));
-    writeFileSync(join(dir, "flow-reel.json"), JSON.stringify({ version: 1, brand: { theme: "ocean", accent: "#46D3C8" } }));
-    writeFileSync(join(dir, "cards/hello.html"), "<!doctype html><html><head><style>body{margin:0;background:#ffcc00}</style></head>" +
-      "<body><h1 class=\"fr-title\" data-prop=\"name\">x</h1></body></html>");
-    const container = `flow-reel-${name}-${randomUUID()}`;
-    try {
-      const { stderr } = await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g",
-        "--network", "host", "--user", `${process.getuid!()}:${process.getgid!()}`, "-v", `${dir}:/work`, image,
-        "compose", "/work/demo.ts"], { timeout: 600_000 });
-      if (stderr) writeFileSync(join(dir, "record.log"), stderr);
-    } finally {
-      spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
-    }
-    const reel = join(dir, "demo.reel");
-    return { reel, events: JSON.parse(readFileSync(join(reel, "events.json"), "utf8")) as EventLog,
-      transcript: JSON.parse(readFileSync(join(reel, "transcript.json"), "utf8")) as Transcript };
-  };
-  let first: Awaited<ReturnType<typeof composeCards>>;
-  let second: Awaited<ReturnType<typeof composeCards>>;
-  beforeAll(async () => {
-    first = await composeCards("cards-a");
-    second = await composeCards("cards-b");
-  }, 1_200_000);
-
-  it("logs each card with its props and the brand's look, in the order shown", () => {
-    expect(validateEvents(first.events)).toEqual([]);
-    const cards = first.events.events.flatMap((e) => e.type === "card" ? [e] : []);
-    expect(cards.map(({ card, theme, enter, exit }) => [card, theme, enter, exit])).toEqual([
-      ["intro", "ocean", "fade", "fade"], ["chapter", "ocean", "slide", "fade"], ["custom", "ocean", "fade", "cut"],
-      ["chapter", "paper", "fade", "fade"], ["outro", "ocean", "fade", "fade"]]);
-    expect(cards[2]).toMatchObject({ props: { name: "Ada" }, ms: 1500, files: [{ path: "cards/hello.html" }] });
-  });
-
-  it("speaks the comment over the intro, and shows each card in the video", () => {
-    const [step] = first.transcript.steps;
-    expect(step.endMs - step.startMs).toBeGreaterThanOrEqual(step.audio!.durationMs);
-    const cards = first.events.events.flatMap((e) => e.type === "card" ? [e] : []);
-    const still = (ms: number) => execFileSync("ffmpeg", ["-v", "error", "-ss", String(ms / 1000), "-i", join(first.reel, "video.mp4"),
-      "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { maxBuffer: 1 << 24 });
-    const corner = (ms: number) => [...still(ms).subarray((530 * 960 + 950) * 3, (530 * 960 + 950) * 3 + 3)];
-    // The intro in the ocean theme's background, the custom card's yellow, the paper chapter's off-white.
-    expect(corner(cards[0].t + 1500)).toEqual([8, 34, 44].map((v) => expect.closeTo(v, -1.2)));
-    const yellow = corner(cards[2].t + 750);
-    expect(yellow[0]).toBeGreaterThan(220);
-    expect(yellow[2]).toBeLessThan(60);
-    expect(corner(cards[3].t + 1500).every((v) => v > 230)).toBe(true);
-  });
-
-  it("verifies, and a second compose matches it", () => {
-    expect(verifyReel(first.reel)).toMatchObject({ errors: [], differences: [] });
-    const result = spawnSync(process.execPath, ["dist/cli.js", "compare", first.reel, second.reel], { encoding: "utf8" });
-    expect(result).toMatchObject({ status: 0, stdout: "Reels match (step starts and effects within 150 ms).\n" });
-  });
-
-  it("fails a script still calling showFrame, naming card.image (GH-76 decision 004)", async () => {
-    await expect(composeCards("cards-show-frame", (p) => `import { script } from "flow-reel";
-export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, async ({ showFrame }) => {
-  await showFrame("cards/hello.html", 1000);
-});`)).rejects.toMatchObject({ stderr: expect.stringContaining("showFrame() was replaced by card.image() in flow-reel 0.5") });
-  }, 300_000);
-});
-
-describe("overlays in a composed reel (GH-79)", () => {
-  // No comments, so no voice to wait for: each overlay shows for its ms, until the next action.
-  const overlayScript = (p: number) => `import { script } from "flow-reel";
-export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, async ({ page, lowerThird }) => {
-  await lowerThird({ title: "Saved views", subtitle: "New in Orbit 2.4", ms: 2000 });
-  await page.getByRole("textbox", { name: "Name" }).fill("Ada");
-  await page.getByRole("textbox", { name: "Name" }).callout("Name the view", { detail: "Any name", ms: 2000 });
-  await page.getByRole("link", { name: "Settings" }).highlight({ ms: 1000, theme: "paper" });
-  await page.getByRole("link", { name: "Settings" }).click();
-});`;
-  let run: { dir: string; reel: string; events: EventLog };
-  beforeAll(async () => {
-    const dir = join(OUT, "overlays");
-    rmSync(dir, { recursive: true, force: true });
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "demo.ts"), overlayScript(port));
-    const container = `flow-reel-overlays-${randomUUID()}`;
-    try {
-      const { stderr } = await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g",
-        "--network", "host", "--user", `${process.getuid!()}:${process.getgid!()}`, "-v", `${dir}:/work`, image,
-        "compose", "/work/demo.ts"], { timeout: 300_000 });
-      if (stderr) writeFileSync(join(dir, "record.log"), stderr);
-    } finally {
-      spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
-    }
-    const reel = join(dir, "demo.reel");
-    run = { dir, reel, events: JSON.parse(readFileSync(join(reel, "events.json"), "utf8")) };
-  }, 600_000);
-
-  it("logs each overlay with its words, its element and how long it showed", () => {
-    expect(validateEvents(run.events)).toEqual([]);
-    const overlays = run.events.events.flatMap((e) => e.type === "overlay" ? [e] : []);
-    expect(overlays.map(({ overlay, props, theme }) => [overlay, props, theme])).toEqual([
-      ["lowerThird", { title: "Saved views", subtitle: "New in Orbit 2.4" }, "ink"],
-      ["callout", { text: "Name the view", detail: "Any name" }, "ink"], ["highlight", {}, "paper"]]);
-    expect(overlays[0].bounds).toBeUndefined();
-    expect(overlays[1].bounds).toMatchObject({ width: expect.any(Number), height: expect.any(Number) });
-    for (const o of overlays) expect(o.durationMs).toBeGreaterThanOrEqual(o.ms - 50);
-  });
-
-  it("draws the lower third at the bottom left and dims the app around a callout", () => {
-    const [third, callout] = run.events.events.flatMap((e) => e.type === "overlay" ? [e] : []);
-    const still = (ms: number) => execFileSync("ffmpeg", ["-v", "error", "-ss", String(ms / 1000), "-i", join(run.reel, "video.mp4"),
-      "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"], { maxBuffer: 1 << 24 });
-    // The lower third's ink panel over the fixture's light page.
-    expect(still(third.t + 1000)[480 * 960 + 60]).toBeLessThan(60);
-    expect(still(third.t + third.durationMs + 600)[480 * 960 + 60]).toBeGreaterThan(150);
-    // Away from the element, the app is dimmed while the callout shows.
-    expect(still(callout.t + 1000)[300 * 960 + 900]).toBeLessThan(still(callout.t - 300)[300 * 960 + 900] * 0.7);
-  });
-});
 
 it("captures the settled response while keeping the callback finish time", async () => {
   const dir = join(OUT, "settled");
