@@ -1,46 +1,86 @@
 # flow-reel
 
-flow-reel turns a **script** into a **reel**. A person or a coding agent writes the script as an ordinary
-Playwright script, plus flow-reel words: **comments** to speak, **sounds** to play and **effects** for the picture,
-each standalone or chained on the element it is about. The **composer**, a container image,
-replays the script on a virtual display and records the screen. It speaks the comments with a local voice, or with a
-[cloud voice](#cloud-voices) (OpenAI, Gemini, OpenRouter, Together AI, Groq, ElevenLabs or any OpenAI-compatible
-server) when you'd rather not wait for the CPU, and polishes the picture with a smooth cursor, click ripples and zoom. The result is the reel: one folder holding the
-video, the transcript, the captions, the event log, the audio and a manifest. Composing the same script again gives
-a matching reel, which `flow-reel compare` checks.
+**Turn a Playwright script into a narrated, polished demo video, the same way every time.**
 
-[`CONTEXT.md`](CONTEXT.md) defines the project's vocabulary.
+[![npm](https://img.shields.io/npm/v/flow-reel)](https://www.npmjs.com/package/flow-reel)
+[![docs](https://img.shields.io/badge/docs-docs.codeonym.work-6366f1)](https://docs.codeonym.work/projects/flow-reel/)
+[![license](https://img.shields.io/npm/l/flow-reel)](LICENSE)
 
-This release composes commented video with captions, fitted step timings, a smooth cursor, click ripples and
-automatic zoom, click/typing sounds, optional named sounds, and flashes, shown images and directed zoom.
+[![A 31-second reel composed by flow-reel: cards, a lower third, a callout, sounds and automatic zoom](docs/_static/demos/orbit-tour.jpg)](https://docs.codeonym.work/projects/flow-reel/en/latest/demos/)
 
-## Requirements
+<p align="center"><em>▶ <a href="https://docs.codeonym.work/projects/flow-reel/en/latest/demos/">Watch the demo</a>, a reel composed from <a href="docs/demos/orbit-tour/script.ts">this short script</a>.</em></p>
 
-- Node.js 22.18 or later (scripts are TypeScript, run with Node's type stripping).
-- Docker or Podman. The recording runs in the `ghcr.io/codeonym-oss/flow-reel:<version>` image; when it can't be
-  pulled, `flow-reel` builds it locally once (a few minutes).
-- Release images target native Linux amd64 and arm64; Docker Desktop supplies the Linux runtime on macOS/Windows.
-- About 2.5 free CPU cores while recording. On an overloaded machine the recording stops with an error rather than
-  save a video whose timing is off.
-- The image is about 7 GB unpacked; its build downloads about 2.5 GB of model weights. Local speech synthesis uses
-  four CPU threads after capture and can require more than 5 GiB of process memory, in addition to your app and OS.
+You write the walkthrough of a feature as an ordinary Playwright **script**, and add a few flow-reel words:
+**comments** to speak, **sounds** to play, **effects**, **cards** and **overlays** for the picture. The **composer**,
+a container image, replays the script in a fresh browser, records the screen and speaks your comments. It then
+polishes the picture with a smooth cursor, click ripples and zoom.
 
-## Install
+The result is a **reel**: one folder with the video, captions, a transcript, the audio and a manifest. Change one line
+and compose again, and only that line is spoken again.
+
+📖 **Documentation: [docs.codeonym.work/projects/flow-reel](https://docs.codeonym.work/projects/flow-reel/)**: a
+quickstart, tutorials, a guide to every word, recipes and the full reference.
+
+## Quickstart
+
+You need **Node.js 22.18+** and **Docker or Podman**.
 
 ```sh
 npm install --save-dev flow-reel
 ```
 
-The package and recording image use the same version. Each npm release has a matching public recording image for
-Linux amd64 and arm64.
-See [release setup and verification](docs/releasing.md) for publication status requirements and contributor steps.
+```ts
+// demos/settings.ts
+import { script, Sounds } from "flow-reel";
 
-## Make reels with an agent
+export default script({ url: "http://localhost:4173" }, async ({ page, comment, card }) => {
+  comment("Dark mode is here.");
+  await card.intro({ kicker: "Release 2.4", title: "Dark mode" });
 
-The flow-reel **plugin** teaches a coding agent the language and the craft: planning the story, exploring the app,
-writing the script with comments, sounds and effects, composing it and screening the reel. It has three skills:
-`reel` (from a request to a finished reel), `reshoot` (change a reel from feedback) and `screening` (judge a reel
-without changing it).
+  comment("Open the settings page.");
+  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByLabel("Dark mode")
+    .comment("Turn on dark mode, and the whole app follows.")
+    .sound(Sounds.controls.TOGGLE)
+    .check();
+});
+```
+
+```sh
+export OPENAI_API_KEY=...                                  # a cloud voice: fast, and recommended
+npx flow-reel compose demos/settings.ts --voice openai     # writes demos/settings.reel/
+npx flow-reel verify demos/settings.reel                   # every file present and unaltered
+```
+
+`demos/settings.reel/video.mp4` is your video. The first compose pulls the composer image (about 7 GB) once, and
+writes `flow-reel.json` with the settings it used. Commit that file with your scripts.
+
+→ [Quickstart](https://docs.codeonym.work/projects/flow-reel/en/latest/getting-started/quickstart/) ·
+[Your first reel](https://docs.codeonym.work/projects/flow-reel/en/latest/tutorials/first-reel/)
+
+## Voices
+
+> [!TIP]
+> **Prefer a cloud voice.** OpenAI, Gemini, OpenRouter, Together AI, Groq, ElevenLabs or any OpenAI-compatible
+> server speaks a whole script in seconds, four comments at a time. The built-in local voice runs on your CPU: about
+> a minute a comment, with more than 5 GiB of memory.
+
+- **Cloud voices:** set `voice.adapter` in `flow-reel.json` (or `--voice`), and export the provider's key
+  (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`, …). The key stays in the environment: it's passed into
+  the container by name, and never written to a file, the reel or the command line.
+- **The built-in local voice is Qwen3-TTS 0.6B** (`qwen3-tts-0.6b`), the only local model built in today. It's the
+  default, and works offline with no key: nine speakers, ten languages.
+- **Self-hosted voices:** any server that speaks OpenAI's `/audio/speech` API, such as a self-hosted Kokoro, works
+  through `openai-compatible` with a `baseUrl`.
+- **The reel cache:** unchanged comments reuse their clips from the previous reel, so a recompose speaks (and pays
+  for) only new or changed lines.
+
+→ [Voices](https://docs.codeonym.work/projects/flow-reel/en/latest/guide/voices/)
+
+## Make reels with Claude
+
+The flow-reel **plugin** teaches Claude Code and Codex to make reels for you. It plans the story, explores your
+running app, writes the script, composes it, reviews the result, and hands it over with what was and wasn't checked.
 
 ```text
 # Claude Code
@@ -52,554 +92,77 @@ codex plugin marketplace add codeonym-oss/claude-plugins
 codex plugin add flow-reel@codeonym-oss
 ```
 
-The plugin lives in [`plugin/`](plugin/) and is released separately (`flow-reel-plugin-v*` tags); it states the
+Then ask: *"Make a 30-second reel of the saved views feature. The app is on http://localhost:4173."* Its three skills
+are `reel` (from a request to a finished reel), `reshoot` (change a reel from feedback) and `screening` (review a reel
+without changing it).
+
+The plugin lives in [`plugin/`](plugin/) and is released separately (`flow-reel-plugin-v*` tags). It states the
 flow-reel versions it supports, and its `preflight.mjs` checks your project's.
 
-## Write a script
+→ [Make reels with Claude](https://docs.codeonym.work/projects/flow-reel/en/latest/tutorials/with-claude/)
 
-A script is a TypeScript file whose default export is `script(options, body)`. The body is plain Playwright, plus
-flow-reel words: `comment` (a spoken line) and `sound`. Each word can stand alone, or be chained on the element it is
-about.
+## What a script can do
 
-```ts
-// demos/settings.ts
-import { script, Sounds } from "flow-reel";
-
-export default script({ url: "http://localhost:4173" }, async ({ page, comment }) => {
-  comment("Open the settings page.");
-  await page.getByRole("link", { name: "Settings" }).click();
-  await page.getByLabel("Dark mode")
-    .comment("Turn on dark mode.")
-    .sound(Sounds.controls.TOGGLE)
-    .check();
-});
-```
-
-- A comment opens a step: the step starts with the next action, and takes in every action until the next comment.
-  `comment(text)` returns at once; don't await it. Two comments with no action between them are two steps, the
-  first with no action. Actions before the first comment form a step with no comment.
-- `url`: where the script starts. `localhost` reaches the app running on your machine.
-- `viewport`: whole CSS pixels, `[1920, 1080]` by default.
-- `page` is a Playwright `Page`. Clicks (including their `button` and `position` options), double-clicks, hovers,
-  `check`, `fill`, `type`, `pressSequentially` and `selectOption` move the mouse visibly to their target, scrolling
-  it into view first when needed; typing, including `page.keyboard.type`, runs at a fixed readable 60 ms per
-  character. `page.mouse.wheel` scrolls smoothly. Locators from `locator.all()`, `getBy*`, chaining and frame
-  locators behave the same way.
-- `fill(value)` clicks the field, clears it and types the value visibly, so long values take time on screen, and
-  the click can trigger the field's own click behaviour. Date, time, month, week, color and range inputs can't be
-  typed into: they are filled directly after the mouse moves to them. A `delay` passed to typing calls is replaced
-  by the readable speed; `timeout`/`force` are kept.
-- Other calls that act on the page, such as `page.evaluate`, `locator.dispatchEvent`, `press`, `page.keyboard.press`
-  or `page.frame()` (whose frames aren't animated), run as they are, without any mouse motion, and print a warning
-  once per method. Like `page.goto`, `reload`, `goBack` and `goForward`, they still count as actions of their step.
-- Write erasable TypeScript only: no `enum`, `namespace` or parameter properties. Import only from `flow-reel` and
-  from files in the same folder as the script.
-
-## Direct the picture
-
-The picture is polished automatically (see [Compose](#compose)). Effect words direct it where you want: they stand
-alone, or are chained on the element they are about, like `comment` and `sound`.
-
-```ts
-export default script({ url: "http://localhost:4173" }, async ({ page, flash, zoomIn, zoomOut }) => {
-  await page.getByRole("button", { name: "Save" })
-    .zoomIn({ scale: 1.5 })
-    .flash()
-    .click();
-  await page.getByLabel("Name").fill("Ada"); // still zoomed in
-  zoomOut();
-});
-```
-
-| Word | Options (defaults) | When it happens |
+| | | |
 |---|---|---|
-| `flash(options?)` | `color: "#ffffff"`, `ms: 250` (fade-out) | Standalone: now. Chained: when the action happens. |
-| `zoomIn(options?)` | `scale: 4/3` (1 to 2), `ms: 650` | Standalone: on the pointer. Chained: as the pointer heads for the element. |
-| `zoomOut(options?)` | `ms: 800` | Standalone: now. Chained: after the action. |
+| **Comments** | `comment("…")`, `locator.comment("…")` | Spoken lines with captions. The video holds the frame until each finishes. |
+| **Sounds** | `sound(Sounds.feedback.SUCCESS)` | Eight UI sounds to mark moments. Clicks and typing sound by themselves. |
+| **Polish** | automatic | A drawn cursor, click ripples, and zoom on clicks and typing. |
+| **Effects** | `flash`, `zoomIn`, `zoomOut` | Direct the camera where the story needs it. |
+| **Long waits** | `speedUp(4, fn)`, `skip(fn)` | Fast-forward a wait, or cut it with a card saying how long was cut. |
+| **Cards** | `card.intro`, `chapter`, `feature`, `image`, `compare`, `outro`, `custom` | Designed screens inserted into the video, or your own HTML. |
+| **Overlays** | `locator.callout`, `locator.highlight`, `lowerThird` | Point at what matters, over the running app. |
+| **Brand** | `brand` in `flow-reel.json` | Your theme, accent colour, logo and fonts on every card and overlay. |
 
-- **Zoom:** `zoomIn` holds the camera until `zoomOut`, across steps and clicks; automatic zoom waits meanwhile, and
-  a second `zoomIn` pans to its new target. A zoom still held when the script ends eases out. The camera still
-  keeps the cursor in frame. A large element zooms less than `scale`, so it stays whole. Above 4/3 the picture is
-  enlarged past the recording's resolution and softens.
-- **`autoZoom: false`** in the script's options turns automatic zoom off; the cursor, ripples and `zoomIn` stay.
-- A bad option throws where the word is written.
-- To show a picture, use [`card.image`](#cards), which replaced `showFrame` in 0.5.
+→ [Script API](https://docs.codeonym.work/projects/flow-reel/en/latest/reference/script-api/)
 
-### Speed up a wait
-
-`await speedUp(factor, fn)` runs `fn` as one action of its step and plays that stretch `factor` times faster in the
-video, with a "▶▶ ×N" badge in the top-right corner that fades in and out. Use it for waits where little changes,
-such as an agent's reply:
-
-```ts
-comment("Ask the agent, and wait for its reply.");
-await page.getByRole("button", { name: "Send" }).click();
-await speedUp(4, () => page.getByText("Done").waitFor({ timeout: 120_000 }));
-```
-
-- **The factor** is any number above 1 and at most 16, fractions included (`1.5`). Frames are dropped, not blended:
-  the stretch reads as fast-forward.
-- **Inside `fn`** go actions, sounds, `flash` and zoom; they follow the faster pace. `comment`, a card and
-  another `speedUp` or a `skip` throw there, since they would add time: put them before or after.
-- **A comment** spoken over the stretch keeps its normal speed. If it outlasts the shortened stretch, the last
-  frame holds until it ends, as for any step.
-- **Reels** record each stretch as a `speed` event in the event log, and `compare` checks its factor.
-
-### Skip a wait
-
-`await skip(fn, options?)` runs `fn` as one action of its step and cuts that stretch from the video. In its place, a
-card over the blurred frame before the wait says how long was cut. Use it for waits that show nothing worth watching,
-such as a build:
-
-```ts
-comment("The build takes a while; here is the result.");
-await skip(() => page.waitForResponse(/\/api\/build/), { label: "{duration} plus tard", style: "bar" });
-```
-
-- **The card** says how long was cut, in whole seconds: "38 s", "1 min 52 s". `label` replaces its words;
-  `{duration}` in it shows that length, and a label without it shows as written. `style: "clock"` (the default) is a
-  panel in the middle with a clock ring; `style: "bar"` a bar along the bottom. It follows the [brand](#brand).
-- **It lasts** 1.5 s, or longer while a comment spoken over it hasn't finished: the comment is never cut. It fades in
-  and out, and no cursor or zoom is drawn over it.
-- **Inside `fn`** go actions and sounds; nothing of them is seen or heard. `comment`, a card, `flash`,
-  zoom, `speedUp` and another `skip` throw there: put them before or after.
-- **Reels** record each skip as a `skip` event in the event log, with the length cut, the label and the style;
-  `compare` checks them.
-
-## Cards
-
-Cards are designed screens inserted into the reel: an intro, chapters, a feature, a framed screenshot, a before and
-after, an outro, or a card of your own written in HTML. Each is one word on `card`, awaited where it shows; the app stops on its frame, the card plays with a
-transition in and out, and the app resumes where it left.
-
-```ts
-export default script({ url: "http://localhost:4173" }, async ({ page, comment, card }) => {
-  comment("Orbit 2.4 brings saved views.");
-  await card.intro({ kicker: "Orbit 2.4", title: "Saved views", subtitle: "Your filters, one click away" });
-  await card.chapter({ title: "Name your view" });                 // "Chapter 01 / 02"
-  await page.getByLabel("Name").fill("Active work");
-  await card.feature({ title: "One click", points: ["Save any filter", "Share it", "Pin it"], image: "shots/views.png" });
-  await card.image("shots/mobile.png", { title: "On your phone too", frame: "phone" });
-  await card.compare({ before: "shots/2.3.png", after: "shots/2.4.png", title: "Six filters, or one click" });
-  await card.custom("cards/pricing.html", { plan: "Team", price: 12 }, { enter: "zoom" });
-  await card.chapter({ title: "Share it", theme: "paper" });
-  await page.getByRole("button", { name: "Share" }).click();
-  await card.outro({ title: "Try saved views", url: "orbit.dev/views", links: ["Docs", "Changelog"] });
-});
-```
-
-| Word | Props |
-|---|---|
-| `card.intro({ … })` | `title`, `kicker?`, `subtitle?`, `layout?: "left" \| "center"` |
-| `card.chapter({ … })` | `title`, `subtitle?`; numbered among the script's chapters by itself |
-| `card.feature({ … })` | `title`, `points` (one to five), `kicker?`, `image?` (in a browser window), `imageSide?: "right" \| "left"` |
-| `card.image(image, { … }?)` | `kicker?`, `title?`, `caption?`, `frame?: "browser" \| "phone" \| "none"`, `fit?: "cover" \| "contain"`, `url?` (the browser bar's) |
-| `card.compare({ … })` | `before`, `after`, `kicker?`, `title?`, `labels?` (two; "Before" and "After") |
-| `card.outro({ … })` | `title`, `url?` (shown as a button), `links?` (up to four) |
-| `card.custom(page, props?, options?)` | any JSON props, for your page |
-
-Every card also takes `ms`, `enter`, `exit` and `theme` (in its props object, or as `options` for `card.custom`):
-
-- **`ms`:** a card lasts 3 s, or until the comment before it has been spoken; `ms` (500 to 60000) sets an exact length,
-  transitions included.
-- **`enter` and `exit`:** `fade` (the default), `slide`, `wipe`, `zoom`, `blur`, `iris` or `cut`. The camera eases
-  back to the full screen as a card comes, so the transition starts from what was on screen.
-- **`theme`:** `ink` (the default), `paper`, `ocean` or `ember`.
-- **Images** are PNG, JPEG, WebP or SVG files in the script's folder, given relative to the script.
-- A wrong prop, option or path throws where the card is written, naming it. Cards can't go inside `speedUp` or
-  `skip`.
-- **Reels** record each card as a `card` event in the event log (version 6), with its props, look and the hash of
-  each file it uses; `compare` checks them.
-
-### Custom cards
-
-A custom card is an HTML page in the script's folder: its own CSS, JavaScript, images and fonts, laid out at the
-reel's size. The composer draws it frame by frame on a frozen clock, so `setTimeout`, `requestAnimationFrame`,
-`performance.now()`, CSS animations and transitions all play the same way every time. The network is off: the page
-loads only files from the script's folder.
-
-```html
-<!doctype html>
-<html><head><style>.price { font-size: 6rem }</style></head>
-<body>
-  <div class="fr-card">
-    <span class="fr-kicker fr-enter">Pricing</span>
-    <h1 class="fr-title fr-enter fr-d1" data-prop="plan">Plan</h1>
-    <b class="price fr-enter fr-d2">$<span id="price">0</span></b>
-  </div>
-  <script>
-    // Counts up to the price over a second.
-    const { price } = window.flowReel.props, start = performance.now();
-    requestAnimationFrame(function tick(now) {
-      const k = Math.min(1, (now - start) / 1000);
-      document.getElementById("price").textContent = Math.round(price * k);
-      if (k < 1) requestAnimationFrame(tick);
-    });
-  </script>
-</body></html>
-```
-
-- **`data-prop="name"`** fills an element with `props.name`: its text, an image's `src`, or a list's items.
-- **`window.flowReel`** holds `props`, `theme` (its colours), `durationMs` and `logo`.
-- **The atoms** are always there: `--fr-bg`, `--fr-surface`, `--fr-line`, `--fr-fg`, `--fr-muted`, `--fr-accent` and
-  `--fr-on-accent` from the theme; `--fr-font-heading`, `--fr-font-body`, `--fr-font-mono`; and the classes `fr-card`
-  (a full-screen card), `fr-kicker`, `fr-title`, `fr-title-m`, `fr-subtitle`, `fr-mono`, `fr-muted`, `fr-accent`,
-  `fr-surface`, `fr-badge`, `fr-pill`, `fr-logo`, `fr-stack`, `fr-row`, and `fr-enter` with the delays `fr-d1` to
-  `fr-d5` to bring things in one after another. A rem is 1/54 of the screen's height, so a card fits any viewport.
-
-## Overlays
-
-Overlays are drawn over the app while it runs: a callout or a highlight points at an element, a lower third titles
-what is on screen. Each is awaited: the script waits `ms` (1.5 s by default) with it shown, and it stays until the
-script's next action, through the hold that lets its step's comment finish.
-
-```ts
-comment("Saved views are new in Orbit 2.4.");
-await lowerThird({ title: "Saved views", subtitle: "New in Orbit 2.4" });
-comment("The chart follows whichever view you pick.");
-await page.getByTestId("chart").callout("The chart follows the filter", { detail: "Pick a view to see it change" });
-await page.getByRole("button", { name: "Share" }).highlight();
-```
-
-| Word | Options | Drawn |
-|---|---|---|
-| `await locator.callout(text, options?)` | `detail?`, `ms?`, `theme?` | A spotlight on the element and a bubble beside it, below or above. |
-| `await locator.highlight(options?)` | `ms?`, `theme?` | The spotlight alone. |
-| `await lowerThird({ title, … })` | `subtitle?`, `ms?`, `theme?` | A bar at the bottom left of the screen. |
-
-- **The camera** shows the whole screen while a callout or a highlight is on, and zooms again after. A lower third is
-  drawn on the screen, so the camera goes on as before under it.
-- An element that isn't on screen is scrolled in first. An overlay stops where a card starts, and can't go inside
-  `speedUp` or `skip`.
-- **Reels** record each overlay as an `overlay` event, with its words, its element's box and how long it showed;
-  `compare` checks all of it but how long.
-
-### Brand
-
-`brand` in `flow-reel.json` sets how every card and overlay looks; each key is optional, and a card's own options win:
-
-```json
-{
-  "version": 1,
-  "brand": {
-    "theme": "paper",
-    "accent": "#D6336C",
-    "logo": "brand/logo.svg",
-    "fonts": { "heading": "brand/Display.woff2", "body": "brand/Text.woff2" },
-    "enter": "fade",
-    "exit": "fade"
-  }
-}
-```
-
-- **`accent`** replaces the theme's accent colour; text on it is chosen to read against it.
-- **`logo`** (SVG, PNG, JPEG or WebP) shows on the intro and the outro.
-- **`theme`** and **`accent`** colour the overlays and the skip card too.
-- **`fonts`** replace Inter Tight (titles) and Inter (text), which are bundled with JetBrains Mono (labels).
-- Paths are relative to `flow-reel.json`, inside the script's folder.
-
-## Compose
+## Commands
 
 ```sh
-npx flow-reel compose demos/settings.ts
+npx flow-reel compose <script.ts> [--out <dir>] [--voice <name>] [--speaker <name>] [--language <name>]
+                                  [--model <id>] [--api-key-env <var>] [--base-url <url>] [--no-sound] [--save-config]
+npx flow-reel verify <reel>           # the reel matches its manifest (no Docker needed)
+npx flow-reel compare <a.reel> <b.reel>   # same steps, comments, voice and effects, starts within ±150 ms
 ```
 
-This writes the reel `demos/settings.reel/`, next to the script. `--out <dir>` writes `<dir>/settings.reel/`
-instead, so one folder can collect the reels of many scripts. Every reel has the same layout:
+→ [CLI](https://docs.codeonym.work/projects/flow-reel/en/latest/reference/cli/)
 
-| File | What it is |
-|---|---|
-| `video.mp4` | The polished video, 1920×1080, 30 fps, with AAC speech and interaction sounds. |
-| `transcript.json` | Each step's original `comment` and `startMs`, `actionEndMs` and `endMs` on the video's timeline (schema version 2). |
-| `events.json` | Every move, click, keystroke run, scroll, sound, effect, card and overlay, timed the same way, and whether zoom is automatic (schema version 6). |
-| `captions.srt` | Captions for a subtitle-capable video player. |
-| `captions.vtt` | WebVTT captions for a browser's `<video>` / `<track>`. |
-| `audio/000.wav` | Local speech clips, named by zero-based step index. |
-| `manifest.json` | Every file above with its size and SHA-256, the script's name and hash, the composer version and platform, the integration and the voice (version 1). |
-| `work/` | Intermediate files, for debugging only; not in the manifest, and ignored by git. |
+## Requirements
 
-A compose builds the new reel in `settings.reel.partial/` and replaces the old reel only once it has succeeded. A
-failed compose leaves the previous reel as it was, and the partial folder for debugging; the next compose clears it.
-The manifest proves a reel is whole and unaltered (see [Verify a reel](#verify-a-reel)); it does not prove two reels
-are the same, since the video's bytes differ on every compose.
+- Node.js 22.18 or later. Scripts are TypeScript, run with Node's type stripping.
+- Docker or Podman. Release images target Linux amd64 and arm64. Docker Desktop runs them on macOS and Windows,
+  where `localhost` in a script is mapped to the host (not yet tested in CI).
+- About 2.5 free CPU cores while recording. On an overloaded machine the compose stops rather than save a video
+  whose timing is off.
+- About 7 GB of disk for the composer image. The built-in local voice also needs more than 5 GiB of memory; a cloud
+  voice doesn't.
 
-Each caption shows one step's comment from its `startMs` to its `endMs`. Caption whitespace is normalized and the
-player wraps the text; the transcript keeps the original comment. Blank comments and steps lasting zero
-milliseconds stay in the transcript but produce no caption. Commented steps include the full speech clip and
-at least 200 ms afterward.
+The npm package and the composer image share one version.
 
-The voice is Qwen3-TTS 0.6B CustomVoice, Ryan in English unless [configured](#configure-the-composer), through the
-official Python runtime on CPU. Model and tokenizer assets are pinned and downloaded when the image is built;
-synthesis runs offline without a key. A [cloud voice](#cloud-voices) is faster, and needs a key and a network. Speech is generated after capture finishes. The transcript records the voice
-(adapter, speaker, seed and language), and each clip's relative file path,
-duration in milliseconds and complete-file SHA-256 hash. Share the whole reel folder.
+## Upgrading
 
-Synthesis normalizes whitespace without interpreting caption escapes; the transcript preserves the original text.
-A blank comment produces no clip. Clip numbers retain step indexes, so skipped steps leave gaps.
-A comment with no action still produces speech. Each action runs once at normal speed. After a step's last action
-returns (`actionEndMs`), the composer waits for network quiet (500 ms, bounded at 10 seconds), then captures another
-100 ms. Scripts must still await the UI state they intend to show; network quiet does not
-prove that an operation succeeded. A timeout prints a warning and continues.
+Breaking changes and how to move a script across them are in
+[Migration](https://docs.codeonym.work/projects/flow-reel/en/latest/migration/). In short:
 
-After capture and synthesis finish, the renderer adds only the whole frames needed to fit speech plus its tail,
-freezing the last frame of that settled window. A comment starts alongside its step at `startMs`. Longer actions
-continue normally after speech finishes. Transcript windows, captions, events and the master all use this final
-timeline. A blank comment gets no speech padding; a script without comments can still have interaction sounds.
-Without sounds either, or with `--no-sound`, it has no audio stream.
+### From 0.4 to 0.5
 
-Visual polish is automatic, unless the script [directs the picture](#direct-the-picture): a white arrow with a dark outline follows logged pointer motion, and a blue ring
-expands and fades for 400 ms at each click. The cursor and rings keep their screen size while the page zooms.
-Clicks ease the camera in over 650 ms; it stays zoomed until 2 seconds after the latest click or typing ends,
-then eases out over 800 ms. Further activity extends the zoom. Hover and scrolling alone do not trigger it.
-The camera follows the pointer and stays within the recorded page. Zoom is capped at 4/3 (about 1.33×), using
-the default 1440p master for sharp 1080p output; large targets reduce the zoom to keep their visible bounds
-framed with padding. Bounds are captured before the action, so they do not track subsequent layout changes.
-Partly off-screen elements can only show the portion captured in the master. Clicks logged without bounds use
-their click points instead, without a whole-element framing guarantee. Polish preserves every frame and
-all comment, transcript and caption times. Zoom animations end with the video and do not lengthen it.
-Polish runs after capture, without replaying actions or changing speed; a [`speedUp`](#speed-up-a-wait) stretch is
-shortened before polish, and its events with it.
+`showFrame` is retired: `await showFrame("diagram.png", 3000)` becomes
+`await card.image("diagram.png", { frame: "none", fit: "contain", ms: 3000 })`.
 
-The assembled voice and final voiced mix are normalized to -16 LUFS with a -1.5 dBTP peak ceiling, then encoded as 48 kHz stereo AAC-LC
-at 192 kb/s. Decoded output is checked within 1 LU of the loudness target and 0.1 dB of the peak ceiling. Original
-WAVs, durations and hashes remain unchanged. Synthesis, rendering or sync failures fail the command before a new
-success transcript is written.
+### From 0.1 to 0.2
 
-The local generator resets seed 0 for each clip and uses pinned settings. Matching hashes are checked in fresh
-processes on the tested CPU/container platform; byte equality across hardware or architectures is not guaranteed.
-On the tested Ryzen 5 3500U, one fresh process generated three short clips (6.4 seconds of speech) in 147 seconds,
-with about 5.4 GiB peak process memory. Runtime varies with host load. A synthesis job has a 15-minute timeout;
-individual steps also fail if generation reaches its limit, rather than returning truncated speech.
-
-Captions escape `&`, `<` and `>` so comments are emitted without raw tags. WebVTT displays the literal text; some
-SRT players display escape sequences such as `&lt;` instead. Use WebVTT in a browser when literal symbols matter.
-
-In `settings.reel/work/`: `capture.mp4` is the original 2560×1440 recording (the viewport × 4/3, padded by one
-black pixel when that is odd, as for 1280×720); `master.mp4` is the clean recording
-with added holds and shown images, preserved before cursor/zoom rendering; `master.json.startMs` gives delivery time zero within
-the master, preserving its calibration pre-roll. Events use CSS pixels and final delivery times; click and typing
-events may include `bounds: { x, y, width, height }` in CSS pixels.
-`voice.wav` is the normalized voice-only bus on the delivery timeline; `sound.wav` is the ducked sound
-bus and `mix.wav` is the final normalized voiced mix when sounds exist. The `work/` folder ignores itself in git;
-the rest of the reel is yours to commit or not.
-
-To keep runs the same, the runner fixes the viewport, device scale, `prefers-reduced-motion`, the page's clock
-(`2026-01-05T09:00:00Z`) and `Math.random`'s seed, and waits for the network to go idle before each step. Two runs of
-a script have the same steps, each starting within ±150 ms.
-
-## Configure the composer
-
-The composer's settings are the integration that runs the script and the voice that speaks its comments. They come
-from flags, then from `flow-reel.json` in the script's folder, then from the defaults: a flag wins over the file, and
-the file over the default.
-
-```json
-{
-  "version": 1,
-  "integration": "playwright",
-  "voice": { "adapter": "qwen3-tts-0.6b", "speaker": "Aiden", "language": "french" }
-}
-```
-
-```sh
-npx flow-reel compose demos/settings.ts --speaker Serena --language english
-```
-
-| Flag | File | Values | Default |
-|---|---|---|---|
-| `--integration` | `integration` | `playwright` | `playwright` |
-| `--voice` | `voice.adapter` | `qwen3-tts-0.6b` | `qwen3-tts-0.6b` |
-| `--speaker` | `voice.speaker` | `Aiden`, `Dylan`, `Eric`, `Ono_Anna`, `Ryan`, `Serena`, `Sohee`, `Uncle_Fu`, `Vivian` | `Ryan` |
-| `--language` | `voice.language` | `chinese`, `english`, `french`, `german`, `italian`, `japanese`, `korean`, `portuguese`, `russian`, `spanish` | `english` |
-| `--model` | `voice.model` | a cloud voice's model ([cloud voices](#cloud-voices)) | the provider's |
-| `--api-key-env` | `voice.apiKeyEnv` | the environment variable holding a cloud voice's key | the provider's |
-| `--base-url` | `voice.baseUrl` | a cloud voice's server | the provider's |
-
-Every key of the file is optional except `version`. `brand` sets how cards look ([Brand](#brand)). An unknown name
-fails before the composer starts, with the list of known ones. When `--voice` picks another voice than the file's, the file's speaker and language are ignored.
-
-The first successful compose in a folder without `flow-reel.json` writes one with the settings it used, so the next
-compose, and everyone sharing the scripts, uses the same ones. An existing file is rewritten only with
-`--save-config`, and only when the compose succeeds. Commit the file with the scripts.
-
-**Reused speech.** The reel already on disk is the voice's cache. A comment with the same text (whitespace
-normalized) and the same voice settings reuses the previous reel's clip, as long as the clip still matches the hash
-in its transcript; every other comment is spoken again. Recomposing an unchanged script speaks nothing and gives the
-same audio and transcript; the compose says how many comments it voiced and reused. Deleting the reel deletes its
-cache.
-
-**Credentials.** The local voice needs none. A cloud voice reads its API key from an environment variable: the host
-checks it is set, and passes it into the container by name, so its value is never written to the reel, the manifest,
-`flow-reel.json` or the command line. `flow-reel.json` names the variable (`apiKeyEnv`), never the key: a file with
-`apiKey` in it is refused.
-
-### Cloud voices
-
-The local voice runs on the CPU, which is slow for long scripts. A cloud voice sends each comment to a provider's
-speech API, four at a time, and is usually done in seconds. Pick one with `voice.adapter`, set its key in the
-environment, and compose as usual:
-
-```json
-{
-  "version": 1,
-  "voice": { "adapter": "openai", "model": "gpt-4o-mini-tts", "speaker": "coral", "apiKeyEnv": "OPENAI_API_KEY" }
-}
-```
-
-```sh
-export OPENAI_API_KEY=sk-...
-npx flow-reel compose demos/settings.ts
-```
-
-| `voice.adapter` | Default model | Default speaker | Key variable |
-|---|---|---|---|
-| `openai` | `gpt-4o-mini-tts` | `coral` | `OPENAI_API_KEY` |
-| `gemini` | `gemini-3.8-flash-tts` | `Kore` | `GEMINI_API_KEY` |
-| `openrouter` | `google/gemini-3.8-flash-tts` | `Kore` | `OPENROUTER_API_KEY` |
-| `together` | `canopylabs/orpheus-3b-0.1-ft` | `tara` | `TOGETHER_API_KEY` |
-| `groq` | `canopylabs/orpheus-v1-english` | `troy` | `GROQ_API_KEY` |
-| `elevenlabs` | `eleven_multilingual_v2` | `JBFqnCBsd6RMkjVDRZzb` (a voice ID) | `ELEVENLABS_API_KEY` |
-| `openai-compatible` | none: set `model` | `alloy` | none: set `apiKeyEnv` if the server needs a key |
-
-- **Model and speaker:** any value the provider accepts. flow-reel passes them on unchecked, since each provider's
-  lists change; a wrong one fails with the provider's own message. OpenRouter routes to many speech models
-  (Gemini, ElevenLabs, Mistral, Deepgram and others) behind one key; its current list, with each model's voices:
-  `curl -s "https://openrouter.ai/api/v1/models?output_modalities=speech"`.
-- **Language:** `auto` by default: the provider detects it from the text. Together AI and ElevenLabs also take an ISO
-  639-1 code (`"language": "fr"`); the others ignore it.
-- **Server:** `baseUrl` points a voice at another endpoint: a proxy, a regional host, or, with `openai-compatible`,
-  any server that implements OpenAI's `/audio/speech` (a self-hosted Kokoro or another local server, for example).
-  From inside the container, `localhost` is the machine running the compose.
-- **Retries:** rate limits (HTTP 429) and server errors are retried with backoff; a rejected key fails at once and
-  names the variable to check.
-- **Repeatability:** a cloud voice may not say a line the same way twice. The reel cache keeps that from mattering:
-  unchanged comments reuse their clips, so a recompose sends only new or changed comments and doesn't pay for the
-  rest. Changing the provider, the model, the speaker or the language voices everything again. The transcript
-  records the voice as `<adapter>:<model>`.
-- Claude isn't a voice: Anthropic has no speech API.
-
-## Sounds
-
-Clicks and per-character typing taps are automatic. To mark a meaningful moment, play one of the `Sounds`
-constants, chained on the element whose action it belongs to, or standalone from the script context:
-
-```ts
-import { script, Sounds } from "flow-reel";
-
-export default script({ url: "http://localhost:4173" }, async ({ page, sound }) => {
-  await page.getByRole("button", { name: "Delete" }).sound(Sounds.navigation.OPEN).click();
-  await page.getByText("Deleted").waitFor();
-  sound(Sounds.feedback.SUCCESS);
-});
-```
-
-| Group | Sounds |
-|---|---|
-| `Sounds.feedback` | `SUCCESS`, `ERROR`, `NOTIFICATION` |
-| `Sounds.navigation` | `OPEN`, `CLOSE`, `BACK` |
-| `Sounds.controls` | `TOGGLE`, `SELECT` |
-
-A chained sound plays at the moment its element's action is logged (for a click, with the click). `sound(name)`
-marks the current time and returns immediately; it adds no pause, performs no browser action and does not infer
-whether the operation succeeded, so call it after the state or assertion it describes. A sound is named only by a
-`Sounds` constant: a bare string is a type error, and an unknown name fails at run time, including when sounds are
-muted.
-
-```sh
-npx flow-reel compose demos/settings.ts --no-sound
-```
-
-`--no-sound` also works before the script. It mutes all sounds while keeping them in the event log, with the
-comments, captions and visuals. Sounds never add frames, change speech holds or extend the video; tails reaching
-the video end fade out and are trimmed. A sound within ±150 ms inclusive replaces automatic click audio, while the
-visual ripple and logged click remain. Other sounds may overlap. Hover/scroll have no automatic sounds.
-
-The palette uses short, related DAEDAL CC0 UI sounds, with three quieter typing taps cycling deterministically.
-Sounds sit beneath speech and duck another 6 dB over each speech clip, with a 30 ms lead-in and 250 ms recovery.
-They remain ducked through pauses inside a clip. The combined sound bus has a -18 dBFS sample-peak ceiling before
-final mix processing. SFX-only demos retain quiet fixed levels instead of being normalized to speech loudness.
-Final AAC peak checks also apply. See [asset sources, licences and calibration](docker/sfx/README.md).
-
-Typing timestamps follow the logged fixed-delay intent, not measured browser keystrokes. Unicode code points are
-kept intact; non-US characters follow Playwright's delayed text insertion. Repeat renders of identical inputs in
-the same recording image produce identical decoded sound audio. The comparison below compares speech source hashes,
-step timing and the effects written in the script; it does not compare sounds or prove final mixed-audio equality.
-
-The event log records a sound as `{ t, type: "sound", name }`, `name` being the constant's lowercase value. The
-selected sounds are bundled in the npm package/image and work offline. The full planning audition library is
-not included in the runtime package.
-
-## Verify a reel
-
-```sh
-npx flow-reel verify demos/settings.reel
-```
-
-Checks the reel against its manifest: every listed file is present with its size and hash, and nothing else is
-there apart from `work/`. Exit status is 0 when the reel is whole, 1 when a file is missing, extra or changed (each
-is named), and 2 when the folder isn't a reel or its manifest is invalid. It runs on the host without Docker.
-
-## Compare reels
-
-```sh
-npx flow-reel compare demos/a.reel demos/b.reel
-```
-
-Comparison runs on the host without Docker or FFmpeg. It verifies both reels first (any problem exits 2), then
-validates each transcript's schema and sync, and checks
-video dimensions/FPS, step order, exact original comments, voice identity, source audio hashes/durations and step
-starts within ±150 ms inclusive. It then checks the event logs' effects: the same `autoZoom`, and the same flashes,
-shown frames, zooms and speed-ups in order, with equal options and image hashes, each starting within ±150 ms (a
-speed-up's factor must match; how long its wait took may differ). Clicks, moves,
-typing, scrolls and sounds are not compared. Script, image and output paths may differ. Legacy silent transcripts and blank-only
-recordings are supported. Exit status is 0 for a match, 1 for valid recordings that differ, and 2 for invalid input,
-failed sync or usage errors; diagnostics identify the file or step.
-
-These checks read the transcript and event log only. They do not open referenced audio, caption or video files, prove visual/UI
-equality, or promise identical encoded MP4 bytes. Valid action/end/video durations may differ between recordings;
-only step starts have the 150 ms comparison tolerance. Recording automatically checks that all clips fit their
-step windows, including the speech tail, before publishing its transcript.
-
-## From 0.4 to 0.5
-
-0.5 adds [cards](#cards) and the [brand](#brand), and retires `showFrame`: a script calling it fails with a pointer to
-`card.image`.
-
-| 0.4 | 0.5 |
-|---|---|
-| `await showFrame("diagram.png", 3000)` | `await card.image("diagram.png", { frame: "none", fit: "contain", ms: 3000 })` |
-| `showFrame(…, { background: "#1b1f2a" })` | the card's `theme`, or the brand's |
-| the skip card, dimmed with "⏭ 38 s skipped" | the skip card in the brand's theme, `style: "clock"` or `"bar"` |
-| event log version 5, `frame` events | event log version 6: `card` events, and the skip's `style` |
-
-## From 0.1 to 0.2
-
-0.2 replaces the 0.1 script words; a 0.1 script fails to load with a pointer here.
+0.2 replaced the 0.1 script words. A 0.1 script fails to load, with a pointer here.
 
 | 0.1 | 0.2 |
 |---|---|
 | `import { demo } from "flow-reel"` | `import { script, Sounds } from "flow-reel"` |
 | `demo(options, async ({ page, step, sfx }) => …)` | `script(options, async ({ page, comment, sound }) => …)` |
 | `await step("Save.", () => button.click())` | `comment("Save."); await button.click()` or `await button.comment("Save.").click()` |
-| `sfx("success")` | `sound(Sounds.feedback.SUCCESS)` or `button.sound(Sounds.feedback.SUCCESS)` |
+| `sfx("success")` | `sound(Sounds.feedback.SUCCESS)` |
 | `npx flow-reel record demo.ts` | `npx flow-reel compose demo.ts` |
 | `--no-sfx` | `--no-sound` |
-| transcript version 1, step field `narration` | transcript version 2, step field `comment`; `voice.language` |
-| the voice was always Ryan in English | `--speaker`, `--language` or `flow-reel.json` (see [Configure the composer](#configure-the-composer)) |
-| event log versions 1 and 2, event `{ type: "sfx" }` | event log version 4, event `{ type: "sound" }`, plus effect events and `autoZoom` |
-| `demo.mp4`, `demo.transcript.json`, … beside the script, work files in `.flow-reel/` | one folder, `demo.reel/` (delete old `.flow-reel/` folders) |
+| `demo.mp4`, `demo.transcript.json`, … beside the script | one folder, `demo.reel/` (delete old `.flow-reel/` folders) |
 | `flow-reel compare a.transcript.json b.transcript.json` | `flow-reel compare a.reel b.reel` |
-
-## Platforms
-
-- **Linux** (Docker or Podman): the container uses the host's network, so `localhost` is your machine. Tested.
-- **macOS and Windows** (Docker Desktop): `localhost` in the script is mapped to `host.docker.internal`. Not yet
-  tested in CI.
-
-## Known gaps
-
-- Playwright calls the runner doesn't cover run without any mouse motion (the warning names them).
-- Camera framing uses pre-action target bounds, not live tracking of elements after navigation or layout changes.
 
 ## Develop
 
@@ -607,16 +170,18 @@ step windows, including the speech tail, before publishing its transcript.
 npm ci
 npm run typecheck
 npm test            # unit tests
-npm run test:e2e    # builds the image, tests offline synthesis, and records twice (needs Docker and ffmpeg)
+npm run test:e2e    # builds the image, tests offline synthesis, and records twice (needs Docker)
 ```
 
 `flow-reel compose` always runs the composer inside the image for its package version. From a source checkout it
-uses the released image of that version, not your local `src/`, and says so. To record with local changes, build
+uses the released image of that version, not your local `src/`, and says so. To compose with local changes, build
 the image under that tag first: `npm run build && docker build -t ghcr.io/codeonym-oss/flow-reel:$(node -p
 "require('./package.json').version") -f docker/Dockerfile .` (remove it afterwards with `docker rmi` to go back to
 the released one).
 
-Planning lives in `planning/` (see `groundwork.md`).
+Docs: `uv run --with-requirements docs/requirements.txt sphinx-build -W -b dirhtml docs docs/_build/html`.
+[`CONTEXT.md`](CONTEXT.md) defines the project's vocabulary. Planning lives in `planning/` (see `groundwork.md`), and
+releases are described in [`docs/releasing.md`](docs/releasing.md).
 
 ## License
 

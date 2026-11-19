@@ -29,7 +29,7 @@ jobs:
           node dist/cli.js compare 2>&1 | grep -q "usage: flow-reel"
 
   # Whether a pull request, or a push to main, changes anything the package or the image is built from (GH-66): the
-  # plugin (but its examples), the planning tree and Markdown don't, so the image build and the e2e tests are skipped
+  # plugin (but its examples), the planning tree, the docs site and Markdown don't, so the image build and the e2e tests are skipped
   # for them. A manual run, or a push whose previous commit isn't known, always runs them; releases rerun them anyway.
   changes:
     runs-on: ubuntu-24.04
@@ -57,7 +57,7 @@ jobs:
             exit 0
           fi
           echo "$changed"
-          runtime=$(printf '%s\n' "$changed" | awk '!/^planning\// && !/\.md$/ &&
+          runtime=$(printf '%s\n' "$changed" | awk '!/^planning\// && !/\.md$/ && !/^docs\// && !/^\.readthedocs\.yaml$/ &&
             !(/^plugin\// && !/^plugin\/examples\//) && NF { n++ } END { print n ? "true" : "false" }')
           echo "runtime=$runtime" | tee -a "$GITHUB_OUTPUT"
 
