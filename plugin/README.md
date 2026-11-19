@@ -29,3 +29,6 @@ codex plugin add flow-reel@codeonym-oss
 ```
 
 The plugin and the flow-reel package update separately.
+
+A walkthrough of a session, prompts that work well, and how keys and logins are handled:
+[Make reels with Claude](https://docs.codeonym.work/projects/flow-reel/en/latest/tutorials/with-claude/).

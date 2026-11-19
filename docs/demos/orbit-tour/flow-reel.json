@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "integration": "playwright",
+  "voice": { "adapter": "qwen3-tts-0.6b", "speaker": "Ryan", "language": "english" },
+  "brand": { "theme": "ink", "accent": "#6366F1" }
+}

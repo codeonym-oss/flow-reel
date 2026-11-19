@@ -4,3 +4,6 @@ test/e2e/out/
 release/
 plugin/examples/*/*.reel/
 plugin/examples/*/*.reel.partial/
+docs/_build/
+docs/demos/*/*.reel/
+docs/demos/*/*.reel.partial/
