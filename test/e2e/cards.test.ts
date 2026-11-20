@@ -45,6 +45,13 @@ fetch("https://example.com/beacon").catch(() => {});
 setTimeout(() => { document.getElementById("box").style.background = "#00ff00"; }, 500);
 document.title = String(window.flowReel.props.items.length);
 </script></body></html>`);
+  // Drawn on a timer, with no DOM change: a frame can't be reused from the one before.
+  writeFileSync(join(script, "cards/canvas.html"), `<!doctype html><html><body style="margin:0">
+<canvas id="c" width="480" height="270"></canvas><script>
+const c = document.getElementById("c").getContext("2d");
+let k = 0;
+setInterval(() => { c.fillStyle = k++ % 2 ? "#ff0000" : "#0000ff"; c.fillRect(0, 0, 480, 270); }, 100);
+</script></body></html>`);
 });
 
 const job = (id: string, kind: CardJob["kind"], props: Record<string, unknown>, more: Partial<CardJob> = {}): CardJob =>
@@ -120,5 +127,19 @@ describe("custom cards", () => {
     const intro = job("intro-again", "intro", { title: "Saved views", kicker: "Orbit" });
     const introHash = async (work: string) => createHash("sha256").update(rgb((await render([intro], work))["intro-again"])).digest("hex");
     expect(await introHash(join(dir, "intro-1"))).toBe(await introHash(join(dir, "intro-2")));
+  });
+
+  it("draws the same frames when several composes paint at once", async () => {
+    const intro = job("busy", "intro", { title: "Saved views", kicker: "Orbit" });
+    const hash = async (work: string) => createHash("sha256").update(rgb((await render([intro], work)).busy)).digest("hex");
+    const hashes = await Promise.all([1, 2, 3].map((i) => hash(join(dir, `busy-${i}`))));
+    expect(new Set(hashes).size).toBe(1);
+  });
+
+  it("draws every frame of a canvas page, which changes with no DOM change", async () => {
+    const canvas = job("canvas", "custom", {}, { page: "cards/canvas.html", enter: "cut", exit: "cut" });
+    const f = rgb((await render([canvas], join(dir, "canvas"))).canvas);
+    // Blue from 100 ms (frame 3) on the card's clock, then red and blue swap every 100 ms (3 frames).
+    expect([4, 7, 10, 13].map((n) => pixel(f, n, 320, 180)[0] > 200)).toEqual([false, true, false, true]);
   });
 });

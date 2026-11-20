@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { copyFileSync, rmSync, writeFileSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Timeline } from "../timeline.ts";
 import type { ComposerEvent } from "../schema/events.ts";
@@ -13,9 +13,10 @@ function ffmpeg(args: string[]): string {
   });
 }
 
+/** The frame count an MP4's header records: ffmpeg writes one entry per frame, so nothing needs decoding. */
 export function videoFrames(file: string): number {
-  const result = execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-count_frames",
-    "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", file], { encoding: "utf8" });
+  const result = execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0",
+    "-show_entries", "stream=nb_frames", "-of", "csv=p=0", file], { encoding: "utf8" });
   const frames = Number(result.trim());
   if (!Number.isInteger(frames) || frames <= 0) throw new Error(`invalid frame count in ${file}`);
   return frames;
@@ -78,13 +79,14 @@ function normalizeAudio(bus: string, voice: string, samples: number): void {
 }
 
 /**
- * The capture with the timeline's insertions: spans of the capture, cloned frames (GH-32 decision 003) and cards,
- * each from its rendered clip (GH-76 decision 003).
+ * The filters that make the capture (input 0) into the timeline's frames, labelled [master]: spans of the capture,
+ * cloned frames (GH-32 decision 003) and cards, each from its rendered clip (GH-76 decision 003), the clips being
+ * inputs `firstClip` on. Without insertions or stretches it is the capture itself.
  */
-function renderMaster(capture: string, master: string, timeline: Timeline, clips: Readonly<Record<string, string>>): void {
-  const { width, height } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries",
-    "stream=width,height", "-of", "json", capture], { encoding: "utf8" })).streams[0];
-  const inputs = ["-i", capture];
+function masterFilters(timeline: Timeline, clips: Readonly<Record<string, string>>, firstClip: number,
+  [width, height]: [number, number]): { inputs: string[]; filters: string } {
+  if (!timeline.insertions.length && !timeline.stretches.length) return { inputs: [], filters: "[0:v]null[master]" };
+  const inputs: string[] = [];
   const filters: string[] = [];
   const labels: string[] = [];
   let from = 0;
@@ -124,7 +126,7 @@ function renderMaster(capture: string, master: string, timeline: Timeline, clips
       span(insertion.frame, 0);
       const clip = clips[insertion.card.id];
       if (!clip) throw new Error(`card ${insertion.card.id} wasn't rendered`);
-      const input = 1 + clipInputs++;
+      const input = firstClip + clipInputs++;
       inputs.push("-i", clip);
       const label = `s${labels.length}`;
       filters.push(`[${input}:v]scale=${width}:${height},setsar=1,format=yuv420p,trim=end_frame=${insertion.frames},setpts=PTS-STARTPTS[${label}]`);
@@ -134,14 +136,12 @@ function renderMaster(capture: string, master: string, timeline: Timeline, clips
     span(insertion.frame, insertion.frames);
   }
   span(timeline.sourceFrames, 0);
-  filters.push(`${labels.join("")}concat=n=${labels.length}:v=1:a=0,setpts=N/(${timeline.fps}*TB)[v]`);
-  ffmpeg(["-v", "error", ...inputs, "-filter_complex", filters.join(";"), "-map", "[v]",
-    "-r", String(timeline.fps), "-c:v", "libx264", "-preset", "ultrafast", "-crf", "10", "-pix_fmt", "yuv420p", master]);
+  filters.push(`${labels.join("")}concat=n=${labels.length}:v=1:a=0,setpts=N/(${timeline.fps}*TB)[master]`);
+  return { inputs, filters: filters.join(";") };
 }
 
 interface RenderOptions {
   capture: string;
-  master: string;
   video: string;
   voice: string;
   audioDir: string;
@@ -157,10 +157,7 @@ interface RenderOptions {
   autoZoom?: boolean;
 }
 
-export function renderTimeline({ capture, master, video, voice, audioDir, viewport: [width, height], timeline, clips = {}, overlays = [], events = [], sound = true, autoZoom = true }: RenderOptions): void {
-  if (!timeline.insertions.length && !timeline.stretches.length) copyFileSync(capture, master);
-  else renderMaster(capture, master, timeline, clips);
-  if (videoFrames(master) !== timeline.frames) throw new Error("rendered master frame count disagrees with timeline");
+export function renderTimeline({ capture, video, voice, audioDir, viewport: [width, height], timeline, clips = {}, overlays = [], events = [], sound = true, autoZoom = true }: RenderOptions): void {
   const hasVoice = assembleVoice(voice, audioDir, timeline);
   const effects = assembleSfx(events, timeline, hasVoice ? voice : undefined, dirname(voice), sound);
   let audio = hasVoice ? voice : effects;
@@ -169,17 +166,19 @@ export function renderTimeline({ capture, master, video, voice, audioDir, viewpo
     normalizeAudio(effects, audio, Math.round((timeline.frames - timeline.cutFrames) * 48000 / timeline.fps));
   }
   const dimensions = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries",
-    "stream=width,height", "-of", "json", master], { encoding: "utf8" })).streams[0];
+    "stream=width,height", "-of", "json", capture], { encoding: "utf8" })).streams[0];
+  // The timeline's frames go straight into the one delivery encode: no master file in between.
+  const master = masterFilters(timeline, clips, audio ? 2 : 1, [dimensions.width, dimensions.height]);
   const polish = polishFilters(events, { viewport: [width, height], source: [dimensions.width, dimensions.height],
     fps: timeline.fps, frames: timeline.frames - timeline.cutFrames, autoZoom, stretches: timeline.stretches,
     // Nothing is drawn over a card either, and the crop is full (GH-62 decision 003).
     cardSpans: timeline.cards.map(({ startMs, endMs }) => ({ startMs, endMs })), overlays },
-    video, audio ? 2 : 1);
+    video, (audio ? 2 : 1) + master.inputs.length / 2);
   const graph = video + ".filters";
-  writeFileSync(graph, `[0:v]trim=start_frame=${timeline.cutFrames},setpts=PTS-STARTPTS[trimmed];${polish.filters}`);
+  writeFileSync(graph, `${master.filters};[master]trim=start_frame=${timeline.cutFrames},setpts=PTS-STARTPTS[trimmed];${polish.filters}`);
   // FFmpeg 8+ removed the old script option; the recording image still uses FFmpeg 6.
   const major = Number(execFileSync("ffmpeg", ["-version"], { encoding: "utf8" }).match(/ffmpeg version (\d+)/)?.[1]);
-  ffmpeg(["-v", "error", "-i", master, ...(audio ? ["-i", audio] : []), ...polish.inputs,
+  ffmpeg(["-v", "error", "-i", capture, ...(audio ? ["-i", audio] : []), ...master.inputs, ...polish.inputs,
     major >= 8 ? "-/filter_complex" : "-filter_complex_script", graph, "-map", "[polished]",
     ...(audio ? ["-map", "1:a:0", "-c:a", "aac", "-profile:a", "aac_low", "-ar", "48000", "-ac", "2", "-b:a", "192k"] : []),
     "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", video]);

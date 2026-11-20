@@ -212,13 +212,11 @@ describe("flow-reel compose", () => {
     }
   });
 
-  it("writes a 1440p 30 fps master and a 1080p copy, dropping no frames", () => {
-    const master = probe(join(a.dir, "demo.reel/work/master.mp4"));
-    expect(master).toMatchObject({ width: 2560, height: 1440, fps: "30/1" });
+  it("writes a 1440p 30 fps capture and a 1080p copy, dropping no frames, with no master file", () => {
     const capture = probe(join(a.dir, "demo.reel/work/capture.mp4"));
-    expect(master.frames).toBeGreaterThan(capture.frames);
+    expect(capture).toMatchObject({ width: 2560, height: 1440, fps: "30/1" });
     expect(Math.abs(capture.frames - capture.seconds * 30)).toBeLessThanOrEqual(capture.seconds * 30 * 0.01 + 1);
-    expect(Math.abs(master.frames - master.seconds * 30)).toBeLessThanOrEqual(master.seconds * 30 * 0.01 + 1);
+    expect(existsSync(join(a.dir, "demo.reel/work/master.mp4"))).toBe(false);
     expect(probe(join(a.dir, "demo.reel/video.mp4"))).toMatchObject({ width: 1920, height: 1080, fps: "30/1" });
     expect(readFileSync(join(a.dir, "demo.reel/work/.gitignore"), "utf8")).toBe("*\n");
   });
@@ -283,9 +281,7 @@ describe("flow-reel compose", () => {
 
   it("times events on the video's own clock: the marker click shows within 2 frames of its t", () => {
     const click = a.events.events.filter((e) => e.type === "click").at(-1)!;
-    const work = join(a.dir, "demo.reel/work");
-    const cut = JSON.parse(readFileSync(join(work, "master.json"), "utf8")).startMs;
-    expect(Math.abs(firstMagentaMs(join(work, "master.mp4")) - cut - click.t)).toBeLessThanOrEqual(2 * 1000 / 30);
+    expect(Math.abs(firstMagentaMs(join(a.dir, "demo.reel/video.mp4")) - click.t)).toBeLessThanOrEqual(2 * 1000 / 30);
   });
 
   it("draws a blue ripple at every transformed click on the final delivery clock", () => {

@@ -22,7 +22,7 @@ export const folderStore: ReelStore = {
     const videoFile = "video.mp4";
     return {
       work: {
-        capture: join(work, "capture.mp4"), master: join(work, "master.mp4"), masterInfo: join(work, "master.json"),
+        capture: join(work, "capture.mp4"), masterInfo: join(work, "master.json"),
         stagedVideo, voiceBus: join(work, "voice.wav"),
       },
       audioDir: join(partial, "audio"),

@@ -85,6 +85,6 @@ and output paths may differ.
 | File | What it is |
 |---|---|
 | `capture.mp4` | The original 2560×1440 recording (the viewport × 4/3). |
-| `master.mp4` | The clean recording with holds and cards added, before the cursor and zoom are drawn. `master.json.startMs` gives the video's time zero within it. |
+| `master.json` | `startMs`: where the video's time zero is in `capture.mp4`. |
 | `voice.wav` | The normalized voice-only track on the video's timeline. |
 | `sound.wav`, `mix.wav` | The ducked sound track, and the final mix, when there are sounds. |

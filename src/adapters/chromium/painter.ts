@@ -1,7 +1,7 @@
 // The card painter (GH-76 decisions 003 and 007): a headless Chromium draws each card or overlay page at the reel's
 // size with its clock frozen (Playwright's clock fakes timers, `Date`, `performance` and `requestAnimationFrame`),
 // seeks every CSS and Web animation to the frame's time, and screenshots it. Only what the request serves loads: the
-// network is off.
+// network is off. A frame where nothing moved or changed since the last one reuses that frame's file.
 import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { extname } from "node:path";
 import { chromium } from "playwright";
@@ -39,19 +39,51 @@ export const chromiumPainter: CardPainter = {
             await document.fonts.ready;
             await Promise.all([...document.images].map((image) => image.decode().catch(() => undefined)));
           });
+          // Anything that may change the next frame marks the page changed: a DOM change or a frame callback. A canvas,
+          // a video, an iframe or an SVG animation can change without either, so such a page is shot on every frame.
+          await page.evaluate(() => {
+            const w = window as unknown as { flowReelChanged: boolean; flowReelAlways: boolean };
+            w.flowReelChanged = true;
+            w.flowReelAlways = Boolean(document.querySelector("canvas, video, iframe, animate, animateMotion, animateTransform, set"));
+            new MutationObserver(() => { w.flowReelChanged = true; })
+              .observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
+            const frame = window.requestAnimationFrame.bind(window);
+            window.requestAnimationFrame = (callback) => frame((time) => { w.flowReelChanged = true; callback(time); });
+            const style = document.createElement("style");
+            style.textContent = "*, *::before, *::after { caret-color: transparent !important; }";
+            document.head.append(style);
+          });
+          // Chromium's fast PNG encoder, still lossless; the clip's scale is the device scale, or it shoots CSS pixels.
+          const cdp = await context.newCDPSession(page);
+          if (request.transparent) await cdp.send("Emulation.setDefaultBackgroundColorOverride", { color: { r: 0, g: 0, b: 0, a: 0 } });
+          const clip = { x: 0, y: 0, width: request.viewport[0], height: request.viewport[1], scale: request.scale };
           let now = 0;
+          let last: Buffer | undefined;
+          let wasMoving = true;
           for (const [i, t] of request.times.entries()) {
             if (t > now) await page.clock.runFor(t - now);
             now = Math.max(now, t);
             // Each animation's time is how long since it appeared, on the frozen clock.
-            await page.evaluate((now) => {
+            const { moving, changed } = await page.evaluate((now) => {
+              let moving = false;
               for (const animation of document.getAnimations() as (Animation & { flowReelBorn?: number })[]) {
                 animation.flowReelBorn ??= now;
                 animation.pause();
                 animation.currentTime = now - animation.flowReelBorn;
+                const end = animation.effect?.getComputedTiming().endTime;
+                if (end === undefined || Number(animation.currentTime) < Number(end)) moving = true;
               }
+              const w = window as unknown as { flowReelChanged: boolean; flowReelAlways: boolean };
+              const changed = w.flowReelChanged || w.flowReelAlways;
+              w.flowReelChanged = false;
+              return { moving, changed };
             }, now);
-            writeFileSync(request.frame(i), await page.screenshot({ type: "png", caret: "hide", omitBackground: Boolean(request.transparent) }));
+            // The frame after an animation stops is shot too, so its last state is drawn.
+            if (!last || changed || moving || wasMoving) {
+              last = Buffer.from((await cdp.send("Page.captureScreenshot", { format: "png", optimizeForSpeed: true, clip })).data, "base64");
+            }
+            wasMoving = moving;
+            writeFileSync(request.frame(i), last);
           }
         } finally {
           await context.close();

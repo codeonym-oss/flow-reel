@@ -79,7 +79,7 @@ export interface ReelResult {
 /** Where one script's reel is built: its work files, its audio, and the step that publishes it. */
 export interface Reel {
   /** Intermediate files; the composer writes them, nothing reads them afterwards except to debug. */
-  work: { capture: string; master: string; masterInfo: string; stagedVideo: string; voiceBus: string };
+  work: { capture: string; masterInfo: string; stagedVideo: string; voiceBus: string };
   /** Where the voice's clips go. */
   audioDir: string;
   /** The folder a clip's transcript path (`audio/000.wav`) is relative to. */

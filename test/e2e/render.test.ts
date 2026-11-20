@@ -19,14 +19,13 @@ beforeAll(() => {
       "-c:a", "pcm_s16le", join(dir, `${name}.wav`)]);
   }
 });
-const options = (name: string) => ({ capture: join(dir, "capture.mp4"), master: join(dir, `${name}-master.mp4`),
+const options = (name: string) => ({ capture: join(dir, "capture.mp4"),
   video: join(dir, `${name}.mp4`), voice: join(dir, `${name}-voice.wav`), audioDir: dir, viewport: [160, 90] as [number, number] });
 
 it("preserves calibration pre-roll and exact frames in a silent no-hold delivery", () => {
   const timeline = planTimeline([], { fps: 30, frames: 60, cutMs: 500 });
   const out = options("silent");
   renderTimeline({ ...out, timeline });
-  expect(videoFrames(out.master)).toBe(60);
   expect(videoFrames(out.video)).toBe(45);
   const { streams } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_streams", "-of", "json", out.video], { encoding: "utf8" }));
   expect(streams.map((s: { codec_type: string }) => s.codec_type)).toEqual(["video"]);
@@ -43,7 +42,6 @@ it("clones the last captured frame at multiple boundaries including the final fr
   // This slice tests video holds; audio placement is covered separately below.
   timeline.steps = timeline.steps.map(({ audio: _, ...s }) => s);
   renderTimeline({ ...out, timeline });
-  expect(videoFrames(out.master)).toBe(90);
   expect(videoFrames(out.video)).toBe(75);
   const pixels = execFileSync("ffmpeg", ["-v", "error", "-i", out.video, "-vf", "scale=1:1,format=rgb24", "-f", "rawvideo", "-"]);
   const pixel = (frame: number) => [...pixels.subarray(frame * 3, frame * 3 + 3)];
@@ -140,7 +138,6 @@ it("places a later clip after prior holds while preserving the final speech tail
     { t: 100, type: "click", at: [80, 45], button: "left", target: "one" },
     { t: 1900, type: "click", at: [120, 60], button: "left", target: "two" },
   ] });
-  expect(videoFrames(out.master)).toBe(93);
   expect(videoFrames(out.video)).toBe(78);
   const raw = execFileSync("ffmpeg", ["-v", "error", "-i", out.video, "-vn", "-ac", "1", "-ar", "48000", "-f", "f32le", "-"],
     { maxBuffer: 4 << 20 });
@@ -158,14 +155,13 @@ it("places a later clip after prior holds while preserving the final speech tail
   expect(raw.length / 4 / 48).toBeGreaterThanOrEqual(2600);
 });
 
-it("inserts card clips into the master and the video, and resumes on the capture frame it left (GH-32 decision 003)", () => {
+it("inserts card clips into the video, and resumes on the capture frame it left (GH-32 decision 003)", () => {
   // Two clips standing in for drawn cards: green, then yellow, each 9 frames.
   media(["-f", "lavfi", "-i", "color=lime:s=160x90:r=30:d=0.3", "-c:v", "libx264", "-pix_fmt", "yuv420p", join(dir, "green.mp4")]);
   media(["-f", "lavfi", "-i", "color=yellow:s=160x90:r=30:d=0.3", "-c:v", "libx264", "-pix_fmt", "yuv420p", join(dir, "yellow.mp4")]);
   const timeline = planTimeline([], { fps: 30, frames: 60, cutMs: 500, cards: [{ t: 200, ms: 300 }, { t: 800, ms: 300 }] });
   const out = options("cards");
   renderTimeline({ ...out, timeline, clips: { card0: join(dir, "green.mp4"), card1: join(dir, "yellow.mp4") } });
-  expect(videoFrames(out.master)).toBe(78);
   expect(videoFrames(out.video)).toBe(63);
   const pixels = execFileSync("ffmpeg", ["-v", "error", "-i", out.video, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { maxBuffer: 64 << 20 });
   const at = (frame: number, x: number, y: number) => [...pixels.subarray(((frame * 90 + y) * 160 + x) * 3, ((frame * 90 + y) * 160 + x) * 3 + 3)];
@@ -183,17 +179,15 @@ it("inserts card clips into the master and the video, and resumes on the capture
 
 it("plays a stretch with the planned frames, keeping source frame floor(i × factor) (GH-61 decision 008)", () => {
   // Video 0 ms is source frame 15; red is source 0-29, blue 30-59. A ×4 stretch over source 15-44 keeps 15, 19, …, 43
-  // as master frames 15-22 (the master keeps the 15 calibration frames), so 15-18 are red and 19 is source 31, blue.
+  // as video frames 0-7, so 0-3 are red and 4 is source 31, blue.
   const timeline = planTimeline([], { fps: 30, frames: 60, cutMs: 500, speedUps: [{ t: 0, durationMs: 1000, factor: 4 }] });
   const out = options("stretch");
   renderTimeline({ ...out, timeline });
-  expect(videoFrames(out.master)).toBe(38);
   expect(videoFrames(out.video)).toBe(23);
-  const pixels = execFileSync("ffmpeg", ["-v", "error", "-i", out.master, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { maxBuffer: 64 << 20 });
-  const red = (frame: number) => pixels[(frame * 90 * 160 + 20 * 160 + 20) * 3] > 128;
-  expect([14, 15, 18, 19, 22, 23].map(red)).toEqual([true, true, true, false, false, false]);
-  // The badge (GH-61 decision 006): a dark box top-right while the stretch plays (video frames 0-7), gone after it.
   const video = execFileSync("ffmpeg", ["-v", "error", "-i", out.video, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { maxBuffer: 64 << 20 });
+  const red = (frame: number) => video[(frame * 90 * 160 + 20 * 160 + 20) * 3] > 128;
+  expect([0, 3, 4, 7, 8].map(red)).toEqual([true, true, false, false, false]);
+  // The badge (GH-61 decision 006): a dark box top-right while the stretch plays (video frames 0-7), gone after it.
   const blue = (frame: number) => video[(frame * 90 * 160 + 13 * 160 + 128) * 3 + 2];
   expect(blue(4)).toBeLessThan(150);
   expect(blue(12)).toBeGreaterThan(200);
@@ -201,7 +195,7 @@ it("plays a stretch with the planned frames, keeping source frame floor(i × fac
     speedUps: [{ t: 100, durationMs: 500, factor: 1.5 }, { t: 1000, durationMs: 300, factor: 16 }] });
   const both = options("stretches");
   renderTimeline({ ...both, timeline: fractional });
-  expect(videoFrames(both.master)).toBe(fractional.frames);
+  expect(videoFrames(both.video)).toBe(fractional.frames - fractional.cutFrames);
 });
 
 it("cuts a skip and shows its card over the blurred frame before it (GH-62 decision 003, GH-76 decision 008)", async () => {
@@ -213,7 +207,6 @@ it("cuts a skip and shows its card over the blurred frame before it (GH-62 decis
   const clips = await renderCardsInImage([{ id: "skip0", kind: "skip", props: { label: "{duration} skipped", style: "clock", durationMs: 500 },
     theme: THEMES.ink, enter: "fade", exit: "fade", frame, frames }], { capture: out.capture, work: dir, scriptDir: dir, viewport: [160, 90], fps: 30, brand: {} });
   renderTimeline({ ...out, timeline, clips });
-  expect(videoFrames(out.master)).toBe(90);
   expect(videoFrames(out.video)).toBe(75);
   const pixels = execFileSync("ffmpeg", ["-v", "error", "-i", out.video, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { maxBuffer: 64 << 20 });
   const at = (frame: number, x: number, y: number) => [...pixels.subarray(((frame * 90 + y) * 160 + x) * 3, ((frame * 90 + y) * 160 + x) * 3 + 3)];

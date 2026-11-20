@@ -86,7 +86,7 @@ it("handles long typing and simultaneous cues with bounded peaks and exact tail 
 it("muxes all named cues and automatic typing, preserves frames, and fully mutes on rerender", () => {
   const capture = join(dir, "capture.mp4");
   execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "color=black:s=160x90:r=30:d=3", "-c:v", "libx264", capture]);
-  const options = { capture, master: join(dir, "master.mp4"), video: join(dir, "demo.mp4"), voice: join(dir, "voice.wav"),
+  const options = { capture, video: join(dir, "demo.mp4"), voice: join(dir, "voice.wav"),
     audioDir: dir, viewport: [160, 90] as [number, number], timeline,
     events: SOUND_NAMES.map((name, i): ComposerEvent => ({ t: 100 + i * 300, type: "sound", name })) };
   options.events.push({ t: 2500, type: "type", text: "Ada", charDelayMs: 60, target: "field" });
