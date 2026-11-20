@@ -3,7 +3,7 @@ kind: ticket
 title: "Compose faster: quicker card frames and no master file"
 key: GH-95
 parent:
-status: in-review
+status: done
 branch: feat/95-compose-faster
 tracker-url: https://github.com/codeonym-oss/flow-reel/issues/95
 mr: https://github.com/codeonym-oss/flow-reel/pull/96
