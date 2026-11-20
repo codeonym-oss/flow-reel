@@ -1,0 +1,3 @@
+- 2026-11-20: drafted from the compose-speed prototype (branch proto/compose-speed, beb5af8) at the person's request ("build it and test it and ship it, then merge it"); the stutter warning was dropped after measuring (decision 002).
+- 2026-11-20: issue #95 created; planned (impl.md) and building on feat/95-compose-faster.
+- 2026-11-20: PR #96 opened; local e2e green (unit 272, render/polish/sfx/cards 27, record suites 31).

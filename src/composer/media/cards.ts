@@ -2,14 +2,15 @@
 // clock, with only the card's own files to load; FFmpeg then plays the transitions in and out against the app frames
 // on either side, into one clip per card.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { type Brand, type Theme, TRANSITIONS, type Transition } from "../cards/brand.ts";
 import { type BuiltInKind, builtInBody } from "../cards/catalog.ts";
 import { FONTS_PATH, ORIGIN, type PageContext, SCRIPT_PATH, builtInPage, customPage, scriptUrl } from "../cards/page.ts";
 import type { CardPainter } from "../ports.ts";
 import { FONTS_DIR } from "./fonts.ts";
 import { SCALE } from "./display.ts";
+import { videoFrames } from "./render.ts";
 
 /** One card to draw: what it shows, how it looks, and where it sits in the capture. */
 export interface CardJob {
@@ -51,9 +52,12 @@ function ffmpeg(args: string[]) {
   execFileSync("ffmpeg", ["-hide_banner", "-nostdin", "-y", "-v", "error", ...args], { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 4 << 20 });
 }
 
-/** Writes source frame `n` of the capture as a PNG. */
-function still(capture: string, n: number, file: string) {
-  ffmpeg(["-i", capture, "-vf", `select=eq(n\\,${n})`, "-fps_mode", "passthrough", "-frames:v", "1", file]);
+/** Writes source frames `n` and on, `files.length` of them, as PNGs, in one decode. */
+function stills(capture: string, n: number, files: string[]) {
+  const dir = dirname(files[0]);
+  ffmpeg(["-i", capture, "-vf", `select=between(n\\,${n}\\,${n + files.length - 1})`, "-fps_mode", "passthrough",
+    "-frames:v", String(files.length), "-start_number", "0", join(dir, "still%d.png")]);
+  files.forEach((file, i) => renameSync(join(dir, `still${i}.png`), file));
 }
 
 /** The length of a transition in frames, so that both fit in the card's frames. */
@@ -69,9 +73,9 @@ function transitionFrames(job: CardJob, fps: number): [enter: number, exit: numb
 export async function renderCards(jobs: readonly CardJob[], options: CardRenderOptions): Promise<Record<string, string>> {
   if (!jobs.length) return {};
   const { capture, work, scriptDir, viewport, fps, brand, painter } = options;
-  const probe = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-count_frames",
-    "-show_entries", "stream=nb_read_frames,width,height", "-of", "json", capture], { encoding: "utf8" })).streams[0];
-  const sourceFrames = Number(probe.nb_read_frames);
+  const probe = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0",
+    "-show_entries", "stream=width,height", "-of", "json", capture], { encoding: "utf8" })).streams[0];
+  const sourceFrames = videoFrames(capture);
   const size: [number, number] = [probe.width, probe.height];
   const fonts = {
     ...(brand.fonts?.heading ? { heading: scriptUrl(brand.fonts.heading) } : {}),
@@ -86,9 +90,11 @@ export async function renderCards(jobs: readonly CardJob[], options: CardRenderO
       mkdirSync(dir, { recursive: true });
       const before = join(dir, "before.png");
       const after = join(dir, "after.png");
-      still(capture, job.frame - 1, before);
-      if (job.frame < sourceFrames) still(capture, job.frame, after);
-      else writeFileSync(after, readFileSync(before));
+      if (job.frame < sourceFrames) stills(capture, job.frame - 1, [before, after]);
+      else {
+        stills(capture, job.frame - 1, [before]);
+        writeFileSync(after, readFileSync(before));
+      }
       const durationMs = job.frames * 1000 / fps;
       const context: PageContext = { theme: job.theme, props: job.props, durationMs, fonts, ...(logo ? { logo } : {}) };
       const html = job.kind === "custom"

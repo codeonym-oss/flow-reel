@@ -174,10 +174,10 @@ export async function compose(scriptPath: string, { integration, voice, store, p
       theme: themeFor(card.theme, brand), enter: card.enter, exit: card.exit, frame, frames,
       ...(number ? { chapter: { number, total: chapters.length } } : {}) };
   });
-  const clips = await renderCards(jobs, { capture: out.capture, work: dirname(out.master), scriptDir, viewport, fps: FPS, brand, painter });
+  const clips = await renderCards(jobs, { capture: out.capture, work: dirname(out.capture), scriptDir, viewport, fps: FPS, brand, painter });
   const overlays = await renderOverlays(log.events.flatMap((e) => e.type === "overlay" ? [e] : []),
-    { work: dirname(out.master), scriptDir, viewport, fps: FPS, brand, painter });
-  renderTimeline({ capture: out.capture, master: out.master, video: out.stagedVideo,
+    { work: dirname(out.capture), scriptDir, viewport, fps: FPS, brand, painter });
+  renderTimeline({ capture: out.capture, video: out.stagedVideo,
     voice: out.voiceBus, audioDir: reel.audioRoot, viewport, timeline, clips, overlays, events: log.events, sound, autoZoom: script.autoZoom });
   const transcript: Transcript = {
     version: 2,

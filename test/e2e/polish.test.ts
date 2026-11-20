@@ -15,7 +15,7 @@ it("shows a ripple on its first delivery frame despite fractional timestamp roun
   const capture = join(dir, "capture.mp4");
   execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "color=black:s=320x180:r=30:d=10", "-c:v", "libx264", capture]);
   const video = join(dir, "demo.mp4");
-  renderTimeline({ capture, master: join(dir, "master.mp4"), video, voice: join(dir, "voice.wav"), audioDir: dir,
+  renderTimeline({ capture, video, voice: join(dir, "voice.wav"), audioDir: dir,
     viewport: [320, 180], timeline: planTimeline([], { fps: 30, frames: 300, cutMs: 0 }), sound: false,
     events: [{ t: 8766.419892333333, type: "click", at: [160, 90], button: "left", target: "center" }] });
   const pixels = execFileSync("ffmpeg", ["-v", "error", "-i", video, "-vf", "select=eq(n\\,263),crop=64:64:128:58",
@@ -27,11 +27,11 @@ it("shows a ripple on its first delivery frame despite fractional timestamp roun
 
 const dir = resolve("test/e2e/out/polish");
 const media = (args: string[]) => execFileSync("ffmpeg", ["-v", "error", "-y", ...args], { maxBuffer: 64 << 20 });
-it("draws the stationary outlined cursor after trimming pre-roll and keeps the clean master", () => {
+it("draws the stationary outlined cursor after trimming pre-roll", () => {
   mkdirSync(dir, { recursive: true });
   const capture = join(dir, "capture.mp4");
   media(["-f", "lavfi", "-i", "color=red:s=320x180:r=30:d=1", "-c:v", "libx264", capture]);
-  const out = { capture, master: join(dir, "master.mp4"), video: join(dir, "cursor.mp4"),
+  const out = { capture, video: join(dir, "cursor.mp4"),
     voice: join(dir, "voice.wav"), audioDir: dir, viewport: [320, 180] as [number, number],
     timeline: planTimeline([], { fps: 30, frames: 30, cutMs: 100 }) };
   renderTimeline(out);
@@ -50,15 +50,13 @@ it("zooms a known grid, follows movement, draws a timely fading ripple and repea
     { t: 0, type: "move", from: [100, 90], to: [160, 90], durationMs: 400, easing: "easeInOutCubic" },
     { t: 500.1, type: "click", at: [160, 90], button: "left", target: "red", bounds: { x: 135, y: 75, width: 50, height: 30 } }];
   const timeline = planTimeline([], { fps: 30, frames: 90, cutMs: 100 });
-  const out = { capture, master: join(dir, "grid-master.mp4"), video: join(dir, "grid-a.mp4"),
+  const out = { capture, video: join(dir, "grid-a.mp4"),
     voice: join(dir, "grid-voice.wav"), audioDir: dir, viewport: [320, 180] as [number, number], timeline, events };
   renderTimeline(out);
-  const before = createHash("sha256").update(readFileSync(out.master)).digest("hex");
   renderTimeline({ ...out, video: join(dir, "grid-b.mp4") });
   const decode = (file: string) => media(["-i", file, "-pix_fmt", "rgb24", "-an", "-fps_mode", "passthrough", "-f", "rawvideo", "-"]);
   const raw = decode(out.video);
   expect(createHash("sha256").update(raw).digest("hex")).toBe(createHash("sha256").update(decode(join(dir, "grid-b.mp4"))).digest("hex"));
-  expect(createHash("sha256").update(readFileSync(out.master)).digest("hex")).toBe(before);
   const colorCount = (frame: number, kind: "red" | "blue") => {
     const pixels = raw.subarray(frame * 320 * 180 * 3, (frame + 1) * 320 * 180 * 3);
     let count = 0;
@@ -87,7 +85,7 @@ it("renders a long action sequence and simultaneous clicks within the media budg
   events.push({ ...events.at(-1)! });
   const timeline = planTimeline([], { fps: 30, frames: 960, cutMs: 100 });
   const video = join(dir, "long.mp4");
-  renderTimeline({ capture, master: join(dir, "long-master.mp4"), video, voice: join(dir, "long-voice.wav"),
+  renderTimeline({ capture, video, voice: join(dir, "long-voice.wav"),
     audioDir: dir, viewport: [320, 180], timeline, events });
   expect(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-count_frames", "-show_entries",
     "stream=nb_read_frames", "-of", "csv=p=0", video], { encoding: "utf8" }).trim()).toBe("957");
@@ -98,7 +96,7 @@ it("keeps the arrow sprite visible during a fast cross-screen move in zoom-out",
   const capture = join(dir, "escape-capture.mp4");
   media(["-f", "lavfi", "-i", "color=black:s=2560x1440:r=30:d=3", "-c:v", "libx264", "-preset", "ultrafast", capture]);
   const video = join(dir, "escape.mp4");
-  renderTimeline({ capture, master: join(dir, "escape-master.mp4"), video,
+  renderTimeline({ capture, video,
     voice: join(dir, "escape-voice.wav"), audioDir: dir, viewport: [1920, 1080],
     timeline: planTimeline([], { fps: 30, frames: 90, cutMs: 0 }), events: [
       { t: 0, type: "click", at: [50, 540], button: "left", target: "left" },
@@ -130,7 +128,7 @@ it("flashes over everything, and draws no cursor, ripple or zoom over a card (GH
     { t: 2000, type: "flash", color: "#ff0000", ms: 250 },
   ], timeline);
   const video = join(dir, "effects.mp4");
-  renderTimeline({ capture, master: join(dir, "effects-master.mp4"), video, voice: join(dir, "effects-voice.wav"),
+  renderTimeline({ capture, video, voice: join(dir, "effects-voice.wav"),
     audioDir: dir, viewport: [320, 180], timeline, clips: { card0: clip }, events });
   const raw = media(["-i", video, "-pix_fmt", "rgb24", "-an", "-fps_mode", "passthrough", "-f", "rawvideo", "-"]);
   const size = 320 * 180 * 3;

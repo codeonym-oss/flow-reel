@@ -41,7 +41,7 @@ it("builds the reel in a partial folder, with self-ignoring work files and the a
   const partial = join(dir, "settings.reel.partial");
   const work = join(partial, "work");
   expect(reel.work).toEqual({
-    capture: join(work, "capture.mp4"), master: join(work, "master.mp4"), masterInfo: join(work, "master.json"),
+    capture: join(work, "capture.mp4"), masterInfo: join(work, "master.json"),
     stagedVideo: join(work, "delivery.mp4"), voiceBus: join(work, "voice.wav"),
   });
   expect(readFileSync(join(work, ".gitignore"), "utf8")).toBe("*\n");
