@@ -38,7 +38,7 @@ function findCli(reel, given) {
       if (dirname(dir) === dir) break;
     }
   }
-  throw new Unavailable("no flow-reel installed beside the reel; npm install --save-dev flow-reel@0.5, or pass --flow-reel");
+  throw new Unavailable("no flow-reel installed beside the reel; npm install --save-dev flow-reel, or pass --flow-reel");
 }
 
 const has = (cmd) => spawnSync(cmd, ["-version"], { stdio: "ignore" }).status === 0;

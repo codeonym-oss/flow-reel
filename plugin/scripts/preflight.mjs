@@ -23,9 +23,9 @@ function parse(argv) {
   return args;
 }
 
-/** The one range form the plugin states: `>=A.B.C <X.Y.Z`. */
+/** The range forms the plugin states: `>=A.B.C`, or `>=A.B.C <X.Y.Z`. */
 export function satisfies(version, range) {
-  const match = /^>=(\d+\.\d+\.\d+) <(\d+\.\d+\.\d+)$/.exec(range);
+  const match = /^>=(\d+\.\d+\.\d+)(?: <(\d+\.\d+\.\d+))?$/.exec(range);
   if (!match || !/^\d+\.\d+\.\d+/.test(version)) return false;
   const parts = (v) => v.split(/[-+]/)[0].split(".").map(Number);
   const cmp = (a, b) => {
@@ -33,7 +33,7 @@ export function satisfies(version, range) {
     for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i];
     return 0;
   };
-  return cmp(version, match[1]) >= 0 && cmp(version, match[2]) < 0;
+  return cmp(version, match[1]) >= 0 && (match[2] === undefined || cmp(version, match[2]) < 0);
 }
 
 export function supportedRange() {
@@ -119,9 +119,9 @@ export async function preflight(args) {
   const range = supportedRange();
   const found = args.version ? { version: args.version, where: "--version" } : installedVersion(args.script ? dirname(args.script) : process.cwd());
   if (!found) {
-    add("runtime", { status: "fail", detail: "no flow-reel installed here and no --version given", fix: "npm install --save-dev flow-reel@0.5" });
+    add("runtime", { status: "fail", detail: "no flow-reel installed here and no --version given", fix: "npm install --save-dev flow-reel" });
   } else if (!satisfies(found.version, range)) {
-    add("runtime", { status: "fail", detail: `flow-reel ${found.version} (${found.where}); this plugin supports ${range}`, fix: "npm install --save-dev flow-reel@0.5, or update the plugin" });
+    add("runtime", { status: "fail", detail: `flow-reel ${found.version} (${found.where}); this plugin supports ${range}`, fix: "npm install --save-dev flow-reel, or update the plugin" });
   } else add("runtime", { status: "ok", detail: `flow-reel ${found.version}, within ${range}` });
 
   if (engine && found) {
