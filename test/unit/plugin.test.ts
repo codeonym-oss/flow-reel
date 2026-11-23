@@ -1,4 +1,4 @@
-// The agent plugin's consistency (GH-6 decisions 005, 010, 011): its manifests, skills and links agree, it
+// The agent plugin's consistency (GH-6 decisions 005, 010, 011, 012): its manifests, skills and links agree, it
 // resolves from a copy of plugin/ alone, and it claims the runtime version this package is.
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,9 +19,9 @@ function files(dir: string): string[] {
   });
 }
 
-/** `>=A.B.C <X.Y.Z`, the only range form the plugin states (decision 010). */
+/** `>=A.B.C`, or `>=A.B.C <X.Y.Z`: the range forms the plugin states (decisions 010 and 012). */
 function satisfies(version: string, range: string): boolean {
-  const match = /^>=(\d+\.\d+\.\d+) <(\d+\.\d+\.\d+)$/.exec(range);
+  const match = /^>=(\d+\.\d+\.\d+)(?: <(\d+\.\d+\.\d+))?$/.exec(range);
   if (!match) throw new Error(`unsupported range ${range}`);
   const parts = (v: string) => v.split(/[-+]/)[0].split(".").map(Number);
   const cmp = (a: string, b: string) => {
@@ -29,7 +29,7 @@ function satisfies(version: string, range: string): boolean {
     for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i];
     return 0;
   };
-  return cmp(version, match[1]) >= 0 && cmp(version, match[2]) < 0;
+  return cmp(version, match[1]) >= 0 && (match[2] === undefined || cmp(version, match[2]) < 0);
 }
 
 function supportedRange(languageMd: string): string {
@@ -154,5 +154,11 @@ describe("the supported runtime (decision 010)", () => {
     expect(satisfies("0.2.9", ">=0.2.0 <0.3.0")).toBe(true);
     expect(satisfies("0.3.0", ">=0.2.0 <0.3.0")).toBe(false);
     expect(satisfies("0.1.2", ">=0.2.0 <0.3.0")).toBe(false);
+  });
+
+  it("is read with no upper bound when it states none", () => {
+    expect(satisfies("0.5.0", ">=0.5.0")).toBe(true);
+    expect(satisfies("1.4.2", ">=0.5.0")).toBe(true);
+    expect(satisfies("0.4.9", ">=0.5.0")).toBe(false);
   });
 });

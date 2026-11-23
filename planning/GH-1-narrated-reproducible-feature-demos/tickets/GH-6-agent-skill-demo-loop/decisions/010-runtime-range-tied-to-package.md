@@ -1,5 +1,7 @@
 # 010: The plugin supports `>=0.2.0 <0.3.0`, and a test ties the range to `package.json`
 
+**Superseded by 012.**
+
 **Date:** 2026-11-15 (re-plan for 0.2, Q5; agreed: "ok")
 
 **Question:** the plugin and the runtime release separately (decision 005), and before 1.0 a minor release breaks
