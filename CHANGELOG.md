@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/codeonym-oss/flow-reel/compare/v0.5.0...v0.6.0) (2026-11-23)
+
+
+### Features
+
+* compose faster, with quicker card frames and no master file ([#95](https://github.com/codeonym-oss/flow-reel/issues/95)) ([5920369](https://github.com/codeonym-oss/flow-reel/commit/592036942712c26f42a41ac0e5fc89c757de06fb))
+
 ## [0.5.0](https://github.com/codeonym-oss/flow-reel/compare/v0.4.0...v0.5.0) (2026-11-17)
 
 
