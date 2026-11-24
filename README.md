@@ -52,8 +52,9 @@ npx flow-reel compose demos/settings.ts --voice openai     # writes demos/settin
 npx flow-reel verify demos/settings.reel                   # every file present and unaltered
 ```
 
-`demos/settings.reel/video.mp4` is your video. The first compose pulls the composer image (about 7 GB) once, and
-writes `flow-reel.json` with the settings it used. Commit that file with your scripts.
+`demos/settings.reel/video.mp4` is your video. The first compose pulls the composer image once (about 2.6 GB for a
+cloud voice, 7 GB for the built-in local voice), and writes `flow-reel.json` with the settings it used. Commit that
+file with your scripts.
 
 → [Quickstart](https://docs.codeonym.work/projects/flow-reel/en/latest/getting-started/quickstart/) ·
 [Your first reel](https://docs.codeonym.work/projects/flow-reel/en/latest/tutorials/first-reel/)
@@ -134,8 +135,8 @@ npx flow-reel compare <a.reel> <b.reel>   # same steps, comments, voice and effe
   where `localhost` in a script is mapped to the host (not yet tested in CI).
 - About 2.5 free CPU cores while recording. On an overloaded machine the compose stops rather than save a video
   whose timing is off.
-- About 7 GB of disk for the composer image. The built-in local voice also needs more than 5 GiB of memory; a cloud
-  voice doesn't.
+- About 2.6 GB of disk for the composer image with a cloud voice. The built-in local voice needs the full image, about
+  7 GB, and more than 5 GiB of memory.
 
 The npm package and the composer image share one version.
 
@@ -170,14 +171,15 @@ Breaking changes and how to move a script across them are in
 npm ci
 npm run typecheck
 npm test            # unit tests
-npm run test:e2e    # builds the image, tests offline synthesis, and records twice (needs Docker)
+npm run test:e2e    # builds the images, tests offline synthesis, and records twice (needs Docker)
 ```
 
 `flow-reel compose` always runs the composer inside the image for its package version. From a source checkout it
 uses the released image of that version, not your local `src/`, and says so. To compose with local changes, build
-the image under that tag first: `npm run build && docker build -t ghcr.io/codeonym-oss/flow-reel:$(node -p
-"require('./package.json').version") -f docker/Dockerfile .` (remove it afterwards with `docker rmi` to go back to
-the released one).
+the image under that tag first: `npm run build && docker build --target full -t
+ghcr.io/codeonym-oss/flow-reel:$(node -p "require('./package.json').version") -f docker/Dockerfile .` (remove it
+afterwards with `docker rmi` to go back to the released one). For a cloud voice, build `--target cloud` under that tag
+with `-cloud` added.
 
 Docs: `uv run --with-requirements docs/requirements.txt sphinx-build -W -b dirhtml docs docs/_build/html`.
 [`CONTEXT.md`](CONTEXT.md) defines the project's vocabulary. Planning lives in `planning/` (see `groundwork.md`), and

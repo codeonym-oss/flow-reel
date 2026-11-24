@@ -14,7 +14,7 @@ const example = resolve("plugin/examples/saved-views");
 let server: Server;
 
 beforeAll(async () => {
-  prepareImage();
+  prepareImage("full");
   rmSync(OUT, { recursive: true, force: true });
   cpSync(example, OUT, { recursive: true });
   const html = readFileSync(join(example, "index.html"));

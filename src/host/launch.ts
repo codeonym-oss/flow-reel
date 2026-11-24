@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CONFIG_FILE, type Settings, type SettingsFlags, credentialsFor, readConfig, resolveSettings, settingsFlags,
+import { CONFIG_FILE, KNOWN, type Settings, type SettingsFlags, credentialsFor, readConfig, resolveSettings, settingsFlags,
   writeConfig } from "../settings.ts";
 
 export type Engine = "docker" | "podman";
@@ -27,7 +27,14 @@ export interface RunArgsInput {
   credentials?: string[];
 }
 
-export const imageFor = (version: string) => `ghcr.io/codeonym-oss/flow-reel:${version}`;
+/** The Dockerfile's targets: `cloud` has no local voice, `full` has it (GH-101 decisions 001 and 002). */
+export type ImageTarget = "cloud" | "full";
+
+/** The image a voice needs: a cloud voice runs at its provider, so it doesn't need the local voice's files. */
+export const targetFor = (voice: string): ImageTarget => (KNOWN.voices[voice].cloud ? "cloud" : "full");
+
+export const imageFor = (version: string, target: ImageTarget) =>
+  `ghcr.io/codeonym-oss/flow-reel:${version}${target === "cloud" ? "-cloud" : ""}`;
 
 export function buildRunArgs(i: RunArgsInput): string[] {
   return [
@@ -76,17 +83,19 @@ export function detectEngine(probe: Probe = run): DetectedEngine {
 }
 
 /** A git checkout of flow-reel records with the released image of its version, not with its own source. */
-export function sourceCheckoutWarning(root: string, image: string): string | undefined {
+export function sourceCheckoutWarning(root: string, image: string, target: ImageTarget): string | undefined {
   if (!existsSync(resolve(root, ".git")) || !existsSync(resolve(root, "src/composer"))) return undefined;
   return `flow-reel: running from a source checkout; recording uses ${image}, whose composer may differ from this ` +
-    `checkout's src/. To record with local changes: npm run build && docker build -t ${image} -f docker/Dockerfile .`;
+    `checkout's src/. To record with local changes: npm run build && docker build --target ${target} -t ${image} ` +
+    "-f docker/Dockerfile .";
 }
 
-function ensureImage(engine: Engine, image: string) {
+function ensureImage(engine: Engine, image: string, target: ImageTarget) {
   if (run(engine, ["image", "inspect", image]).status === 0) return;
   if (run(engine, ["pull", image], true).status === 0) return;
   console.error(`flow-reel: ${image} can't be pulled; building it locally (once).`);
-  const built = run(engine, ["build", "-t", image, "-f", resolve(packageRoot, "docker/Dockerfile"), packageRoot], true);
+  const built = run(engine, ["build", "--target", target, "-t", image,
+    "-f", resolve(packageRoot, "docker/Dockerfile"), packageRoot], true);
   if (built.status !== 0) throw new Error(`building ${image} failed`);
 }
 
@@ -111,10 +120,11 @@ export function launch(scriptPath: string, options: LaunchOptions = {}): number 
   const credentials = credentialsFor(settings, process.env);
   const { command, engine } = detectEngine();
   const { version } = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8")) as { version: string };
-  const image = imageFor(version);
-  const warning = sourceCheckoutWarning(packageRoot, image);
+  const target = targetFor(settings.voice.adapter);
+  const image = imageFor(version, target);
+  const warning = sourceCheckoutWarning(packageRoot, image, target);
   if (warning) console.warn(warning);
-  ensureImage(command, image);
+  ensureImage(command, image, target);
   const desktop = process.platform !== "linux"
     || run(command, ["info", "--format", "{{.OperatingSystem}}"]).stdout.includes("Docker Desktop");
   // Created here, so the engine doesn't create the mount point as root.

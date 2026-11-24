@@ -8,24 +8,29 @@ export function releaseVersion(tag: string, version: string, lockVersion: string
 }
 
 export interface Release { version: string; commit: string; integrity: string }
-export interface Candidate extends Release { arch: string; digest: string; verified: boolean }
+/** The images of a release, with the suffix of each one's tag (GH-101). */
+export const IMAGES = { cloud: "-cloud", full: "" } as const;
+export type Image = keyof typeof IMAGES;
+export interface Candidate extends Release { arch: string; image: Image; digest: string; verified: boolean }
 
-export function verifyCandidates(candidates: Candidate[], release: Release): string[] {
-  if (candidates.length !== 2) throw new Error("both native candidates are required");
+/** One image's digests, one per architecture, from the candidates of every image. */
+export function verifyCandidates(all: Candidate[], release: Release, image: Image): string[] {
+  const candidates = all.filter(c => c.image === image);
+  if (candidates.length !== 2) throw new Error(`both native ${image} candidates are required`);
   return ["amd64", "arm64"].map(arch => {
     const matches = candidates.filter(c => c.arch === arch);
     const c = matches[0];
     if (matches.length !== 1 || !c.verified || c.version !== release.version || c.commit !== release.commit
       || c.integrity !== release.integrity || !/^sha256:[a-f0-9]{64}$/.test(c.digest)) {
-      throw new Error(`unverified or conflicting ${arch} candidate`);
+      throw new Error(`unverified or conflicting ${arch} ${image} candidate`);
     }
     return c.digest;
   });
 }
 
 interface ImageIndex { manifests?: { digest: string; platform?: { os: string; architecture: string } }[] }
-export function verifyIndex(index: ImageIndex, candidates: Candidate[], release: Release): void {
-  const digests = verifyCandidates(candidates, release);
+export function verifyIndex(index: ImageIndex, candidates: Candidate[], release: Release, image: Image): void {
+  const digests = verifyCandidates(candidates, release, image);
   if (index.manifests?.length !== 2 || ["amd64", "arm64"].some((arch, i) =>
     !index.manifests!.some(m => m.platform?.os === "linux" && m.platform.architecture === arch && m.digest === digests[i]))) {
     throw new Error("image manifest does not match verified native candidates");

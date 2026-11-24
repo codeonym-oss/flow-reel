@@ -19,7 +19,7 @@ const requests: { auth?: string; body: { model: string; input: string; voice: st
 
 beforeAll(async () => {
   mkdirSync(OUT, { recursive: true });
-  prepareImage();
+  prepareImage("cloud");
   server = createServer((req, res) => {
     if (req.method === "POST" && req.url === "/v1/audio/speech") {
       let text = "";

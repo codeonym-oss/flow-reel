@@ -8,9 +8,14 @@ flow-reel has two parts with the same version:
 
 - **The npm package:** the `flow-reel` command and the script words you import (`script`, `Sounds`). It runs on your
   machine.
-- **The composer:** the `ghcr.io/codeonym-oss/flow-reel:<version>` container image that replays the script,
-  records it and renders the video. `flow-reel compose` pulls it the first time. If it can't be pulled, it is built
-  locally once, which takes a few minutes.
+- **The composer:** the container image that replays the script, records it and renders the video. `flow-reel compose`
+  pulls the one your voice needs the first time. If it can't be pulled, it is built locally once, which takes a few
+  minutes.
+
+| Voice | Composer image | Size on disk |
+|---|---|---|
+| A [cloud voice](../guide/voices.md#cloud-voices) or a self-hosted one | `ghcr.io/codeonym-oss/flow-reel:<version>-cloud` | about 2.6 GB |
+| The [built-in local voice](../guide/voices.md#the-built-in-local-voice), the default | `ghcr.io/codeonym-oss/flow-reel:<version>` | about 7 GB |
 
 ## Requirements
 
@@ -19,7 +24,7 @@ flow-reel has two parts with the same version:
 | Node.js | 22.18 or later. Scripts are TypeScript, run with Node's type stripping. |
 | Container engine | Docker or Podman. |
 | CPU | About 2.5 free cores while recording. On an overloaded machine the compose stops with an error rather than save a video whose timing is off. |
-| Disk | About 7 GB for the composer image. Its build downloads about 2.5 GB of model weights for the built-in local voice. |
+| Disk | About 2.6 GB for the composer image with a cloud voice, or 7 GB with the built-in local voice, whose image build downloads about 2.5 GB of model weights. |
 | Memory | Only for the built-in local voice: more than 5 GiB of process memory, on top of your app and OS. A cloud voice needs none of it. |
 | Network | Only for a cloud voice, or to pull the image. The local voice runs offline. |
 
@@ -32,13 +37,13 @@ flow-reel has two parts with the same version:
 
 ## Pull the image ahead of time
 
-The first compose waits for the image. To pull it ahead of time and see its progress:
+The first compose waits for the image. To pull it ahead of time and see its progress, with a cloud voice:
 
 ```sh
-docker pull ghcr.io/codeonym-oss/flow-reel:$(node -p "require('./node_modules/flow-reel/package.json').version")
+docker pull ghcr.io/codeonym-oss/flow-reel:$(node -p "require('./node_modules/flow-reel/package.json').version")-cloud
 ```
 
-Or name the version you installed, for example `ghcr.io/codeonym-oss/flow-reel:0.5.0`.
+Leave out `-cloud` for the built-in local voice.
 
 ## Choose a voice now
 

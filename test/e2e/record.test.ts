@@ -75,7 +75,7 @@ let b: Run;
 
 beforeAll(async () => {
   mkdirSync(OUT, { recursive: true });
-  image = prepareImage();
+  image = prepareImage("full");
   app = await startFixtureApp();
   port = app.port;
 }, 900_000);

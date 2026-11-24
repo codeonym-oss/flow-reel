@@ -80,7 +80,8 @@ _Avoid:_ palette, colour scheme.
 ## What compiles it
 
 **Composer**
-The container image that compiles a script into a reel. The verb is **compose**.
+The container image that compiles a script into a reel. The verb is **compose**. It comes as the **full image**, which
+has the local voice, and the smaller **cloud image**, for a cloud voice; the voice picks which one composes.
 _Avoid:_ runner, recorder.
 
 **Integration**

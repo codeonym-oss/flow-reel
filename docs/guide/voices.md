@@ -13,10 +13,14 @@ more than 5 GiB of memory.
 |---|---|---|
 | Speed | seconds for a whole script | about a minute a comment on a laptop CPU |
 | Needs | an API key in an environment variable, and a network | more than 5 GiB of memory, about 2.5 free cores |
+| Image | about 2.6 GB | about 7 GB |
 | Models | any of the provider's | **Qwen3-TTS 0.6B only** |
 | Cost | the provider's price, for new or changed comments only | free |
 | Offline | no | yes |
 | Same audio on every compose | through the [reel cache](#the-reel-cache) | yes, on the same CPU and image |
+
+The voice also picks the composer image: a cloud or self-hosted voice uses the smaller `-cloud` image, and the built-in
+local voice uses the full one. Changing between them pulls the other image once.
 
 ## Cloud voices
 
@@ -105,7 +109,7 @@ WAV audio. Add `apiKeyEnv` only if the server needs a key.
 no voice is set. For any other model running on your own machine, use a [self-hosted voice](#self-hosted-voices).
 :::
 
-It runs inside the composer image, on the CPU, through the official Python runtime. Its model and tokenizer are
+It runs inside the full composer image, on the CPU, through the official Python runtime. Its model and tokenizer are
 pinned and downloaded when the image is built, so it works offline without a key.
 
 | Setting | Values | Default |

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { resolve } from "node:path";
+import { resolveSettings, settingsFlags } from "../../src/settings.ts";
 
 // The slow reply a speedUp waits for (GH-61): 20 s at ×4 checks the same ratio as the story's 60 s, in less CI time.
 export const SLOW_MS = 20_000;
@@ -16,11 +17,14 @@ export const tone = () => {
   return buffer;
 };
 
-/** The voice settings for the fake voice, and the `docker run` flag that gives the container its key. */
-export const fakeVoice = (port: number) => ({
-  voice: { adapter: "openai", speaker: "nova", baseUrl: `http://localhost:${port}/v1` },
-  dockerEnv: ["-e", `OPENAI_API_KEY=${FAKE_KEY}`],
-});
+/**
+ * The voice settings for the fake voice, the same as `compose` flags, and the `docker run` flag that gives the container
+ * its key. The composer in the container takes its settings from flags, not from `flow-reel.json`.
+ */
+export const fakeVoice = (port: number) => {
+  const voice = { adapter: "openai", speaker: "nova", baseUrl: `http://localhost:${port}/v1` };
+  return { voice, flags: settingsFlags(resolveSettings({ version: 1, voice })), dockerEnv: ["-e", `OPENAI_API_KEY=${FAKE_KEY}`] };
+};
 
 export async function startFixtureApp(): Promise<{ port: number; close: () => void }> {
   const html = readFileSync(resolve("test/e2e/app/index.html"));

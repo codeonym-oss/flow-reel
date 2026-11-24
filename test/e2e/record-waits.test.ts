@@ -18,7 +18,7 @@ let image: string;
 
 beforeAll(async () => {
   mkdirSync(OUT, { recursive: true });
-  image = prepareImage();
+  image = prepareImage("cloud");
   app = await startFixtureApp();
   port = app.port;
 }, 900_000);
@@ -40,12 +40,11 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, a
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "demo.ts"), make(port, inside));
-    writeFileSync(join(dir, "flow-reel.json"), JSON.stringify({ version: 1, voice: fakeVoice(port).voice }));
     const container = `flow-reel-${name}-${randomUUID()}`;
     try {
       const { stderr } = await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g",
         "--network", "host", "--user", `${process.getuid!()}:${process.getgid!()}`, ...fakeVoice(port).dockerEnv, "-v", `${dir}:/work`, image,
-        "compose", "/work/demo.ts"], { timeout: 300_000 });
+        "compose", "/work/demo.ts", ...fakeVoice(port).flags], { timeout: 300_000 });
       if (stderr) writeFileSync(join(dir, "record.log"), stderr);
     } finally {
       spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
@@ -63,6 +62,7 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, a
 
   it("plays the 20 s wait in about 5 s, with the comment spoken whole", () => {
     expect(validateEvents(first.events)).toEqual([]);
+    expect(first.transcript.voice?.adapter).toMatch(/^openai:/);
     const speed = first.events.events.find((e) => e.type === "speed")!;
     expect(speed).toMatchObject({ type: "speed", factor: 4 });
     if (speed.type !== "speed") throw new Error("no speed event");

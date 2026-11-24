@@ -18,7 +18,7 @@ let image: string;
 
 beforeAll(async () => {
   mkdirSync(OUT, { recursive: true });
-  image = prepareImage();
+  image = prepareImage("cloud");
   app = await startFixtureApp();
   port = app.port;
 }, 900_000);
@@ -42,15 +42,14 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, a
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(join(dir, "cards"), { recursive: true });
     writeFileSync(join(dir, "demo.ts"), make(port));
-    writeFileSync(join(dir, "flow-reel.json"), JSON.stringify({ version: 1, voice: fakeVoice(port).voice,
-      brand: { theme: "ocean", accent: "#46D3C8" } }));
+    writeFileSync(join(dir, "flow-reel.json"), JSON.stringify({ version: 1, brand: { theme: "ocean", accent: "#46D3C8" } }));
     writeFileSync(join(dir, "cards/hello.html"), "<!doctype html><html><head><style>body{margin:0;background:#ffcc00}</style></head>" +
       "<body><h1 class=\"fr-title\" data-prop=\"name\">x</h1></body></html>");
     const container = `flow-reel-${name}-${randomUUID()}`;
     try {
       const { stderr } = await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g",
         "--network", "host", "--user", `${process.getuid!()}:${process.getgid!()}`, ...fakeVoice(port).dockerEnv, "-v", `${dir}:/work`, image,
-        "compose", "/work/demo.ts"], { timeout: 600_000 });
+        "compose", "/work/demo.ts", ...fakeVoice(port).flags], { timeout: 600_000 });
       if (stderr) writeFileSync(join(dir, "record.log"), stderr);
     } finally {
       spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
@@ -68,6 +67,7 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, a
 
   it("logs each card with its props and the brand's look, in the order shown", () => {
     expect(validateEvents(first.events)).toEqual([]);
+    expect(first.transcript.voice?.adapter).toMatch(/^openai:/);
     const cards = first.events.events.flatMap((e) => e.type === "card" ? [e] : []);
     expect(cards.map(({ card, theme, enter, exit }) => [card, theme, enter, exit])).toEqual([
       ["intro", "ocean", "fade", "fade"], ["chapter", "ocean", "slide", "fade"], ["custom", "ocean", "fade", "cut"],

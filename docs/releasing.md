@@ -5,19 +5,20 @@ It updates `package.json`, `package-lock.json`, `CHANGELOG.md` and the release m
 the GitHub release. The initial version is explicitly **0.1.0**; subsequent feature releases advance the minor
 version, fixes advance the patch, and breaking changes before 1.0 advance the minor version.
 
-Every release rebuilds and publishes two ~7 GB images and an npm version, so only changes that reach the published
-package or image may use `feat:`/`fix:`. Workflow, release-script, test and planning changes use `ci:`, `test:`,
-`docs:` or `chore:`. To drop a mis-typed merged commit from a pending release PR, edit that merged PR's body to add
+Every release rebuilds and publishes, for each architecture, a ~7 GB full image and a ~2.6 GB cloud image, and an npm
+version, so only changes that reach the published package or an image may use `feat:`/`fix:`. Workflow,
+release-script, test and planning changes use `ci:`, `test:`, `docs:` or `chore:`. To drop a mis-typed merged commit from a pending release PR, edit that merged PR's body to add
 a `BEGIN_COMMIT_OVERRIDE` … `END_COMMIT_OVERRIDE` block with the corrected message and rerun release-please.
 
 The release-please workflow calls `publish.yml` directly. Releases/tags created with `GITHUB_TOKEN` do not trigger
 another workflow. Publication runs in this order:
 
 1. Build, install/check and retain one npm tarball for the release commit.
-2. Build Linux amd64 and arm64 images from that tarball on native runners; push by digest, then pull and run the
-   existing media suite on each exact digest, including a narrated recording pair and fresh offline synthesis.
-3. Assemble the exact versioned multi-architecture image from verified digests. Existing tags must match.
-4. Check anonymous pulls and run the packed CLI from clean consumers on both architectures.
+2. Build the full and cloud images from that tarball on native amd64 and arm64 runners; push by digest, then pull and
+   run the existing media suite on the exact digests, each test on the image it names, including a narrated recording pair and fresh offline synthesis.
+3. Assemble the exact multi-architecture images, `X.Y.Z` and `X.Y.Z-cloud`, from verified digests. All four candidates
+   must be verified, and existing tags must match, before either tag is created.
+4. Check anonymous pulls and run the packed CLI with each image from clean consumers on both architectures.
 5. Publish the retained tarball to npm using OIDC, then run `npx flow-reel@X.Y.Z compose demo.ts` on both architectures.
 
 PR CI builds/tests both architectures without registry writes. Image builds use separate per-architecture caches.
@@ -119,7 +120,7 @@ GitHub releases, GHCR and npm do not form a transaction. A GitHub release can ex
 image can exist while npm is awaiting setup. A release is complete only when both final npm consumer jobs pass.
 
 If a build failed before producing a candidate, re-run the failed jobs of the original run. Once the package and
-both candidate artifacts exist, recover without rebuilding them:
+both candidate artifacts (each with both images) exist, recover without rebuilding them:
 
 ```sh
 gh workflow run publish.yml -R codeonym-oss/flow-reel --ref main \
@@ -130,9 +131,10 @@ Always dispatch recovery from `main`. If the recovery needs a workflow fix, merg
 publishing run from an unreviewed branch (its provenance names that branch permanently).
 
 `source_run` must be a run in this repository containing `release-package`, `candidate-amd64` and `candidate-arm64`.
-The workflow checks the package's source commit and both candidates' version/commit/integrity, pulls the same
+The workflow checks the package's source commit and all four candidates' version/commit/integrity, pulls the same
 digests, repeats verification, and refuses conflicting published image/platform digests or npm integrity. It never
-reassigns the version tag to a different build.
+reassigns the version tags to a different build. Runs of 0.6.0 and earlier have no cloud candidates, so this workflow
+can't recover them.
 
 Release metadata/package artifacts are retained for 90 days; media outputs for 7 days. Recover before expiry. If
 an artifact is missing/expired, stop for explicit recovery assessment instead of rebuilding and replacing a
@@ -146,6 +148,7 @@ gh run list -R codeonym-oss/flow-reel --workflow release-please.yml
 gh run view RUN_ID -R codeonym-oss/flow-reel
 gh run download RUN_ID -R codeonym-oss/flow-reel -n release-package -D ./release-package
 docker buildx imagetools inspect ghcr.io/codeonym-oss/flow-reel:X.Y.Z
+docker buildx imagetools inspect ghcr.io/codeonym-oss/flow-reel:X.Y.Z-cloud
 npm view flow-reel@X.Y.Z dist.integrity dist.attestations
 ```
 
@@ -157,10 +160,12 @@ npm run typecheck
 npm test
 npm run pack:check
 npm run test:e2e
-# Test an already built image without rebuilding:
-FLOW_REEL_TEST_IMAGE=ghcr.io/codeonym-oss/flow-reel:X.Y.Z npm run test:e2e
-# Registry candidate mode pulls the supplied digest and fails instead of building on error:
-FLOW_REEL_TEST_IMAGE=ghcr.io/codeonym-oss/flow-reel@sha256:DIGEST npm run test:e2e
+# Test already built images without rebuilding. With either variable set, a missing one is an error, never a build:
+FLOW_REEL_TEST_IMAGE=ghcr.io/codeonym-oss/flow-reel:X.Y.Z \
+  FLOW_REEL_TEST_IMAGE_CLOUD=ghcr.io/codeonym-oss/flow-reel:X.Y.Z-cloud npm run test:e2e
+# Registry candidate mode pulls the supplied digests and fails instead of building on error:
+FLOW_REEL_TEST_IMAGE=ghcr.io/codeonym-oss/flow-reel@sha256:FULL_DIGEST \
+  FLOW_REEL_TEST_IMAGE_CLOUD=ghcr.io/codeonym-oss/flow-reel@sha256:CLOUD_DIGEST npm run test:e2e
 ```
 
 `release/package.json` records tarball version, source commit, SHA-256 and npm integrity. Generated release files
@@ -168,7 +173,7 @@ are ignored. A local package artifact made from an uncommitted tree is developme
 workflow artifact is a release candidate. The package contains runtime code, the Dockerfile, TTS scripts/manifests
 and selected SFX, without model weights or the planning audition library.
 
-Expect roughly 7 GB unpacked per image, plus build/cache disk usage and about 2.5 GB of model downloads on a cold
+Expect roughly 7 GB unpacked for the full image and 2.6 GB for the cloud one, which shares its base layers, plus build/cache disk usage and about 2.5 GB of model downloads on a cold
 build. Jobs print architecture, image size and disk usage. Per-architecture reproducibility is checked using the
 same image on the same architecture; cross-architecture CPU floating-point behavior must be assessed separately,
 and this workflow does not claim byte-identical speech across architectures.

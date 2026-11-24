@@ -51,7 +51,8 @@ jobs:
           any() { printf '%s\n' "$changed" | grep -qE "$1" && echo true || echo false; }
           echo "code=$(any "$code")" | tee -a "$GITHUB_OUTPUT"
           echo "runtime=$(any "$runtime")" | tee -a "$GITHUB_OUTPUT"
-      # The e2e shards, from test/e2e/shards.json; every e2e test file must be in exactly one.
+      # The e2e shards, from test/e2e/shards.json; every e2e test file must be in exactly one, and each shard names the
+      # images its tests use.
       - id: shards
         run: |
           node --input-type=module -e '
@@ -63,7 +64,12 @@ jobs:
               console.error(`test/e2e/shards.json lists ${listed.join(", ")}\nbut test/e2e has ${files.join(", ")}`);
               process.exit(1);
             }
-            const matrix = shards.map((s) => ({ name: s.name, files: s.files.map((f) => `test/e2e/${f}`).join(" "), consumer: !!s.consumer }));
+            const unbuilt = shards.filter((s) => !s.images?.length || !s.images.every((i) => ["cloud", "full"].includes(i)));
+            if (unbuilt.length) {
+              console.error(`test/e2e/shards.json: "images" must list cloud, full or both in ${unbuilt.map((s) => s.name).join(", ")}`);
+              process.exit(1);
+            }
+            const matrix = shards.map((s) => ({ name: s.name, images: s.images, files: s.files.map((f) => `test/e2e/${f}`).join(" "), consumer: !!s.consumer }));
             appendFileSync(process.env.GITHUB_OUTPUT, `shards=${JSON.stringify(matrix)}\n`);
             console.log(JSON.stringify(matrix, null, 2));'
 
@@ -102,7 +108,7 @@ jobs:
         run: |
           node dist/cli.js compare 2>&1 | grep -q "usage: flow-reel"
 
-  # The image, built per architecture, and the e2e tests in parallel shards on each (GH-92).
+  # The images each shard uses, built per architecture, and the e2e tests in parallel shards on each (GH-92, GH-101).
   e2e:
     name: e2e (${{ matrix.arch }}, ${{ matrix.shard.name }})
     needs: changes
@@ -126,22 +132,41 @@ jobs:
       - name: Reserve space for the model and image layers
         run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
       - id: package
-        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+        run: |
+          version=$(node -p "require('./package.json').version")
+          image=ghcr.io/codeonym-oss/flow-reel:$version
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # Empty when this shard doesn't use the image.
+          echo "full=${{ contains(matrix.shard.images, 'full') && '$image' || '' }}" >> "$GITHUB_OUTPUT"
+          echo "cloud=${{ contains(matrix.shard.images, 'cloud') && '$image-cloud' || '' }}" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+      - if: contains(matrix.shard.images, 'cloud')
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           file: docker/Dockerfile
+          target: cloud
           platforms: linux/${{ matrix.arch }}
           load: true
-          tags: ghcr.io/codeonym-oss/flow-reel:${{ steps.package.outputs.version }}
+          tags: ${{ steps.package.outputs.cloud }}
           cache-from: type=gha,scope=flow-reel-${{ matrix.arch }}
-          # One shard per architecture writes the cache, so the shards don't race to export the same layers.
+      - if: contains(matrix.shard.images, 'full')
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: full
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          tags: ${{ steps.package.outputs.full }}
+          cache-from: type=gha,scope=flow-reel-${{ matrix.arch }}
+          # The full image is built from the cloud one, so this cache holds both images' layers. One shard per
+          # architecture writes it, so the shards don't race to export the same layers.
           cache-to: ${{ matrix.shard.consumer && format('type=gha,mode=max,scope=flow-reel-{0}', matrix.arch) || '' }}
       # The tests' own ffmpeg and ffprobe run in the image just built, not on the runner: the runner installs no ffmpeg.
       - name: Run ffmpeg in the image
         env:
-          IMAGE: ghcr.io/codeonym-oss/flow-reel:${{ steps.package.outputs.version }}
+          IMAGE: ${{ steps.package.outputs.cloud || steps.package.outputs.full }}
         run: |
           mkdir -p "$RUNNER_TEMP/bin"
           for tool in ffmpeg ffprobe; do
@@ -154,10 +179,11 @@ jobs:
       # The same flags as npm run test:e2e, on this shard's files.
       - run: npx vitest run ${{ matrix.shard.files }} --no-file-parallelism --testTimeout=900000 --hookTimeout=900000
         env:
-          FLOW_REEL_TEST_IMAGE: ghcr.io/codeonym-oss/flow-reel:${{ steps.package.outputs.version }}
+          FLOW_REEL_TEST_IMAGE: ${{ steps.package.outputs.full }}
+          FLOW_REEL_TEST_IMAGE_CLOUD: ${{ steps.package.outputs.cloud }}
       - if: matrix.shard.consumer
         run: npm run pack:check && node scripts/consumer.ts release/flow-reel-${{ steps.package.outputs.version }}.tgz
-      - run: docker image inspect ghcr.io/codeonym-oss/flow-reel:${{ steps.package.outputs.version }} --format '{{.Id}} {{.Architecture}} {{.Size}}'
+      - run: docker image inspect ${{ steps.package.outputs.cloud }} ${{ steps.package.outputs.full }} --format '{{.RepoTags}} {{.Id}} {{.Architecture}} {{.Size}}'
       - run: df -h /
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
