@@ -49,15 +49,16 @@ function tools(reel, out, manifest) {
     return { ffmpeg: (args) => spawnSync("ffmpeg", args, { encoding: "utf8" }), ffprobe: (args) => spawnSync("ffprobe", args, { encoding: "utf8" }),
       reelPath: (p) => join(reel, p), outPath: (p) => join(out, p), via: "host ffmpeg" };
   }
-  const image = `ghcr.io/codeonym-oss/flow-reel:${manifest.composer?.version}`;
-  for (const engine of ["docker", "podman"]) {
+  // The reel was composed in one of these; the smaller one is for a cloud voice, from 0.7.0.
+  const full = `ghcr.io/codeonym-oss/flow-reel:${manifest.composer?.version}`;
+  for (const [engine, image] of ["docker", "podman"].flatMap((e) => [[e, full], [e, `${full}-cloud`]])) {
     if (spawnSync(engine, ["image", "inspect", image], { stdio: "ignore" }).status !== 0) continue;
     const user = process.getuid ? ["--user", `${process.getuid()}:${process.getgid()}`] : [];
     const run = (entry) => (args) => spawnSync(engine, ["run", "--rm", "--network", "none", ...user,
       "-v", `${reel}:/reel:ro`, "-v", `${out}:/out`, "--entrypoint", entry, image, ...args], { encoding: "utf8" });
     return { ffmpeg: run("ffmpeg"), ffprobe: run("ffprobe"), reelPath: (p) => `/reel/${p}`, outPath: (p) => `/out/${p}`, via: image };
   }
-  throw new Unavailable(`no ffmpeg and ffprobe on PATH, and ${image} isn't present locally; install ffmpeg`);
+  throw new Unavailable(`no ffmpeg and ffprobe on PATH, and neither ${full} nor ${full}-cloud is present locally; install ffmpeg`);
 }
 
 export function stills({ reel: reelArg, to, cli }) {

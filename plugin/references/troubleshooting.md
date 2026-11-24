@@ -7,7 +7,7 @@ the composer's output in the terminal.
 | Symptom | Likely cause | What to do |
 |---|---|---|
 | "needs Docker or Podman" / "installed but not responding" | No engine, or its daemon is stopped. | `scripts/preflight.mjs` names it. Ask the person to install or start it; don't do it silently. |
-| The first compose stalls on a pull | The composer image is several GB. | Expected once; `docker pull ghcr.io/codeonym-oss/flow-reel:<version>` shows progress. |
+| The first compose stalls on a pull | The composer image is several GB; from 0.7.0, a cloud voice uses a smaller one, tagged `<version>-cloud`. | Expected once; pull the image `preflight.mjs` names to see progress. |
 | `net::ERR_CONNECTION_REFUSED` at `url` | The app isn't running, or listens on another port. | Start it; check with `preflight.mjs --url`. On Linux the container shares the host's network. |
 | The page shows a login | The composer's browser is fresh. | See `exploring.md`, "Logins and data". |
 | A locator times out | The label changed, the element isn't there yet, or something covers it. | Re-explore that screen; wait for the state that precedes it; close the overlay with a real action. Don't add sleeps. |
