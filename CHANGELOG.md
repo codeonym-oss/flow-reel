@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/codeonym-oss/flow-reel/compare/v0.6.0...v0.7.0) (2026-11-24)
+
+
+### Features
+
+* compose cloud voices in a smaller image ([#101](https://github.com/codeonym-oss/flow-reel/issues/101)) ([#102](https://github.com/codeonym-oss/flow-reel/issues/102)) ([f96c6aa](https://github.com/codeonym-oss/flow-reel/commit/f96c6aa76ff4da6fa144e2777e2e8fbb52a66e04))
+
 ## [0.6.0](https://github.com/codeonym-oss/flow-reel/compare/v0.5.0...v0.6.0) (2026-11-23)
 
 

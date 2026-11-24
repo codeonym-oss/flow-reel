@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/codeonym-oss/flow-reel/compare/flow-reel-plugin-v0.7.0...flow-reel-plugin-v0.8.0) (2026-11-24)
+
+
+### Features
+
+* name the cloud image in the plugin's preflight and stills ([#101](https://github.com/codeonym-oss/flow-reel/issues/101)) ([#104](https://github.com/codeonym-oss/flow-reel/issues/104)) ([105583d](https://github.com/codeonym-oss/flow-reel/commit/105583d6eab53fe02b2e43c49aa62f8123b71c6a))
+
 ## [0.7.0](https://github.com/codeonym-oss/flow-reel/compare/flow-reel-plugin-v0.6.0...flow-reel-plugin-v0.7.0) (2026-11-23)
 
 
