@@ -16,8 +16,11 @@ const stills = join(root, "plugin/scripts/stills.mjs");
 const work = mkdtempSync(join(tmpdir(), "flow reel helpers "));
 afterAll(() => rmSync(work, { recursive: true, force: true }));
 
-/** A PATH holding node and, optionally, a fake `docker` that logs its arguments and answers as told. */
-function fakePath(name: string, docker?: { version?: boolean; info?: boolean; image?: boolean }): { path: string; log: string } {
+/**
+ * A PATH holding node and, optionally, a fake `docker` that logs its arguments and answers as told. `image` is whether
+ * every image is present, or the one that is.
+ */
+function fakePath(name: string, docker?: { version?: boolean; info?: boolean; image?: boolean | string }): { path: string; log: string } {
   const dir = join(work, name);
   mkdirSync(dir, { recursive: true });
   symlinkSync(process.execPath, join(dir, "node"));
@@ -29,7 +32,7 @@ echo "$@" >> "${log}"
 case "$1" in
   --version) echo "Docker version 28.0.0"; exit ${code(docker.version)};;
   info) exit ${code(docker.info)};;
-  image) exit ${code(docker.image)};;
+  image) ${typeof docker.image === "string" ? `[ "$3" = "${docker.image}" ]; exit` : `exit ${code(docker.image)}`};;
   *) exit 3;;
 esac
 `);
@@ -87,6 +90,26 @@ describe("preflight.mjs", () => {
     const result = await run(preflight, ["--version", "0.5.0", "--json"], fake.path);
     expect(result.status).toBe(0);
     expect(checks(result.stdout).image).toMatchObject({ status: "note", fix: "docker pull ghcr.io/codeonym-oss/flow-reel:0.5.0" });
+    expect(readFileSync(fake.log, "utf8")).not.toMatch(/^(pull|build|run)/m);
+  });
+
+  it("names the cloud image for a cloud voice, from the runtime that publishes it (GH-101)", async () => {
+    const project = join(work, "images");
+    mkdirSync(project, { recursive: true });
+    writeFileSync(join(project, "demo.ts"), "");
+    const fake = fakePath("images", { version: true, info: true, image: false });
+    const image = async (adapter: string | undefined, version: string) => {
+      rmSync(join(project, "flow-reel.json"), { force: true });
+      if (adapter) writeFileSync(join(project, "flow-reel.json"), JSON.stringify({ version: 1, voice: { adapter } }));
+      const result = await run(preflight, ["--script", join(project, "demo.ts"), "--version", version, "--json"], fake.path);
+      return checks(result.stdout).image.fix;
+    };
+    const pull = "docker pull ghcr.io/codeonym-oss/flow-reel:";
+    expect(await image("openai", "0.7.0")).toBe(`${pull}0.7.0-cloud`);
+    expect(await image("openai-compatible", "0.8.1")).toBe(`${pull}0.8.1-cloud`);
+    expect(await image("openai", "0.6.0")).toBe(`${pull}0.6.0`);
+    expect(await image("qwen3-tts-0.6b", "0.7.0")).toBe(`${pull}0.7.0`);
+    expect(await image(undefined, "0.7.0")).toBe(`${pull}0.7.0`);
     expect(readFileSync(fake.log, "utf8")).not.toMatch(/^(pull|build|run)/m);
   });
 
@@ -188,6 +211,17 @@ describe("stills.mjs", () => {
       files: hashFiles(reel, listReelFiles(reel)) }));
     const broken = await run(stills, [reel, "--to", join(work, "b"), "--flow-reel", cli]);
     expect(broken).toMatchObject({ status: 1, stderr: expect.stringContaining("video.mp4 can't be read") });
+  }, 60_000);
+
+  it.each(["0.2.0", "0.2.0-cloud"])("runs ffmpeg in the image when the host has none: %s (GH-101)", async (tag) => {
+    makeReel(reel);
+    const image = `ghcr.io/codeonym-oss/flow-reel:${tag}`;
+    const fake = fakePath(`stills-${tag}`, { version: true, info: true, image });
+    // The fake docker can't run ffprobe; the log shows which image it was asked to run.
+    await run(stills, [reel, "--to", join(work, `s-${tag}`), "--flow-reel", cli], fake.path);
+    const runs = readFileSync(fake.log, "utf8").match(/^run .*$/gm);
+    expect(runs).toHaveLength(1);
+    expect(runs![0]).toContain(`--entrypoint ffprobe ${image} `);
   }, 60_000);
 
   it("refuses an output inside the reel, a folder that isn't a reel, and runs without ffmpeg or an image only to say so", async () => {
