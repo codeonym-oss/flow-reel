@@ -46,13 +46,15 @@ not run for this pass.
    CONTEXT.md's Composer entry.
    → check: the docs build with `-W`; sizes are the ones measured in step 2.
 
-### Pull request 2: the plugin (`feat:`, only `plugin/`), after the runtime release
+### Pull request 2: the plugin (`feat:`, only `plugin/`), merged after pull request 1, before the release
+
+One release pull request ships both (decision 005). Before merging it, check that it gives the runtime the first
+version preflight expects a `-cloud` image from (0.7.0), and that main CI is green.
 
 9. **Preflight** names the `-cloud` tag for a cloud voice on a runtime that publishes it, and the full tag before.
    **Stills** tries both tags when there is no host ffmpeg. Update `troubleshooting.md`.
-   → check: helper tests for a cloud voice on both sides of that version. The tests land first in their own `test:`
-   pull request only if they pass without the plugin change; otherwise use a commit override (see the release notes
-   in `docs/releasing.md`).
+   → check: helper tests for a cloud voice on both sides of that version.
+   They fail without the plugin change, so they follow in their own `test:` pull request, right after this one.
 
 ## Tests
 
