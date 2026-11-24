@@ -115,11 +115,12 @@ jobs:
         env:
           VERSION: ${{ needs.package.outputs.version }}
       - if: inputs.source_run == ''
-        id: build
+        id: cloud
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: /tmp/flow-reel-context
           file: /tmp/flow-reel-context/docker/Dockerfile
+          target: cloud
           platforms: linux/${{ matrix.arch }}
           outputs: type=image,name=ghcr.io/codeonym-oss/flow-reel,push-by-digest=true,name-canonical=true,push=true
           # Keep candidates as platform manifests so the final index names the exact tested digests.
@@ -132,6 +133,26 @@ jobs:
           cache-from: |
             type=gha,scope=flow-reel-release-${{ matrix.arch }}
             type=gha,scope=flow-reel-${{ matrix.arch }}
+      - if: inputs.source_run == ''
+        id: full
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: /tmp/flow-reel-context
+          file: /tmp/flow-reel-context/docker/Dockerfile
+          target: full
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=image,name=ghcr.io/codeonym-oss/flow-reel,push-by-digest=true,name-canonical=true,push=true
+          # Keep candidates as platform manifests so the final index names the exact tested digests.
+          provenance: false
+          sbom: false
+          labels: |
+            org.opencontainers.image.source=https://github.com/codeonym-oss/flow-reel
+            org.opencontainers.image.version=${{ needs.package.outputs.version }}
+            org.opencontainers.image.revision=${{ needs.package.outputs.commit }}
+          cache-from: |
+            type=gha,scope=flow-reel-release-${{ matrix.arch }}
+            type=gha,scope=flow-reel-${{ matrix.arch }}
+          # The full image is built from the cloud one, so this cache holds both images' layers.
           cache-to: type=gha,mode=max,scope=flow-reel-release-${{ matrix.arch }}
       - if: inputs.source_run != ''
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
@@ -142,30 +163,39 @@ jobs:
           github-token: ${{ github.token }}
       - id: candidate
         run: |
-          if [ -n "$SOURCE_RUN" ]; then
-            digest=$(node scripts/release-cli.ts reuse "$ARCH")
-          else
-            digest="$BUILD_DIGEST"
-          fi
-          echo "digest=$digest" >> "$GITHUB_OUTPUT"
-          docker pull "$IMAGE@$digest"
-          node scripts/release-cli.ts candidate "$ARCH" "$digest" false
+          for target in cloud full; do
+            if [ -n "$SOURCE_RUN" ]; then
+              digest=$(node scripts/release-cli.ts reuse "$ARCH" "$target")
+            elif [ "$target" = cloud ]; then
+              digest="$CLOUD_DIGEST"
+            else
+              digest="$FULL_DIGEST"
+            fi
+            echo "$target=$digest" >> "$GITHUB_OUTPUT"
+            docker pull "$IMAGE@$digest"
+            node scripts/release-cli.ts candidate "$ARCH" "$target" "$digest" false
+          done
         env:
           SOURCE_RUN: ${{ inputs.source_run }}
           ARCH: ${{ matrix.arch }}
-          BUILD_DIGEST: ${{ steps.build.outputs.digest }}
+          CLOUD_DIGEST: ${{ steps.cloud.outputs.digest }}
+          FULL_DIGEST: ${{ steps.full.outputs.digest }}
       - run: npm run test:e2e
         env:
-          FLOW_REEL_TEST_IMAGE: ghcr.io/codeonym-oss/flow-reel@${{ steps.candidate.outputs.digest }}
-      - run: node scripts/release-cli.ts candidate "$ARCH" "$DIGEST" true
+          FLOW_REEL_TEST_IMAGE: ghcr.io/codeonym-oss/flow-reel@${{ steps.candidate.outputs.full }}
+          FLOW_REEL_TEST_IMAGE_CLOUD: ghcr.io/codeonym-oss/flow-reel@${{ steps.candidate.outputs.cloud }}
+      - run: |
+          node scripts/release-cli.ts candidate "$ARCH" cloud "$CLOUD_DIGEST" true
+          node scripts/release-cli.ts candidate "$ARCH" full "$FULL_DIGEST" true
         env:
           ARCH: ${{ matrix.arch }}
-          DIGEST: ${{ steps.candidate.outputs.digest }}
+          CLOUD_DIGEST: ${{ steps.candidate.outputs.cloud }}
+          FULL_DIGEST: ${{ steps.candidate.outputs.full }}
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: candidate-${{ matrix.arch }}
-          path: release/${{ matrix.arch }}.json
+          path: release/${{ matrix.arch }}-*.json
           retention-days: 90
           overwrite: true
           if-no-files-found: warn
@@ -210,9 +240,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: release-image
-          path: |
-            release/image-index.json
-            release/image.json
+          path: release/image*.json
           retention-days: 90
           overwrite: true
 
@@ -240,8 +268,10 @@ jobs:
       - run: npm ci
       - run: |
           mkdir -p /tmp/flow-reel-anonymous
-          docker --config /tmp/flow-reel-anonymous pull "$IMAGE:$VERSION"
-          docker image inspect "$IMAGE:$VERSION" --format '{{.Id}} {{.Architecture}} {{.Size}}'
+          for tag in "$VERSION-cloud" "$VERSION"; do
+            docker --config /tmp/flow-reel-anonymous pull "$IMAGE:$tag"
+            docker image inspect "$IMAGE:$tag" --format '{{.RepoTags}} {{.Id}} {{.Architecture}} {{.Size}}'
+          done
           node scripts/consumer.ts "release/flow-reel-$VERSION.tgz"
         env:
           VERSION: ${{ needs.package.outputs.version }}
@@ -327,6 +357,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: |
           mkdir -p /tmp/flow-reel-anonymous
+          docker pull "$IMAGE:$VERSION-cloud"
           docker pull "$IMAGE:$VERSION"
           node scripts/consumer.ts "flow-reel@$VERSION"
         env:

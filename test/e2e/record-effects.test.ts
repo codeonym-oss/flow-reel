@@ -18,7 +18,7 @@ let image: string;
 
 beforeAll(async () => {
   mkdirSync(OUT, { recursive: true });
-  image = prepareImage();
+  image = prepareImage("cloud");
   app = await startFixtureApp();
   port = app.port;
 }, 900_000);

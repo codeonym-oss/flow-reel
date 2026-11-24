@@ -1,18 +1,26 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { type ImageTarget, imageFor } from "../../src/host/launch.ts";
 
-/** A supplied image is authoritative: never rebuild a registry artifact under test. */
-export function prepareImage(): string {
+const CANDIDATES = { full: "FLOW_REEL_TEST_IMAGE", cloud: "FLOW_REEL_TEST_IMAGE_CLOUD" } as const;
+
+/**
+ * The composer image a test needs (GH-101 decision 004). Supplied images are authoritative: never rebuild a registry
+ * artifact under test, nor build one beside it.
+ */
+export function prepareImage(target: ImageTarget): string {
   const { version } = JSON.parse(readFileSync("package.json", "utf8"));
-  const image = `ghcr.io/codeonym-oss/flow-reel:${version}`;
-  const candidate = process.env.FLOW_REEL_TEST_IMAGE;
+  const image = imageFor(version, target);
+  const candidate = process.env[CANDIDATES[target]];
   const docker = (...args: string[]) => execFileSync("docker", args, { stdio: "inherit" });
   if (candidate) {
     if (candidate.includes("@sha256:")) docker("pull", candidate);
     docker("image", "inspect", candidate, "--format", "{{.Id}} {{.Architecture}} {{.Size}}");
     if (candidate !== image) docker("tag", candidate, image);
+  } else if (Object.values(CANDIDATES).some((name) => process.env[name])) {
+    throw new Error(`${CANDIDATES[target]} must name the ${target} image, since another image under test is supplied`);
   } else {
-    docker("build", "-q", "-t", image, "-f", "docker/Dockerfile", ".");
+    docker("build", "-q", "--target", target, "-t", image, "-f", "docker/Dockerfile", ".");
   }
   return image;
 }
@@ -30,7 +38,7 @@ export async function renderCardsInImage(jobs: readonly import("../../src/compos
     const { chromiumPainter } = await import("../../src/adapters/chromium/painter.ts");
     return renderCards(jobs, { ...options, painter: chromiumPainter });
   }
-  prepared ??= prepareImage();
+  prepared ??= prepareImage("cloud");
   const { dirname } = await import("node:path");
   const mounts = [...new Set([options.work, options.scriptDir, dirname(options.capture)])].flatMap((dir) => ["-v", `${dir}:${dir}`]);
   const code = `const [jobs, options] = JSON.parse(process.argv[1]);

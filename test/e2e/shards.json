@@ -1,6 +1,6 @@
 [
-  { "name": "local-voice", "files": ["record.test.ts", "compare.test.ts"] },
-  { "name": "waits", "files": ["record-waits.test.ts", "render.test.ts", "polish.test.ts", "sfx.test.ts"] },
-  { "name": "cards", "files": ["record-cards.test.ts", "record-effects.test.ts", "cards.test.ts"] },
-  { "name": "voices", "files": ["tts.test.ts", "plugin.test.ts", "cloud-voice.test.ts"], "consumer": true }
+  { "name": "local-voice", "images": ["full"], "files": ["record.test.ts", "compare.test.ts"] },
+  { "name": "waits", "images": ["cloud"], "files": ["record-waits.test.ts", "render.test.ts", "polish.test.ts", "sfx.test.ts"] },
+  { "name": "cards", "images": ["cloud"], "files": ["record-cards.test.ts", "record-effects.test.ts", "cards.test.ts"] },
+  { "name": "voices", "images": ["cloud", "full"], "files": ["tts.test.ts", "plugin.test.ts", "cloud-voice.test.ts"], "consumer": true }
 ]

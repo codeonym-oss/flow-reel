@@ -47,7 +47,8 @@ mistake: a changed comment is meant to differ. Read the output before merging.
 
 ## Composing in CI
 
-Composing needs Docker, about 2.5 free CPU cores, the ~7 GB composer image and your app running. It's possible on
+Composing needs Docker, about 2.5 free CPU cores, the composer image (about 2.6 GB
+with a cloud voice) and your app running. It's possible on
 a CI runner, but heavier than checking:
 
 - Use a [cloud voice](../guide/voices.md) and store its key as a CI secret, exposed to the job as the environment

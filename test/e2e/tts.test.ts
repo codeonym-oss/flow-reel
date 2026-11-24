@@ -11,7 +11,7 @@ let image: string;
 
 beforeAll(() => {
   mkdirSync(OUT, { recursive: true });
-  image = prepareImage();
+  image = prepareImage("full");
 }, 900_000);
 
 it("synthesizes identical playable WAVs in fresh offline processes with a reset seed per clip, as any speaker", async () => {

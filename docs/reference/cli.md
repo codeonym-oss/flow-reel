@@ -12,8 +12,9 @@ Run it with `npx flow-reel …` from a project that has flow-reel installed.
 
 ## `compose`
 
-Composes a script into a reel, inside the composer image for the package's version. It pulls the image the first
-time, or builds it locally if it can't be pulled.
+Composes a script into a reel, inside the composer image for the package's version and the voice (see
+[Installation](../getting-started/installation.md)). It pulls the image the first time, or builds it locally if it
+can't be pulled.
 
 | Flag | Does |
 |---|---|

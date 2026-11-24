@@ -2,8 +2,8 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildRunArgs, detectEngine, imageFor, sourceCheckoutWarning } from "../../src/host/launch.ts";
-import { resolveSettings } from "../../src/settings.ts";
+import { buildRunArgs, detectEngine, imageFor, sourceCheckoutWarning, targetFor } from "../../src/host/launch.ts";
+import { type ConfigFile, type SettingsFlags, resolveSettings } from "../../src/settings.ts";
 
 const settings = resolveSettings(undefined);
 const SETTINGS = ["--integration", "playwright", "--voice", "qwen3-tts-0.6b", "--speaker", "Ryan", "--language", "english"];
@@ -12,7 +12,18 @@ const base = { image: "ghcr.io/codeonym-oss/flow-reel:0.1.0", workDir: "/home/me
 
 describe("imageFor", () => {
   it("tags the image with the package version", () => {
-    expect(imageFor("0.1.0")).toBe("ghcr.io/codeonym-oss/flow-reel:0.1.0");
+    expect(imageFor("0.1.0", "full")).toBe("ghcr.io/codeonym-oss/flow-reel:0.1.0");
+    expect(imageFor("0.1.0", "cloud")).toBe("ghcr.io/codeonym-oss/flow-reel:0.1.0-cloud");
+  });
+  it("follows the voice that speaks: the smaller image for a cloud voice (GH-101 decision 001)", () => {
+    const target = (file?: ConfigFile, flags?: SettingsFlags) => targetFor(resolveSettings(file, flags).voice.adapter);
+    const openai: ConfigFile = { version: 1, voice: { adapter: "openai" } };
+    expect(target()).toBe("full");
+    expect(target({ version: 1, voice: { adapter: "qwen3-tts-0.6b" } })).toBe("full");
+    expect(target(openai)).toBe("cloud");
+    expect(target(undefined, { voice: "gemini" })).toBe("cloud");
+    expect(target(openai, { voice: "qwen3-tts-0.6b" })).toBe("full");
+    expect(target({ version: 1, voice: { adapter: "openai-compatible", baseUrl: "http://localhost:8880/v1", model: "kokoro" } })).toBe("cloud");
   });
 });
 
@@ -85,9 +96,10 @@ describe("detectEngine", () => {
 });
 
 describe("sourceCheckoutWarning", () => {
-  it("warns only in a git checkout with composer sources", () => {
+  it("warns only in a git checkout with composer sources, with the target to build", () => {
     const image = "ghcr.io/codeonym-oss/flow-reel:0.1.1";
-    expect(sourceCheckoutWarning(resolve("."), image)).toMatch(/source checkout.*0\.1\.1.*docker build/s);
-    expect(sourceCheckoutWarning(mkdtempSync(join(tmpdir(), "flow-reel-installed-")), image)).toBeUndefined();
+    expect(sourceCheckoutWarning(resolve("."), image, "full")).toMatch(/source checkout.*0\.1\.1.*docker build --target full/s);
+    expect(sourceCheckoutWarning(resolve("."), `${image}-cloud`, "cloud")).toContain(`docker build --target cloud -t ${image}-cloud -f docker/Dockerfile .`);
+    expect(sourceCheckoutWarning(mkdtempSync(join(tmpdir(), "flow-reel-installed-")), image, "full")).toBeUndefined();
   });
 });

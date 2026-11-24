@@ -10,8 +10,12 @@ with the composer's output in the terminal.
 : No container engine, or its daemon is stopped. Install or start Docker or Podman.
 
 **The first compose stalls on a pull**
-: The composer image is about 7 GB. That's expected once. `docker pull ghcr.io/codeonym-oss/flow-reel:<version>`
-  shows progress.
+: The composer image is about 2.6 GB for a cloud voice and 7 GB for the built-in local voice. That's expected once for
+  each. `docker pull ghcr.io/codeonym-oss/flow-reel:<version>-cloud` shows progress (without `-cloud` for the local
+  voice).
+
+**A compose pulls the 7 GB image although you want a cloud voice**
+: No voice is set, so it uses the built-in local voice. Set `voice.adapter` in `flow-reel.json`, or `--voice`.
 
 **`net::ERR_CONNECTION_REFUSED` at `url`**
 : The app isn't running, or it listens on another port. On Linux the container shares the host's network, so
