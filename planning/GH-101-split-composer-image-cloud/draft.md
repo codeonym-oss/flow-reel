@@ -21,7 +21,8 @@ cloud voice is an HTTP call from Node, but its first compose still downloads the
 - **The speedUp, skip and cards e2e really use the fake voice.** GH-92 meant them to, but they pass it in
   `flow-reel.json`, which the container doesn't read, so they still speak with the local voice.
 - **The plugin** names the image the reel's voice needs in its preflight, for runtimes that publish a `-cloud` image,
-  and its stills helper can use either image. It is a plugin-only pull request, after the runtime release.
+  and its stills helper can use either image. It is a plugin-only pull request, merged
+  after the runtime one; one release pull request ships both.
 - **The docs** say which image a reel uses and how large each is.
 
 ## Out of scope
