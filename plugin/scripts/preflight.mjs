@@ -77,6 +77,12 @@ function checkVoice(dir) {
       fix: `the person sets it in the shell that composes (export ${variable}=...); never in flow-reel.json` };
 }
 
+/** Whether the folder's flow-reel.json names a cloud voice; an unreadable file is reported by checkVoice. */
+function hasCloudVoice(dir) {
+  try { return JSON.parse(readFileSync(join(dir, "flow-reel.json"), "utf8"))?.voice?.adapter in CLOUD_KEYS; }
+  catch { return false; }
+}
+
 const probe = (cmd, args) => spawnSync(cmd, args, { encoding: "utf8", timeout: 15_000 });
 
 async function checkUrl(url) {
@@ -124,14 +130,17 @@ export async function preflight(args) {
     add("runtime", { status: "fail", detail: `flow-reel ${found.version} (${found.where}); this plugin supports ${range}`, fix: "npm install --save-dev flow-reel, or update the plugin" });
   } else add("runtime", { status: "ok", detail: `flow-reel ${found.version}, within ${range}` });
 
+  const dir = args.script ? dirname(args.script) : process.cwd();
   if (engine && found) {
-    const image = `ghcr.io/codeonym-oss/flow-reel:${found.version}`;
+    // From 0.7.0, a cloud voice composes in a smaller image of its own.
+    const suffix = hasCloudVoice(dir) && satisfies(found.version, ">=0.7.0") ? "-cloud" : "";
+    const image = `ghcr.io/codeonym-oss/flow-reel:${found.version}${suffix}`;
     add("image", probe(engine, ["image", "inspect", image]).status === 0
       ? { status: "ok", detail: `${image} is present` }
       : { status: "note", detail: `${image} isn't present; the first compose pulls it (several GB), or builds it if it can't`, fix: `${engine} pull ${image}` });
   }
 
-  add("voice", checkVoice(args.script ? dirname(args.script) : process.cwd()));
+  add("voice", checkVoice(dir));
 
   if (args.script) {
     add("script", existsSync(args.script)
