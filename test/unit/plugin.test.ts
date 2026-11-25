@@ -146,8 +146,10 @@ describe("what the plugin teaches", () => {
 describe("the supported runtime (decision 010)", () => {
   const range = supportedRange(readFileSync(join(plugin, "references/language.md"), "utf8"));
 
-  it("includes this package's version", () => {
-    expect(satisfies(json(join(root, "package.json")).version, range)).toBe(true);
+  it("includes this package's version, or its next minor while that is being built (GH-121 decision 001)", () => {
+    const { version } = json(join(root, "package.json"));
+    const [major, minor] = version.split(".").map(Number);
+    expect(satisfies(version, range) || satisfies(`${major}.${minor + 1}.0`, range)).toBe(true);
   });
 
   it("is read as a half-open range", () => {
