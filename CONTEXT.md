@@ -117,6 +117,21 @@ timeline, **render** makes the video, **publish** puts the reel in the output fo
 leaves its own.
 _Avoid:_ stage, stretch (a sped-up or skipped part of a script).
 
+**State**
+What a run is doing now: **queued**, **running**, **held** (waiting for a person), or ended: **done**, **failed** (an error in
+the script, the app, the voice or the render), **stopped** (it ended without an error and without finishing) or
+**cancelled** (a person ended it).
+_Avoid:_ status, interrupted.
+
+**Journal**
+Everything that happened to a run, one entry at a time, appended and never changed. The entries in order are the run.
+`journal.jsonl` in a run.
+_Avoid:_ log (a run's log is what its containers and its script print).
+
+**Gate**
+A point where a run can be held: before each phase, and before each step while it records.
+_Avoid:_ breakpoint, checkpoint.
+
 **Result**
 What a phase leaves in its run, complete or not there at all, and what it was made from.
 _Avoid:_ artifact, output.

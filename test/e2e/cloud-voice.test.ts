@@ -7,6 +7,8 @@ import { type Server, createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join, resolve } from "node:path";
 import { afterAll, beforeAll, expect, it } from "vitest";
+import { readJournal } from "../../src/host/journal.ts";
+import { replay } from "../../src/run/journal.ts";
 import { FAKE_KEY, tone } from "./fixture-app.ts";
 import { prepareImage } from "./image.ts";
 import { DATA_DIR, cliEnv, compose, lastRun, makeProject } from "./project.ts";
@@ -52,6 +54,9 @@ export default script({ url: "http://localhost:${port}/", viewport: [960, 540] }
 
   const first = await compose(project);
   expect(first.stderr).toContain("voiced 2 of 2 comments (0 reused)");
+  // It says each step as it plays, and its journal holds the run (GH-116).
+  expect(first.stderr).toMatch(/recording\n.*step 1: Type a name\.\n.*step 2: Save it\.\n.*voicing\n[^]*rendering\n[^]*composed/);
+  expect(replay(readJournal(lastRun(project)))).toMatchObject({ state: "done", reel: { path: first.reel, published: true } });
   // Comments are voiced concurrently, so their requests arrive in either order.
   expect([...requests].sort((a, b) => a.body.input.localeCompare(b.body.input))).toEqual([
     { auth: `Bearer ${KEY}`, body: { model: "gpt-4o-mini-tts", input: "Save it.", voice: "nova", response_format: "pcm" } },

@@ -4,10 +4,12 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync }
 import { rename } from "node:fs/promises";
 import { join, relative } from "node:path";
 import type { Brand } from "../composer/cards/brand.ts";
+import { entry, line } from "../run/journal.ts";
 import type { Settings } from "../settings.ts";
 import { type Workspace, type WorkspaceScript, skipped } from "../workspace/workspace.ts";
 import { workspaceDir } from "./data.ts";
 import { copyFile, copyTree, describeFiles, listFiles, sha256, slashes, treeHash, writeDurable } from "./files.ts";
+import { JOURNAL_FILE } from "./journal.ts";
 
 /** What was asked of a run. It never changes, and holds no key. */
 export interface RunRequest {
@@ -77,6 +79,7 @@ export async function createRun(data: string, { workspace, script, settings, sou
         folder: treeHash(await describeFiles(scripts, listFiles(scripts))) },
       settings, brand: workspace.config.brand ?? {}, sound, reel, credentials, startedAt: new Date().toISOString() };
     writeDurable(join(building, REQUEST_FILE), `${JSON.stringify(request, null, 2)}\n`);
+    writeDurable(join(building, JOURNAL_FILE), line(entry({ type: "created" }, new Date(request.startedAt))));
     for (;;) {
       const number = Math.max(0, ...runNumbers(runs)) + 1;
       const dir = join(runs, String(number));
