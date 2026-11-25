@@ -52,6 +52,8 @@ export interface RunState {
   holding: boolean;
   /** Where a held run is held, and the state it goes back to. */
   held?: { gate: Gate; from: "queued" | "running" };
+  /** The phase it was let start after being held before it: it isn't held there twice. */
+  passed?: Phase;
   /** A client asked the run to end; its driver is ending it. */
   cancelling: boolean;
   /** The phase it waits to start, and what it waits behind. */
@@ -98,7 +100,7 @@ export function next(run: RunState | undefined, event: RunEvent): RunState {
       if (run.state === "held") return refuse("it is held");
       if (run.phase) return refuse(`it is in its ${run.phase} phase`);
       if (event.phase !== nextPhase(run)) return refuse(`its next phase is ${nextPhase(run) ?? "none"}`);
-      return { ...rest, state: "running", phase: event.phase };
+      return { ...started(rest), state: "running", phase: event.phase };
     case "progress":
       return event.phase === run.phase ? run : refuse(`it isn't in its ${event.phase} phase`);
     case "phase-finished": {
@@ -107,7 +109,7 @@ export function next(run: RunState | undefined, event: RunEvent): RunState {
       if (event.reused ? phase !== undefined || event.phase !== nextPhase(run) : event.phase !== phase) {
         return refuse(`it isn't ${event.reused ? "about to start" : "in"} its ${event.phase} phase`);
       }
-      return { ...without, state: event.reused ? run.state : "running", finished: [...run.finished, event.phase] };
+      return { ...started(without), state: event.reused ? run.state : "running", finished: [...run.finished, event.phase] };
     }
     case "hold":
       if (run.state === "held") return refuse("it is held");
@@ -119,12 +121,14 @@ export function next(run: RunState | undefined, event: RunEvent): RunState {
       if (gate.before === "phase" ? run.phase !== undefined || gate.phase !== nextPhase(run) : run.phase !== "record") {
         return refuse("it isn't at that gate");
       }
+      if (gate.before === "phase" && gate.phase === run.passed) return refuse("it was let through that gate");
       return { ...rest, state: "held", holding: false, held: { gate, from: run.state as "queued" | "running" } };
     }
     case "step": case "release": {
       if (run.state !== "held" || !run.held) return event.type === "release" && run.holding ? { ...run, holding: false } : refuse("it isn't held");
       const { held, ...without } = run;
-      return { ...without, state: held.from, holding: event.type === "step" };
+      const { gate, from } = held;
+      return { ...without, state: from, holding: event.type === "step", ...(gate.before === "phase" ? { passed: gate.phase } : {}) };
     }
     case "cancel":
       return run.cancelling ? refuse("it is being cancelled") : { ...run, cancelling: true };
@@ -141,6 +145,8 @@ export function next(run: RunState | undefined, event: RunEvent): RunState {
   }
 }
 
+const started = <S extends { passed?: Phase }>({ passed: _, ...run }: S): Omit<S, "passed"> => run;
+
 const ended = (run: RunState, state: "cancelled" | "failed" | "stopped", message: string): RunState =>
   ({ state, finished: run.finished, holding: false, cancelling: false, ended: { ...(run.phase ? { phase: run.phase } : {}), message } });
 
@@ -155,9 +161,10 @@ export type Todo =
 
 export function todo(run: RunState): Todo {
   if (isEnded(run)) return { do: "wait" };
+  const phase = nextPhase(run);
+  // Once its reel is in place it is done, even when it was asked to end a moment before.
+  if (!phase) return { do: "finish" };
   if (run.cancelling) return { do: "cancel" };
   if (run.state === "held" || run.phase) return { do: "wait" };
-  const phase = nextPhase(run);
-  if (!phase) return { do: "finish" };
-  return run.holding ? { do: "hold", gate: { before: "phase", phase } } : { do: "phase", phase };
+  return run.holding && run.passed !== phase ? { do: "hold", gate: { before: "phase", phase } } : { do: "phase", phase };
 }

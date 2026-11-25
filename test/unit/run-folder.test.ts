@@ -43,7 +43,7 @@ describe("a run's folder", () => {
     expect(run.dir).toBe(join(runsDir(data, "abcdefghijkl"), "1"));
     const files = readdirSync(run.dir, { recursive: true, withFileTypes: true }).filter((e) => e.isFile())
       .map((e) => join(e.parentPath, e.name).slice(run.dir.length + 1).replaceAll("\\", "/")).sort();
-    expect(files).toEqual(["previous/audio/000.wav", "previous/transcript.json", "request.json", "scripts/a.reel.ts",
+    expect(files).toEqual(["journal.jsonl", "previous/audio/000.wav", "previous/transcript.json", "request.json", "scripts/a.reel.ts",
       "scripts/brand/logo.svg", "scripts/helpers/login.ts"]);
     expect(run.request).toMatchObject({ version: 1, flowReel: "0.8.0", workspace: { id: "abcdefghijkl", title: "Shop", root },
       script: { name: "a", path: "a.reel.ts" }, brand: { theme: "ocean" }, sound: true, reel: join(root, "reels/out/a.reel"), credentials: [] });

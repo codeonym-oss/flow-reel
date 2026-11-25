@@ -193,7 +193,7 @@ describe("flow-reel compose", () => {
     expect(capture).toMatchObject({ width: 2560, height: 1440, fps: "30/1" });
     expect(Math.abs(capture.frames - capture.seconds * 30)).toBeLessThanOrEqual(capture.seconds * 30 * 0.01 + 1);
     expect(JSON.parse(readFileSync(join(run, "record/cues.json"), "utf8")).capture.frames).toBe(capture.frames);
-    expect(readdirSync(run).sort()).toEqual(["log.txt", "plan", "previous", "record", "reel", "render", "request.json", "scripts", "voice"]);
+    expect(readdirSync(run).sort()).toEqual(["journal.jsonl", "log.txt", "plan", "previous", "record", "reel", "render", "request.json", "scripts", "voice"]);
     expect(readdirSync(join(run, "render")).sort()).toEqual(["render.json", "result.json", "video.mp4"]);
     expect(probe(join(a.reel, "video.mp4"))).toMatchObject({ width: 1920, height: 1080, fps: "30/1" });
   });

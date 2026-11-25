@@ -109,7 +109,13 @@ describe("the state machine", () => {
   });
 
   it("goes back from a hold to where it was, and a step holds again at the next gate", () => {
-    expect(next(SITUATIONS["held before recording"], { type: "release" })).toEqual(SITUATIONS.new);
+    expect(next(SITUATIONS["held before recording"], { type: "release" })).toEqual({ ...SITUATIONS.new, passed: "record" });
+    // The gate it was let through doesn't hold it again: the next one does.
+    const past = next(SITUATIONS["held before recording"], { type: "step" });
+    expect(todo(past)).toEqual({ do: "phase", phase: "record" });
+    expect(() => next(past, { type: "held", gate: { before: "phase", phase: "record" } })).toThrow("let through");
+    expect(todo(next(next(past, { type: "phase-started", phase: "record" }), { type: "phase-finished", phase: "record" })))
+      .toEqual({ do: "hold", gate: { before: "phase", phase: "voice" } });
     const stepped = next(SITUATIONS["held before a step"], { type: "step" });
     expect(stepped).toMatchObject({ state: "running", phase: "record", holding: true });
     expect(next(stepped, { type: "held", gate: { before: "step", step: 3 } }).state).toBe("held");
