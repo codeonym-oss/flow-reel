@@ -2,7 +2,7 @@
 import { parseArgs } from "node:util";
 
 /** How a command ended, as the process's exit code. */
-export const EXIT = { ok: 0, failed: 1, usage: 2 } as const;
+export const EXIT = { ok: 0, failed: 1, usage: 2, stopped: 3, cancelled: 4 } as const;
 
 export interface Command {
   /** One line for the list of commands. */

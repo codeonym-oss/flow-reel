@@ -2,14 +2,12 @@
 // of the reel it replaces.
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { rename } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 import type { Brand } from "../composer/cards/brand.ts";
-import { entry, line } from "../run/journal.ts";
 import type { Settings } from "../settings.ts";
 import { type Workspace, type WorkspaceScript, skipped } from "../workspace/workspace.ts";
 import { workspaceDir } from "./data.ts";
 import { copyFile, copyTree, describeFiles, listFiles, sha256, slashes, treeHash, writeDurable } from "./files.ts";
-import { JOURNAL_FILE } from "./journal.ts";
 
 /** What was asked of a run. It never changes, and holds no key. */
 export interface RunRequest {
@@ -37,6 +35,8 @@ export interface Run {
 }
 
 export const REQUEST_FILE = "request.json";
+/** What a run's containers, its script and its process print. */
+export const logFile = (runDir: string): string => join(runDir, "log.txt");
 export const runsDir = (data: string, workspaceId: string): string => join(workspaceDir(data, workspaceId), "runs");
 
 /** What a run's copy of the scripts folder leaves out: reels, packages, hidden files and the output folder. */
@@ -79,7 +79,6 @@ export async function createRun(data: string, { workspace, script, settings, sou
         folder: treeHash(await describeFiles(scripts, listFiles(scripts))) },
       settings, brand: workspace.config.brand ?? {}, sound, reel, credentials, startedAt: new Date().toISOString() };
     writeDurable(join(building, REQUEST_FILE), `${JSON.stringify(request, null, 2)}\n`);
-    writeDurable(join(building, JOURNAL_FILE), line(entry({ type: "created" }, new Date(request.startedAt))));
     for (;;) {
       const number = Math.max(0, ...runNumbers(runs)) + 1;
       const dir = join(runs, String(number));
@@ -108,8 +107,17 @@ function keepClips(reel: string, to: string): void {
 
 const runNumbers = (runs: string): number[] => readdirSync(runs).filter((name) => /^[1-9]\d*$/.test(name)).map(Number);
 
-export function readRun(data: string, workspaceId: string, number: number): Run | undefined {
-  const dir = join(runsDir(data, workspaceId), String(number));
+/** The numbers of a workspace's runs, newest first. */
+export function runNumbersOf(data: string, workspaceId: string): number[] {
+  const runs = runsDir(data, workspaceId);
+  return existsSync(runs) ? runNumbers(runs).sort((a, b) => b - a) : [];
+}
+
+export const readRun = (data: string, workspaceId: string, number: number): Run | undefined =>
+  readRunIn(join(runsDir(data, workspaceId), String(number)));
+
+/** The run in a folder, if it holds one. */
+export function readRunIn(dir: string): Run | undefined {
   if (!existsSync(join(dir, REQUEST_FILE))) return undefined;
-  return { number, dir, request: JSON.parse(readFileSync(join(dir, REQUEST_FILE), "utf8")) as RunRequest };
+  return { number: Number(basename(dir)), dir, request: JSON.parse(readFileSync(join(dir, REQUEST_FILE), "utf8")) as RunRequest };
 }

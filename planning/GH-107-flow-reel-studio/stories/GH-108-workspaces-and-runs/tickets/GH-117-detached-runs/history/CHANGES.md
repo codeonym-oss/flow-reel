@@ -1,2 +1,3 @@
 - 2026-11-25: drafted in the story's global pass.
 - 2026-11-25: issue GH-117 created, folder renamed.
+- 2026-11-25: built; decisions 001 to 004 chosen alone.

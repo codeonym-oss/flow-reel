@@ -14,9 +14,11 @@ const types = (run: Run) => readJournal(run.dir).map((entry) => "phase" in entry
 const read = (run: Run) => replay(readJournal(run.dir));
 
 describe("a run's journal", () => {
-  it("is there as soon as the run is", async () => {
+  it("starts when the run's process does", async () => {
     const run = await startRun(folder());
-    expect(readJournal(run.dir)).toEqual([{ v: 1, at: run.request.startedAt, type: "created" }]);
+    expect(readJournal(run.dir)).toEqual([]);
+    openJournal(run.dir, () => new Date("2026-11-25T10:00:00Z")).close();
+    expect(readJournal(run.dir)).toEqual([{ v: 1, at: "2026-11-25T10:00:00.000Z", type: "created" }]);
     expect(read(run)).toMatchObject({ state: "queued", finished: [] });
   });
 

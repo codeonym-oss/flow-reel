@@ -1,23 +1,21 @@
-import { appendFileSync } from "node:fs";
-import { join, relative } from "node:path";
-import { runPhase } from "../host/compose.ts";
 import { dataDir, localSlug, rememberWorkspace } from "../host/data.ts";
-import { drive } from "../host/driver.ts";
 import { detectEngine, ensureImage, packageVersion, targetFor } from "../host/engine.ts";
 import { createRun } from "../host/run-folder.ts";
+import { startProcess } from "../host/start.ts";
 import { credentialsFor, resolveSettings } from "../settings.ts";
 import { CONFIG_FILE, withSettings, writeConfig } from "../workspace/config.ts";
 import { findScript, reelFolder } from "../workspace/workspace.ts";
-import { type Command, EXIT, parse } from "./command.ts";
-import { jsonView, liveView, plainView } from "./progress.ts";
+import { type Command, EXIT, UsageError, parse } from "./command.ts";
+import { watchToEnd } from "./watch.ts";
 
 export const compose: Command = {
   summary: "compose a script into a reel",
   usage: "flow-reel compose <script.reel.ts> [--out <dir>] [--no-sound] [--integration <name>] [--voice <name>] " +
-    "[--speaker <name>] [--language <name>] [--model <id>] [--api-key-env <variable>] [--base-url <url>] [--save-config] [--json]",
+    "[--speaker <name>] [--language <name>] [--model <id>] [--api-key-env <variable>] [--base-url <url>] [--save-config] [--detach] [--json]",
   async run(args) {
     const { positionals: [path], flags } = parse(args, { out: "text", "no-sound": "switch", integration: "text", voice: "text",
-      speaker: "text", language: "text", model: "text", "api-key-env": "text", "base-url": "text", "save-config": "switch", json: "switch" }, { min: 1, max: 1 });
+      speaker: "text", language: "text", model: "text", "api-key-env": "text", "base-url": "text", "save-config": "switch", detach: "switch", json: "switch" }, { min: 1, max: 1 });
+    if (flags.detach && flags["save-config"]) throw new UsageError("--save-config saves once the reel is composed, so it can't go with --detach");
     const { workspace, script } = findScript(path);
     const data = dataDir();
     const known = rememberWorkspace(data, workspace);
@@ -30,13 +28,15 @@ export const compose: Command = {
     const image = ensureImage(engine, version, targetFor(settings.voice.adapter), say);
     const reel = reelFolder(workspace, script, flags.out);
     const run = await createRun(data, { workspace, script, settings, sound: !flags["no-sound"], reel, credentials, flowReel: version });
-    const log = join(run.dir, "log.txt");
-    const view = flags.json ? jsonView(`${localSlug(known)}/${run.number}`) : process.stderr.isTTY ? liveView(process.stderr) : plainView();
-    const { ended } = drive(run, { phase: (phase, hooks) => runPhase(phase, { run, engine, image }, hooks),
-      log: (line) => appendFileSync(log, `${line}\n`), added: (entry) => view.show(entry) });
-    const end = await ended.finally(() => view.end());
-    if (end.state !== "done") throw new Error(`${end.ended?.message}\nThe log is ${log}`);
-    say(`composed ${relative(process.cwd(), reel) || reel}`);
+    await startProcess(run, { engine, image });
+    const id = `${localSlug(known)}/${run.number}`;
+    if (flags.detach) {
+      if (flags.json) console.log(JSON.stringify({ run: id, script: script.name, state: "running" }));
+      else console.log(`${id} is composing ${script.name}: \`flow-reel watch ${run.number}\` shows it, \`flow-reel cancel ${run.number}\` ends it`);
+      return EXIT.ok;
+    }
+    const { code } = await watchToEnd(id, run, { json: flags.json, interrupt: "cancels" });
+    if (code !== EXIT.ok) return code;
     if (flags["save-config"]) {
       writeConfig(workspace.root, withSettings(workspace.config, settings));
       say(`saved the settings in ${CONFIG_FILE}`);

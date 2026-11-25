@@ -6,6 +6,8 @@ import type { Phase } from "../run/phases.ts";
 
 export interface View {
   show(entry: Entry): void;
+  /** Says something that isn't the run's. */
+  say(message: string): void;
   /** Nothing more will be shown. */
   end(): void;
 }
@@ -36,6 +38,7 @@ export const plainView = (write: (text: string) => void = (text) => { process.st
     const line = lineFor(entry);
     if (line !== undefined) write(`flow-reel: ${line}\n`);
   },
+  say(message) { write(`flow-reel: ${message}\n`); },
   end() {},
 });
 
@@ -57,6 +60,10 @@ export function liveView(terminal: { write(text: string): unknown; columns?: num
       else if (entry.type !== "progress") { if (doing) terminal.write(CLEAR); doing = undefined; }
       status();
     },
+    say(message) {
+      terminal.write(`${doing ? CLEAR : ""}flow-reel: ${message}\n`);
+      status();
+    },
     end() {
       clearInterval(timer);
       if (doing) terminal.write(CLEAR);
@@ -68,5 +75,9 @@ export function liveView(terminal: { write(text: string): unknown; columns?: num
 /** The journal's entries as JSON lines on the output, each with the run it belongs to. */
 export const jsonView = (run: string, write: (text: string) => void = (text) => { process.stdout.write(text); }): View => ({
   show(entry) { write(`${JSON.stringify({ run, ...entry })}\n`); },
+  say(message) { process.stderr.write(`flow-reel: ${message}\n`); },
   end() {},
 });
+
+/** Nothing: the exit code says it all. */
+export const silentView: View = { show() {}, say() {}, end() {} };
