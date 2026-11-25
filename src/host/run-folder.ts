@@ -2,9 +2,9 @@
 // of the reel it replaces.
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { rename } from "node:fs/promises";
-import { basename, join, relative } from "node:path";
+import { basename, dirname, join, relative } from "node:path";
 import type { Brand } from "../composer/cards/brand.ts";
-import { DEFAULT_LIMITS, type Limits } from "../workspace/limits.ts";
+import { DEFAULT_KEEP_RUNS, DEFAULT_LIMITS, type Limits } from "../workspace/limits.ts";
 import type { Settings } from "../settings.ts";
 import { type Workspace, type WorkspaceScript, skipped } from "../workspace/workspace.ts";
 import { workspaceDir } from "./data.ts";
@@ -24,6 +24,7 @@ export interface RunRequest {
   brand: Brand;
   sound: boolean;
   limits: Limits;
+  keepRuns: number;
   /** The folder the reel goes to. */
   reel: string;
   /** The environment variables that hold the voice's key. */
@@ -42,6 +43,8 @@ export const REQUEST_FILE = "request.json";
 /** What a run's containers, its script and its process print. */
 export const logFile = (runDir: string): string => join(runDir, "log.txt");
 export const runsDir = (data: string, workspaceId: string): string => join(workspaceDir(data, workspaceId), "runs");
+/** The data folder a run's folder is in. */
+export const dataOf = (runDir: string): string => dirname(dirname(dirname(dirname(runDir))));
 
 /** What a run's copy of the scripts folder leaves out: reels, packages, hidden files and the output folder. */
 function leftOut({ scriptsDir, outputDir }: Workspace): (path: string) => boolean {
@@ -82,7 +85,8 @@ export async function createRun(data: string, { workspace, script, settings, sou
       script: { name: script.name, path: script.path, sha256: await sha256(join(scripts, script.path)),
         folder: treeHash(await describeFiles(scripts, listFiles(scripts))) },
       scripts: workspace.config.scripts, settings, brand: workspace.config.brand ?? {}, sound,
-      limits: { ...DEFAULT_LIMITS, ...workspace.config.limits }, reel, credentials, startedAt: new Date().toISOString() };
+      limits: { ...DEFAULT_LIMITS, ...workspace.config.limits }, keepRuns: workspace.config.keepRuns ?? DEFAULT_KEEP_RUNS,
+      reel, credentials, startedAt: new Date().toISOString() };
     writeDurable(join(building, REQUEST_FILE), `${JSON.stringify(request, null, 2)}\n`);
     for (;;) {
       const number = Math.max(0, ...runNumbers(runs)) + 1;

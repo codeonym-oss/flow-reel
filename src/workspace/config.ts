@@ -26,6 +26,8 @@ export interface Config extends ConfiguredSettings {
   brand?: Brand;
   /** How many minutes a phase may take. */
   limits?: Partial<Limits>;
+  /** How many finished runs of each script keep their heavy files. */
+  keepRuns?: number;
 }
 
 /** A `flow-reel.json` from before 0.8: it sat beside the scripts and had no workspace. */
@@ -78,7 +80,7 @@ export function folderProblem(key: string, value: unknown): string | undefined {
 export function validateConfig(value: unknown): string[] {
   if (!isObject(value)) return ["must be a JSON object"];
   const errors: string[] = [];
-  const extra = unknownKey("", value, ["version", "workspace", "scripts", "output", "integration", "voice", "brand", "limits"]);
+  const extra = unknownKey("", value, ["version", "workspace", "scripts", "output", "integration", "voice", "brand", "limits", "keepRuns"]);
   if (extra) errors.push(extra);
   if (value.version !== CONFIG_VERSION) errors.push(`version must be ${CONFIG_VERSION}`);
   if (!isObject(value.workspace)) errors.push("workspace must be an object");
@@ -97,7 +99,7 @@ export function validateConfig(value: unknown): string[] {
     const [scripts, output] = [value.scripts, value.output].map((path) => posix.normalize(`${path as string}/`));
     if (scripts.startsWith(output)) errors.push("output must not be the scripts folder or hold it; it can be inside it");
   }
-  return [...errors, ...validateLimits(value.limits), ...validateSettings(value)];
+  return [...errors, ...validateLimits(value.limits), ...validateKeepRuns(value.keepRuns), ...validateSettings(value)];
 }
 
 function validateLimits(value: unknown): string[] {
@@ -107,6 +109,9 @@ function validateLimits(value: unknown): string[] {
   return [...(extra ? [extra] : []), ...LIMITED.filter((phase) => value[phase] !== undefined && !(typeof value[phase] === "number" && value[phase] > 0 && value[phase] <= LONGEST))
     .map((phase) => `limits.${phase} must be a number of minutes, more than 0 and at most ${LONGEST}`)];
 }
+
+const validateKeepRuns = (value: unknown): string[] =>
+  value === undefined || (Number.isInteger(value) && (value as number) >= 1) ? [] : ["keepRuns must be a whole number, at least 1"];
 
 /** A config file as found: today's, or one from before 0.8, whose settings `init` takes over. */
 export type FoundConfig = { kind: "config"; config: Config } | { kind: "legacy"; config: LegacyConfig };

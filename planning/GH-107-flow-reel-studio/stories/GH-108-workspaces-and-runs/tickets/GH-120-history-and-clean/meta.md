@@ -3,8 +3,8 @@ kind: ticket
 title: History: the tracker, runs and clean
 key: GH-120
 parent: GH-108
-status: tracked
-branch:
+status: in-review
+branch: feat/120-history
 tracker-url: https://github.com/codeonym-oss/flow-reel/issues/120
 mr:
 created: 2026-11-25

@@ -136,6 +136,13 @@ _Avoid:_ breakpoint, checkpoint.
 A recording, a render or a local voice. Runs do it in **turns**, one at a time on a computer, in the order they asked.
 _Avoid:_ slot, lease.
 
+**Tracker**
+The index of the runs on a computer, made from their journals, which are the truth.
+
+**Heavy files**
+What a finished run keeps only for a while: its copy of the scripts, its results and its kept reel. Its **history** (its
+request, journal and log) stays.
+
 **Result**
 What a phase leaves in its run, complete or not there at all, and what it was made from.
 _Avoid:_ artifact, output.

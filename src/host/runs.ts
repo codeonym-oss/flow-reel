@@ -5,7 +5,8 @@ import type { RunState } from "../run/machine.ts";
 import type { Workspace } from "../workspace/workspace.ts";
 import { type KnownWorkspace, knownWorkspaces, localSlug } from "./data.ts";
 import { runState } from "./owner.ts";
-import { type Run, readRun, runNumbersIn, runsDir } from "./run-folder.ts";
+import { type Run, readRun, readRunIn } from "./run-folder.ts";
+import { trackedRuns } from "./tracker.ts";
 
 export interface FoundRun {
   /** `shop/12`. */
@@ -25,9 +26,9 @@ const NUMBER = /^[1-9]\d*$/;
 
 /** A workspace's runs, newest first. One whose process hasn't started isn't a run yet. */
 export function* workspaceRuns(data: string, known: KnownWorkspace): Generator<FoundRun> {
-  for (const number of runNumbersIn(runsDir(data, known.id))) {
-    const found = read(data, known, number);
-    if (found) yield found;
+  for (const { number, state, dir } of trackedRuns(data, known.id)) {
+    const run = readRunIn(dir);
+    if (run) yield { id: `${localSlug(known)}/${number}`, run, state };
   }
 }
 

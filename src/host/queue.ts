@@ -1,10 +1,11 @@
 // Turns at heavy work on this computer (GH-108 decision 009): a recording, a render or a local voice at a time, in the
 // order they were asked for.
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { Phase } from "../run/phases.ts";
 import { KNOWN, type Settings } from "../settings.ts";
 import { isOwned } from "./owner.ts";
+import { dataOf } from "./run-folder.ts";
 import { runId } from "./runs.ts";
 import { openDatabase } from "./sqlite.ts";
 
@@ -14,9 +15,6 @@ export const isHeavy = (phase: Phase, { voice }: Settings): boolean =>
 
 const WRITE_MS = 5000;
 const POLL_MS = 250;
-
-/** The data folder a run's folder is in. */
-const dataOf = (runDir: string) => dirname(dirname(dirname(dirname(runDir))));
 
 /**
  * Waits for a run's turn, and returns what ends it. `behind` is called with the run it waits for, again when that changes.

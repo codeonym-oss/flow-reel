@@ -19,6 +19,14 @@ const lockFile = (runDir: string) => join(runDir, LOCK_FILE);
 /** Whether a process owns a run. */
 export const isOwned = (runDir: string): boolean => isLocked(lockFile(runDir));
 
+/** Does something to a run that nobody owns, and keeps it so meanwhile; false when a process owns it. */
+export async function whileUnowned(runDir: string, work: () => Promise<boolean>): Promise<boolean> {
+  const lock = takeLock(lockFile(runDir));
+  if (!lock) return false;
+  try { return await work(); }
+  finally { lock.release(); }
+}
+
 /** Owns a run until it ends: drives it, and takes commands for it. `started` is called once it does. */
 export async function ownRun(run: Run, work: Work, started: () => void = () => {}): Promise<RunState> {
   const lock = takeLock(lockFile(run.dir), TAKE_MS);

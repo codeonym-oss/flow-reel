@@ -1,6 +1,6 @@
 import { sendCommand } from "../host/control.ts";
 import { type Command, EXIT, parse } from "./command.ts";
-import { isGoing, theRun } from "./runs.ts";
+import { isGoing, theRun } from "./find.ts";
 import { watchToEnd } from "./watch.ts";
 
 export const cancel: Command = {

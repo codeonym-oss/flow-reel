@@ -6,6 +6,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { ownRun } from "../../src/host/owner.ts";
 import { isHeavy, takeTurn } from "../../src/host/queue.ts";
 import { makeResult } from "../../src/host/results.ts";
+import { trim } from "../../src/host/retention.ts";
 import { readRunIn } from "../../src/host/run-folder.ts";
 import { RESULTS, type ResultPhase } from "../../src/run/phases.ts";
 
@@ -23,4 +24,4 @@ ownRun(run, {
     if ((RESULTS as readonly string[]).includes(phase)) await makeResult(run.dir, phase as ResultPhase, async () => {});
   },
 }, () => { process.send?.({ type: "started" }); })
-  .then(() => process.exit(0), (error: Error) => { process.send?.({ type: "failed", message: error.message }, () => process.exit(1)); });
+  .then(() => trim(run)).then(() => process.exit(0), (error: Error) => { process.send?.({ type: "failed", message: error.message }, () => process.exit(1)); });

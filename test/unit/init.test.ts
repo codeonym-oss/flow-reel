@@ -117,6 +117,7 @@ describe("flow-reel init", () => {
     expect(run(data, other, "init", "--alias", "Shop 2")).toMatchObject({ status: 2 });
     expect(run(data, other, "init", "--alias", "shop")).toMatchObject({ status: 1 });
     expect(run(data, other, "init", "--alias", "shop-2")).toMatchObject({ status: 0, stdout: "Shop is shop-2 on this computer\n" });
+    expect(JSON.parse(run(data, other, "init", "--alias", "shop-2", "--json").stdout)).toMatchObject({ title: "Shop", alias: "shop-2" });
     expect(localSlug(rememberWorkspace(data, findWorkspace(other)))).toBe("shop-2");
     expect(config(other).workspace.slug).toBe("shop");
   });

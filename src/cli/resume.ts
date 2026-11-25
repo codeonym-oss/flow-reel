@@ -5,7 +5,7 @@ import { type Run, scriptsHash } from "../host/run-folder.ts";
 import { startProcess } from "../host/start.ts";
 import { findWorkspace } from "../workspace/workspace.ts";
 import { type Command, EXIT, parse } from "./command.ts";
-import { theRun } from "./runs.ts";
+import { theRun } from "./find.ts";
 import { announce, composeAgain, watchToEnd } from "./watch.ts";
 
 export const resume: Command = {

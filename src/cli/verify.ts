@@ -9,10 +9,14 @@ export function checkReel(dir: string): { errors: string[]; differences: string[
 
 export const verify: Command = {
   summary: "check a reel against its manifest",
-  usage: "flow-reel verify <reel>",
+  usage: "flow-reel verify <reel> [--json]",
   run(args) {
-    const { positionals: [reel] } = parse(args, {}, { min: 1, max: 1 });
+    const { positionals: [reel], flags } = parse(args, { json: "switch" }, { min: 1, max: 1 });
     const { errors, differences } = checkReel(reel);
+    if (flags.json) {
+      console.log(JSON.stringify({ reel, matches: !errors.length && !differences.length, errors, differences }));
+      return errors.length ? EXIT.usage : differences.length ? EXIT.failed : EXIT.ok;
+    }
     if (errors.length) { console.error(errors.join("\n")); return EXIT.usage; }
     if (differences.length) { console.log(differences.join("\n")); return EXIT.failed; }
     const count = listReelFiles(reel).length;
