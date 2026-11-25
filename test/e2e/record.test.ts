@@ -209,7 +209,7 @@ describe("flow-reel compose", () => {
     for (const run of [a, b]) {
       expect(readdirSync(run.project.root).sort()).toEqual(["flow-reel.json", "record.log", "reels"]);
       expect(readdirSync(run.project.scripts).sort()).toEqual(["demo.reel.ts", "out"]);
-      expect(readdirSync(run.project.output)).toEqual(["demo.reel"]);
+      expect(readdirSync(run.project.output).filter((f) => f !== "captions.png")).toEqual(["demo.reel"]); // the player test's picture
       expect(readdirSync(run.reel).sort()).toEqual([
         "audio", "captions.srt", "captions.vtt", "events.json", "manifest.json", "transcript.json", "video.mp4", "work",
       ]);
