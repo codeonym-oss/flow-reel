@@ -4,7 +4,7 @@
    `sphinx-build -W`.
 2. The plugin, in its own pull request (decisions 001 and 002). → check: `plugin.test.ts`, `plugin-helpers.test.ts`, and its
    example composed in `test/e2e/plugin.test.ts`.
-3. The unit tests on macOS and Windows. → check: the `systems` job.
+3. The unit tests of what runs on the person's computer, on macOS and Windows (decision 003). → check: the `systems` job.
 4. The comparison with 0.7, below.
 5. The decisions this story changes, marked superseded in part or in whole: GH-31 001, 002 and 005, GH-33 001 and 005, GH-76
    006.

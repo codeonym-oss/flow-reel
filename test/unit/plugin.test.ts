@@ -111,7 +111,7 @@ describe("what the plugin teaches", () => {
       const roots = files(plugin).filter(f => f.endsWith(".ts"));
       for (const { file, text } of docs) {
         [...text.matchAll(/```ts\n([\s\S]*?)```/g)].forEach((m, i) => {
-          const path = join(dir, `${file.replace(/[/.]/g, "_")}_${i}.ts`);
+          const path = join(dir, `${file.replace(/[\\/.]/g, "_")}_${i}.ts`);
           writeFileSync(path, m[1]);
           roots.push(path);
         });

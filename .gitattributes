@@ -1,0 +1,2 @@
+# Every text file is checked out with LF line endings, on Windows too: the plugin's files and the tests read them so.
+* text=auto eol=lf

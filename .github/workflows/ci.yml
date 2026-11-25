@@ -108,7 +108,8 @@ jobs:
         run: |
           node dist/cli.js compare 2>&1 | grep -q "usage: flow-reel"
 
-  # What depends on the operating system: the data folder, paths, and the swap of a finished reel (GH-108 decision 012).
+  # The unit tests of what runs on the person's computer, on the other two systems, without Docker (GH-108 decision 012,
+  # GH-121 decision 003).
   systems:
     name: systems (${{ matrix.os }})
     needs: changes

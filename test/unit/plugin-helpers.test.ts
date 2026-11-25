@@ -68,7 +68,8 @@ async function run(script: string, args: string[], path?: string, env: NodeJS.Pr
 interface Check { name: string; status: string; detail: string; fix?: string }
 const checks = (stdout: string) => Object.fromEntries((JSON.parse(stdout).checks as Check[]).map((c) => [c.name, c]));
 
-describe("preflight.mjs", () => {
+// Its fakes are shell scripts.
+describe.skipIf(process.platform === "win32")("preflight.mjs", () => {
   let server: Server;
   let base: string;
   beforeAll(async () => {
@@ -174,7 +175,8 @@ describe("preflight.mjs", () => {
   });
 });
 
-describe("stills.mjs", () => {
+// Its reels are made with the runner's ffmpeg, which only Linux has.
+describe.runIf(process.platform === "linux")("stills.mjs", () => {
   const reel = join(work, "a demo.reel");
   const cli = join(root, "src/cli.ts");
 
