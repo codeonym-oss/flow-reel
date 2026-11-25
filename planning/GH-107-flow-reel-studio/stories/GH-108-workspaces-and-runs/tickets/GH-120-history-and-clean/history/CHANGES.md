@@ -1,0 +1,2 @@
+- 2026-11-25: drafted in the story's global pass.
+- 2026-11-25: issue GH-120 created, folder renamed.
