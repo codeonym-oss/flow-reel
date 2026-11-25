@@ -1,6 +1,6 @@
 // Files on this computer: copies, hashes, and changes that are complete or haven't happened.
 import { createHash } from "node:crypto";
-import { closeSync, constants, copyFileSync, createReadStream, fsyncSync, linkSync, mkdirSync, openSync, readdirSync, readlinkSync,
+import { closeSync, constants, copyFileSync, createReadStream, fsyncSync, linkSync, mkdirSync, openSync, readdirSync, readlinkSync, rmSync,
   statSync, symlinkSync, writeFileSync } from "node:fs";
 import { rename } from "node:fs/promises";
 import { dirname, join, sep } from "node:path";
@@ -82,6 +82,12 @@ export function linkFile(from: string, to: string): void {
 /** Writes a file that is on the disk, whole, when this returns. */
 export function writeDurable(file: string, text: string): void {
   writeFileSync(file, text, { flush: true });
+}
+
+/** Writes a file only this person can read, replacing it. */
+export function writePrivate(file: string, text: string): void {
+  rmSync(file, { force: true });
+  writeFileSync(file, text, { mode: 0o600, flag: "wx" });
 }
 
 /** Makes sure a folder's files are on the disk, so that a power cut doesn't leave a named file empty. */
