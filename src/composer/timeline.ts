@@ -44,6 +44,10 @@ export interface Timeline {
   /** Every card, the card words' and the skips', in video order. */
   cards: CardSpan[];
   steps: TranscriptStep[];
+}
+
+/** A timeline as it was planned, which can also move times onto it. */
+export interface PlannedTimeline extends Timeline {
   /** Moves a time on the capture's clock to the video's; a time at an insertion's frame lands after it. */
   mapTime(ms: number): number;
   /** How long `durationMs` from capture time `t` lasts in the video: shorter by what stretches drop inside it. */
@@ -59,7 +63,7 @@ export function planTimeline(
   { fps, frames, cutMs, speedUps = [], skips = [], cards = [] }:
     { fps: number; frames: number; cutMs: number; speedUps?: readonly TimelineSpeedUp[];
       skips?: readonly TimelineSkip[]; cards?: readonly TimelineCard[] },
-): Timeline {
+): PlannedTimeline {
   const cutFrames = Math.round(cutMs * fps / 1000);
   const ms = (n: number) => n * 1000 / fps;
   const frameAt = (t: number) => Math.ceil((t + ms(cutFrames)) * fps / 1000 - 1e-9);
@@ -166,7 +170,7 @@ export function dropSkipped(events: readonly ComposerEvent[]): ComposerEvent[] {
  * Each skip and card event moves to where its card starts in the video; every other event through `mapTime`, and its
  * duration shrinks by what stretches drop inside it (GH-61 decision 003), so it lasts as long as its picture does.
  */
-export function retimeEvents(events: readonly ComposerEvent[], timeline: Timeline): ComposerEvent[] {
+export function retimeEvents(events: readonly ComposerEvent[], timeline: PlannedTimeline): ComposerEvent[] {
   let skip = 0;
   let card = 0;
   const start = (id: string) => timeline.cards.find((c) => c.id === id)!.startMs;

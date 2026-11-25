@@ -1,7 +1,8 @@
 import { existsSync } from "node:fs";
-import { relative, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { type KnownWorkspace, dataDir, localSlug, rememberWorkspace, slugOwner } from "../host/data.ts";
+import { slashes } from "../host/files.ts";
 import { CONFIG_FILE, SLUG, readConfig } from "../workspace/config.ts";
 import { initialize, proposedScripts, scriptsToRename, slugify, survey } from "../workspace/init.ts";
 import { workspaceAt } from "../workspace/workspace.ts";
@@ -28,8 +29,8 @@ export const init: Command = {
     rememberWorkspace(data, workspace);
 
     const { config } = workspace;
-    const at = (path: string) => relative(process.cwd(), path) || ".";
-    console.log(`${config.workspace.title} (${config.workspace.slug}) is a workspace now: ${at(root)}/${CONFIG_FILE}`.replace("./", ""));
+    const at = (path: string) => slashes(relative(process.cwd(), path));
+    console.log(`${config.workspace.title} (${config.workspace.slug}) is a workspace now: ${at(join(root, CONFIG_FILE))}`);
     console.log(`Scripts go in ${config.scripts}/ as <name>.reel.ts; reels are written to ${config.output}/`);
     if (found.legacy) console.log(`Took over the settings of ${at(found.legacy.file)}`);
     const renames = scriptsToRename(workspace);

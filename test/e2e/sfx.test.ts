@@ -4,7 +4,8 @@ import { join, resolve } from "node:path";
 import { expect, it } from "vitest";
 import { assembleSfx } from "../../src/composer/media/sound-mix.ts";
 import { planTimeline } from "../../src/composer/timeline.ts";
-import { renderTimeline, videoFrames, measureLoudness } from "../../src/composer/media/render.ts";
+import { renderTimeline, measureLoudness } from "../../src/composer/media/render.ts";
+import { videoFrames } from "../../src/composer/media/recording.ts";
 import { SOUND_NAMES, type ComposerEvent } from "../../src/composer/schema/events.ts";
 
 const dir = resolve("test/e2e/out/sfx");

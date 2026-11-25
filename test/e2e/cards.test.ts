@@ -5,7 +5,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { type Transition, themeFor } from "../../src/composer/cards/brand.ts";
-import type { CardJob } from "../../src/composer/media/cards.ts";
+import type { CardJob } from "../../src/composer/cards/job.ts";
 import { renderCardsInImage } from "./image.ts";
 
 const dir = resolve("test/e2e/out/cards");

@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { buildRunArgs } from "../../src/host/launch.ts";
+import { containerArgs } from "../../src/host/container.ts";
 import { KNOWN, type Known, type Settings, credentialsFor, resolveSettings } from "../../src/settings.ts";
 import { type Config, validateConfig, withSettings, writeConfig } from "../../src/workspace/config.ts";
 
@@ -16,9 +16,8 @@ const folder = () => {
 
 const config: Config = { version: 2, workspace: { id: "abcdefghijkl", slug: "shop", title: "Shop" }, scripts: "reels", output: "reels/out" };
 /** The arguments that compose with these settings, which the engine's command line shows. */
-const runArgs = (settings: Settings, credentials: string[]) => buildRunArgs({ engine: "docker", desktop: false, image: "image",
-  scriptsDir: "/w/reels", outDir: "/w/reels/out", uid: 1, gid: 1, credentials,
-  request: { script: "demo.reel.ts", reel: "demo.reel", settings, brand: {}, sound: true } });
+const runArgs = (settings: Settings, credentials: string[]) => containerArgs({ engine: { command: "docker", kind: "docker", desktop: false },
+  image: "image", name: "flow-reel", runDir: "/run", out: "/run/out", uid: 1, gid: 1, credentials, request: { phase: "voice", voice: KNOWN.voices[settings.voice.adapter] ? settings.voice : DEFAULTS.voice } });
 const DEFAULTS = { integration: "playwright", voice: { adapter: "qwen3-tts-0.6b", speaker: "Ryan", language: "english" } };
 // A cloud voice as it would be added: another adapter that declares its credential.
 const known: Known = { ...KNOWN, voices: { ...KNOWN.voices,

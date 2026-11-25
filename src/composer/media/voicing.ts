@@ -4,8 +4,8 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync } from "node:fs";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
-import type { ClipRequest, Voice } from "./ports.ts";
-import { type Transcript, type TranscriptStep, validateTranscript } from "./schema/transcript.ts";
+import type { ClipRequest, Voice } from "../ports.ts";
+import { type Transcript, type TranscriptStep, validateTranscript } from "../schema/transcript.ts";
 
 const normalize = (comment: string | undefined) => (comment ?? "").replace(/\s+/g, " ").trim();
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");

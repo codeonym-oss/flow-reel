@@ -28,7 +28,7 @@ Where a workspace's finished reels go: `reels/out/` unless the workspace, or one
 A name for a workspace on one computer, used when another workspace there has the same slug.
 
 **Data folder**
-flow-reel's own folder on the person's computer, outside every project.
+flow-reel's own folder on the person's computer, outside every project. Runs live there.
 _Avoid:_ app data, cache.
 
 ## What a person writes
@@ -106,6 +106,25 @@ The container image that compiles a script into a reel. The verb is **compose**.
 has the local voice, and the smaller **cloud image**, for a cloud voice; the voice picks which one composes.
 _Avoid:_ runner, recorder.
 
+**Run**
+One compose of one script, from start to end: its request, its copy of the scripts folder, its phases' results and its
+reel, in one numbered folder of the data folder. A run works on one version of the scripts, whatever changes meanwhile.
+_Avoid:_ job, build, session, execution.
+
+**Phase**
+One part of a run: **record** replays the script and captures it, **voice** speaks the comments, **plan** decides the
+timeline, **render** makes the video, **publish** puts the reel in the output folder. Each reads earlier results and
+leaves its own.
+_Avoid:_ stage, stretch (a sped-up or skipped part of a script).
+
+**Result**
+What a phase leaves in its run, complete or not there at all, and what it was made from.
+_Avoid:_ artifact, output.
+
+**Cue sheet**
+What recording a script produced besides the capture: its steps and its events, timed. Later phases read it and never the
+script. `cues.json` in a run.
+
 **Integration**
 The adapter between the composer and one E2E tool, such as Playwright.
 _Avoid:_ driver.
@@ -120,8 +139,8 @@ workspace's `flow-reel.json`, then the defaults.
 _Avoid:_ options (a script's own options, such as `url` and `autoZoom`).
 
 **Recording**
-The raw screen capture the composer makes while the integration replays the script. It is an intermediate, not the
-result.
+The raw screen capture the composer makes while the integration replays the script, kept in the run. It is an
+intermediate, not the result.
 _Avoid:_ using "recording" for the finished video or for the act of composing.
 
 **Polish**
@@ -165,7 +184,7 @@ Polish and effects are rendered from it.
 
 **Reel cache**
 The voiced comments kept with a reel, so composing an unchanged comment again reuses its audio instead of
-asking the voice for it. It is the previous reel's clips: one is reused when its comment and the voice's settings
+asking the voice for it. It is the previous reel's clips, copied into the run: one is reused when its comment and the voice's settings
 are the same and the clip still matches its hash.
 
 ## What teaches it
@@ -181,8 +200,8 @@ The skills and references that teach an agent this language: what to use, when, 
   follows its theme too.
 - The **composer** composes one script into one **reel**.
 - The composer replays the script through an **integration** and speaks its comments with a **voice**.
-- While replaying, the composer makes a **recording** and an **event log**. It then applies **polish** and the
-  script's effects to produce the reel's video.
+- Composing a script is one **run**, made of **phases**. While replaying, the composer makes a **recording** and a **cue
+  sheet**. It then applies **polish** and the script's effects to produce the reel's video and its **event log**.
 - A reel holds the video, the **transcript**, the **captions**, the event log, the audio and the **manifest**.
 - The same script, with the same **reel cache**, composes to the same reel.
 - The **plugin** teaches an agent to write scripts. It contains no composing logic.

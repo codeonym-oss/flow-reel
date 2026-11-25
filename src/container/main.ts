@@ -1,28 +1,52 @@
 #!/usr/bin/env node
-// The composer image's entry point: composes one script, with the adapters chosen here.
-import { readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+// The composer image's entry point: runs one phase of a run, with the adapters chosen here.
+import { join } from "node:path";
 import { chromiumPainter } from "../adapters/chromium/painter.ts";
-import { folderStore } from "../adapters/folder/store.ts";
 import { playwright } from "../adapters/playwright/integration.ts";
-import { compose } from "../composer/compose.ts";
-import { KNOWN } from "../settings.ts";
-import { type ComposeRequest, OUTPUT_MOUNT, SCRIPTS_MOUNT } from "./request.ts";
+import { record } from "../composer/phases/record.ts";
+import { render } from "../composer/phases/render.ts";
+import { voice } from "../composer/phases/voice.ts";
+import type { Integration, Voice } from "../composer/ports.ts";
+import { readJson } from "../composer/schema/read.ts";
+import { type CueSheet, validateCues } from "../composer/schema/cues.ts";
+import { CAPTURE_FILE, CUES_FILE, PLAN_FILE } from "../composer/schema/files.ts";
+import { type Plan, validatePlan } from "../composer/schema/plan.ts";
+import { KNOWN, type VoiceSettings } from "../settings.ts";
+import { type ContainerMessage, type ContainerRequest, MOUNTS } from "./protocol.ts";
 
-async function main([command, argument]: string[]): Promise<void> {
-  if (command !== "compose" || argument === undefined) throw new Error("this image is run by the flow-reel command");
-  const { script, reel, settings, brand, sound } = JSON.parse(argument) as ComposeRequest;
-  const voice = KNOWN.voices[settings.voice.adapter].cloud
-    ? (await import("../adapters/cloud/voice.ts")).cloudVoice(settings.voice)
-    : (await import("../adapters/qwen/voice.ts")).qwenVoice(settings.voice);
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-  const { version } = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { version: string };
-  await compose({ scriptsDir: SCRIPTS_MOUNT, script, reel: join(OUTPUT_MOUNT, reel), brand, sound },
-    { integration: playwright, voice, store: folderStore, painter: chromiumPainter, composerVersion: version });
+const INTEGRATIONS: Record<string, Integration> = { playwright };
+
+const voiceFor = async (settings: VoiceSettings): Promise<Voice> => KNOWN.voices[settings.adapter].cloud
+  ? (await import("../adapters/cloud/voice.ts")).cloudVoice(settings)
+  : (await import("../adapters/qwen/voice.ts")).qwenVoice(settings);
+
+// The messages are this program's alone: whatever else writes to the output, such as a script's console.log, goes to
+// the log.
+const write = process.stdout.write.bind(process.stdout);
+process.stdout.write = process.stderr.write.bind(process.stderr) as typeof process.stdout.write;
+/** Resolves once the message has left, so that exiting right after doesn't lose it. */
+const send = (message: ContainerMessage) => new Promise<void>((resolve) => { write(`${JSON.stringify(message)}\n`, () => resolve()); });
+const report = (message: ContainerMessage) => { void send(message); };
+
+async function run(request: ContainerRequest): Promise<void> {
+  switch (request.phase) {
+    case "record":
+      return record({ scriptsDir: MOUNTS.scripts, script: request.script, brand: request.brand, out: MOUNTS.out },
+        INTEGRATIONS[request.integration], report);
+    case "voice":
+      return voice({ cues: readJson<CueSheet>(join(MOUNTS.record, CUES_FILE), validateCues), previous: MOUNTS.previous, out: MOUNTS.out },
+        await voiceFor(request.voice), report);
+    case "render":
+      return render({ plan: readJson<Plan>(join(MOUNTS.plan, PLAN_FILE), validatePlan), capture: join(MOUNTS.record, CAPTURE_FILE),
+        audioRoot: MOUNTS.voice, scriptsDir: MOUNTS.scripts, brand: request.brand, out: MOUNTS.out }, chromiumPainter, report);
+  }
 }
 
-main(process.argv.slice(2)).then(() => process.exit(0), (error: Error) => {
-  console.error(`flow-reel: ${error.message}`);
+// The run's process holds the other end of the input: when it dies, this container has nobody to work for.
+process.stdin.on("close", () => process.exit(1)).on("error", () => process.exit(1)).resume();
+
+run(JSON.parse(process.argv[2] ?? "{}") as ContainerRequest).then(() => { write("", () => process.exit(0)); }, async (error: Error) => {
+  console.error(error.stack ?? error.message);
+  await send({ type: "failed", message: error.message });
   process.exit(1);
 });

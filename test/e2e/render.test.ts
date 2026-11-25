@@ -3,7 +3,8 @@ import { mkdirSync, rmSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { beforeAll, expect, it } from "vitest";
 import { planTimeline } from "../../src/composer/timeline.ts";
-import { renderTimeline, videoFrames } from "../../src/composer/media/render.ts";
+import { renderTimeline } from "../../src/composer/media/render.ts";
+import { videoFrames } from "../../src/composer/media/recording.ts";
 import { THEMES } from "../../src/composer/cards/brand.ts";
 import { renderCardsInImage } from "./image.ts";
 
