@@ -8,29 +8,34 @@ it is what the studio stands on.
 
 ## What it delivers
 
-- **Workspaces** (epic decision 009): an init command that asks for a unique title and an optional description, and writes
-  an id, slug and title in `flow-reel.json`. Two checkouts of one project share an id; two different projects with the same
-  slug are refused until one gets a local alias.
-- **Scripts and reels** (007): scripts named `*.reel.ts` or `*.reel.js`; `checkout.reel.ts` composes to
-  `<output folder>/checkout.reel/`, and the output folder is configurable.
-- **Run data** (007): the tracker and one folder per run in flow-reel's data folder. The project is mounted read-only.
-- **The engine** (031): the state machine, phases, gates before each phase, the journal, the lease, the cue sheet, the
-  tracker rebuilt from the journals, one recording at a time.
-- **A process per run** (023), with time limits per phase.
-- **The CLI:** `compose` with live progress, `--detach`, and commands to wait, read logs, cancel and resume.
+- **Workspaces** (decisions 001, 002; epic 009): one `flow-reel.json` at the project's root, written by `flow-reel init`, with
+  an id, slug and title. Two checkouts share an id; two projects with the same slug are refused until one gets a local alias.
+- **Scripts and reels** (002, 003): `*.reel.ts` or `*.reel.js` in one scripts folder; reels in `reels/out` by default.
+- **Run data** (004, 014, 015): one numbered folder per run in flow-reel's data folder, with its own copy of the scripts.
+  Containers never see the project.
+- **The engine** (epic 031): the state machine, phases, gates, the journal, the cue sheet, one lock for heavy work (009).
+- **A process per run** (011, 016; epic 023), with time limits per phase.
+- **The CLI** (008): `init`, `compose [--detach]`, `runs`, `watch`, `wait`, `logs`, `cancel`, `resume`, `clean`.
 - **The migration** from 0.7's scripts and reels, documented.
 
 ## Rules every ticket keeps
 
 - The state machine is tested without Docker, and every transition has a test.
-- Recording never restarts by itself (005): a person or a command asks.
+- Recording never restarts by itself, and `resume` never records (005, 006).
 - In CI, nothing asks a question; the exit code and lines of progress say everything.
 - The journal and the interface carry a version from the first ticket.
+- Only a run's owner writes its journal (016).
 
-## To check early
+## Tickets, in the order they are built (012)
 
-- A run's container shuts itself down when the run's process is killed.
-- Linux, macOS and Windows data folders, and the swap of a finished reel across disks.
+1. GH-114: workspaces, scripts and the output folder
+2. GH-115: a compose in phases, outside the project
+3. GH-116: the run engine: state machine, journal and live progress
+4. GH-117: detached runs: a process per run, and commands to watch and control it
+5. GH-118: resume and time limits
+6. GH-119: the queue: one heavy work lock, and reels in order
+7. GH-120: history: the tracker, `runs` and `clean`
+8. GH-121: docs, the migration and the three systems
 
 ## Done when
 
