@@ -21,7 +21,7 @@ and compose again, and only that line is spoken again.
 cards, a lower third, a callout, sounds and automatic zoom.</em></p>
 
 ```ts
-// demos/settings.ts
+// reels/settings.reel.ts
 import { script, Sounds } from "flow-reel";
 
 export default script({ url: "http://localhost:4173" }, async ({ page, comment, card }) => {
@@ -39,7 +39,8 @@ export default script({ url: "http://localhost:4173" }, async ({ page, comment, 
 
 ```sh
 export OPENAI_API_KEY=...                                   # a cloud voice: fast, recommended
-npx flow-reel compose demos/settings.ts --voice openai      # writes demos/settings.reel/
+npx flow-reel init --title "My app"                         # once: makes the project a workspace
+npx flow-reel compose reels/settings.reel.ts --voice openai # writes reels/out/settings.reel/
 ```
 
 ## Why flow-reel
@@ -57,6 +58,8 @@ npx flow-reel compose demos/settings.ts --voice openai      # writes demos/setti
   [`skip`](guide/picture.md#skip-a-wait) cuts it and says how long was cut.
 - **Deterministic.** A fixed viewport, clock and random seed, in a pinned container. Composing again gives a matching
   reel, and [`flow-reel compare`](guide/reels.md#compare-two-reels) proves it.
+- **Runs you can leave.** A compose goes on when its terminal closes, can be watched or cancelled from another one,
+  and [resumes](guide/runs.md) after a crash without recording again.
 - **Agent-ready.** A [plugin for Claude Code and Codex](tutorials/with-claude.md) teaches an agent to plan, write,
   compose and review reels for you.
 
@@ -118,6 +121,7 @@ guide/brand
 guide/sounds
 guide/voices
 guide/configuration
+guide/runs
 guide/reels
 ```
 

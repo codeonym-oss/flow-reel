@@ -46,7 +46,7 @@ In its props object, or as `options` for `card.custom`:
   one.
 - The camera eases back to the full screen as a card comes, so the transition starts from what was on screen. No
   cursor or zoom is drawn on a card.
-- **Images** are PNG, JPEG, WebP or SVG files in the script's folder, given relative to the script.
+- **Images** are PNG, JPEG, WebP or SVG files in the scripts folder, given relative to the script.
 - A wrong prop, option or path throws where the card is written, naming it.
 - Cards can't go inside `speedUp` or `skip`.
 - The event log records each card as a `card` event, with its props, its look and the hash of each file it uses.
@@ -54,10 +54,10 @@ In its props object, or as `options` for `card.custom`:
 
 ## Custom cards
 
-A custom card is an HTML page in the script's folder, with its own CSS, JavaScript, images and fonts, laid out at
+A custom card is an HTML page in the scripts folder, with its own CSS, JavaScript, images and fonts, laid out at
 the reel's size. The composer draws it frame by frame on a frozen clock, so `setTimeout`, `requestAnimationFrame`,
 `performance.now()`, CSS animations and transitions all play the same way every time. The network is off: the page
-loads only files from the script's folder.
+loads only files from the scripts folder.
 
 ```html
 <!doctype html>

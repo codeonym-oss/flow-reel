@@ -1,5 +1,7 @@
 # 002: Fixed file names in the reel; intermediates in its `work/` folder
 
+**Superseded by GH-108 015** in part (2026-11-25): intermediates are in the run, outside the project; the reel has no `work/`.
+
 **Date:** 2026-11-14 (ticket pass, Q3 and Q3b; agreed: "1 + nested structure for seperation the generated final
 artifact and the mediary artifacts" and "ok")
 

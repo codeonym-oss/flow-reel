@@ -1,5 +1,32 @@
 # Migration
 
+## From 0.7 to 0.8
+
+0.8 makes a project a **workspace** and a compose a **run**. The words in a script haven't changed.
+
+1. **Make the project a workspace.** In its root, run `npx flow-reel init`. It takes over the voice and brand of your
+   0.7 `flow-reel.json`, removes it, and names the folder your scripts are in. With several 0.7 files, `init` names them
+   and stops: keep one, and pass the others' voices as flags.
+2. **Rename the scripts** to `<name>.reel.ts`. `init` prints the `git mv` lines.
+3. **Look for reels in the output folder**, `<scripts folder>/out/` by default. Move the ones you have there before you
+   compose, so that their clips are reused, and change the paths your CI and pages use.
+4. **Remove what 0.7 left:** `work/` in each reel, and any `*.reel.partial/` folder. 0.8 writes neither.
+
+| 0.7 | 0.8 |
+|---|---|
+| `demos/tour.ts` | `demos/tour.reel.ts` |
+| `demos/flow-reel.json`, one per folder | `flow-reel.json`, one at the project's root, with `scripts: "demos"` |
+| the first compose writes `flow-reel.json` | `init` writes it; `--save-config` updates it |
+| `demos/tour.reel/` | `demos/out/tour.reel/` |
+| brand paths relative to `flow-reel.json` | relative to the scripts folder (`init` changes them) |
+| a script reads its own folder | a script reads the whole scripts folder |
+| `tour.reel.partial/` after a failure | nothing in the project; `flow-reel logs tour`, `flow-reel resume tour` |
+| `work/` in the reel | in the [run](guide/runs.md#where-runs-are), in flow-reel's data folder |
+| closing the terminal ends the compose | it goes on; Ctrl+C cancels it |
+| exit 1 for everything that fails | 1 failed, 3 stopped, 4 cancelled ([exit codes](reference/cli.md#exit-codes)) |
+
+Reels made by 0.7 still verify and compare. The transcript, event log and manifest formats haven't changed.
+
 ## From 0.4 to 0.5
 
 0.5 adds [cards](guide/cards.md), [overlays](guide/overlays.md) and the [brand](guide/brand.md), and retires

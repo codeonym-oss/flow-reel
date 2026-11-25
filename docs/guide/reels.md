@@ -4,11 +4,11 @@ A **reel** is the whole result of composing one script: one folder holding the v
 captions, the event log, the audio and a manifest.
 
 ```sh
-npx flow-reel compose demos/settings.ts                 # writes demos/settings.reel/
-npx flow-reel compose demos/settings.ts --out reels     # writes reels/settings.reel/
+npx flow-reel compose reels/settings.reel.ts                   # writes reels/out/settings.reel/
+npx flow-reel compose reels/settings.reel.ts --out /tmp/reels  # writes /tmp/reels/settings.reel/
 ```
 
-`--out <dir>` lets one folder collect the reels of many scripts. Every reel has the same layout:
+Reels go to the workspace's **output folder**, or to `--out <dir>`. Every reel has the same layout:
 
 | File | What it is |
 |---|---|
@@ -19,14 +19,14 @@ npx flow-reel compose demos/settings.ts --out reels     # writes reels/settings.
 | `captions.vtt` | WebVTT captions for a browser's `<video>` and `<track>`. |
 | `audio/000.wav` | Each step's speech clip, named by its zero-based step index. |
 | `manifest.json` | Every file above with its size and SHA-256, the script's name and hash, the composer version and platform, the integration and the voice. |
-| `work/` | Intermediate files, for debugging only. Not in the manifest, and ignored by git. |
 
-Share the whole folder. The rest of the reel (everything but `work/`) is yours to commit or not.
+Share the whole folder. It is yours to commit or not. What a run works on, such as the original recording, is in its
+[run](runs.md#where-runs-are), not in the reel.
 
 ## A failed compose keeps the old reel
 
-A compose builds the new reel in `settings.reel.partial/`, and replaces the old reel only once it has succeeded. A
-failed compose leaves the previous reel as it was, and the partial folder for debugging. The next compose clears it.
+A run makes the new reel outside your project, and replaces the old one in one step, once it is whole. A run that fails,
+stops or is cancelled leaves the previous reel as it was. It can often [resume](runs.md#resume-a-run).
 
 ## Captions and timing
 
@@ -41,11 +41,11 @@ failed compose leaves the previous reel as it was, and the partial folder for de
 ## Verify a reel
 
 ```sh
-npx flow-reel verify demos/settings.reel
+npx flow-reel verify reels/out/settings.reel
 ```
 
 This checks the reel against its manifest: every listed file is present with its size and hash, and nothing else is
-there apart from `work/`. It runs on the host without Docker.
+there. It runs on the host without Docker.
 
 | Exit | Meaning |
 |---|---|
@@ -59,7 +59,7 @@ differ on every compose. That's what `compare` is for.
 ## Compare two reels
 
 ```sh
-npx flow-reel compare demos/a.reel demos/b.reel
+npx flow-reel compare reels/out/a.reel /tmp/a.reel
 ```
 
 `compare` runs on the host without Docker or FFmpeg. It verifies both reels first, then checks that they match:
@@ -79,12 +79,3 @@ and output paths may differ.
 | 0 | The reels match. |
 | 1 | Both are valid, and they differ (the step or file is named). |
 | 2 | Invalid input, failed sync or a usage error. |
-
-## Under `work/`
-
-| File | What it is |
-|---|---|
-| `capture.mp4` | The original 2560×1440 recording (the viewport × 4/3). |
-| `master.json` | `startMs`: where the video's time zero is in `capture.mp4`. |
-| `voice.wav` | The normalized voice-only track on the video's timeline. |
-| `sound.wav`, `mix.wav` | The ducked sound track, and the final mix, when there are sounds. |

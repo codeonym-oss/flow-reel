@@ -30,7 +30,7 @@ Each scene becomes one comment, and the actions that show it.
 ## 2. One comment per scene
 
 ```ts
-// tour.ts
+// reels/tour.reel.ts
 import { script } from "flow-reel";
 
 export default script({ url: "http://localhost:4173/" }, async ({ page, comment }) => {
@@ -64,7 +64,7 @@ How steps work:
 Compose it once to see where you are (a cloud voice makes this loop fast, see [Voices](../guide/voices.md)):
 
 ```sh
-npx flow-reel compose tour.ts --voice openai     # or without --voice for the built-in local voice
+npx flow-reel compose reels/tour.reel.ts --voice openai     # or without --voice for the built-in local voice
 ```
 
 Polish is already there without any extra code: the cursor, the click ripples, and the camera zooming in on each
@@ -158,11 +158,11 @@ See [Cards](../guide/cards.md) for features, screenshots, before-and-after and c
 
 ## 8. Put your brand on it
 
-Every card and overlay follows the brand set in `flow-reel.json`, next to the script:
+Every card and overlay follows the brand set in `flow-reel.json`, beside the keys `init` wrote:
 
 ```json
 {
-  "version": 1,
+  // ...
   "voice": { "adapter": "openai", "model": "gpt-4o-mini-tts", "speaker": "coral", "apiKeyEnv": "OPENAI_API_KEY" },
   "brand": { "theme": "ink", "accent": "#6366F1" }
 }
@@ -174,18 +174,18 @@ See [Brand](../guide/brand.md) for logos and fonts.
 
 Put together, this is the script of the [showcase reel](../demos.md):
 
-```{literalinclude} ../demos/orbit-tour/script.ts
+```{literalinclude} ../demos/reels/orbit-tour.reel.ts
 :language: ts
 ```
 
 ## 10. Compose, check, change
 
 ```sh
-npx flow-reel compose tour.ts       # writes tour.reel/
-npx flow-reel verify tour.reel      # every file present and unaltered
+npx flow-reel compose reels/tour.reel.ts     # writes reels/out/tour.reel/
+npx flow-reel verify reels/out/tour.reel     # every file present and unaltered
 ```
 
-Watch `tour.reel/video.mp4`, then read `tour.reel/transcript.json`. Each step's `startMs` and `endMs` show how long
+Watch `reels/out/tour.reel/video.mp4`, then read its `transcript.json`. Each step's `startMs` and `endMs` show how long
 it took. If a step is much longer than its actions, its comment is too long for what is on screen, so shorten it.
 
 Composing again reuses every unchanged comment's speech. If the app's data changed between runs (a duplicated saved
@@ -195,9 +195,9 @@ To check that a new compose still matches an old one (same steps, comments, voic
 within ±150 ms):
 
 ```sh
-cp -r tour.reel /tmp/tour-before.reel
-npx flow-reel compose tour.ts
-npx flow-reel compare /tmp/tour-before.reel tour.reel
+cp -r reels/out/tour.reel /tmp/tour-before.reel
+npx flow-reel compose reels/tour.reel.ts
+npx flow-reel compare /tmp/tour-before.reel reels/out/tour.reel
 ```
 
 ## Next

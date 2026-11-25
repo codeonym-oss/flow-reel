@@ -21,11 +21,14 @@ Leave it running, and open a second terminal in the same folder.
 ```sh
 npm init -y >/dev/null
 npm install --save-dev flow-reel
+npx flow-reel init --title Orbit
 ```
+
+`init` makes the folder a **workspace**: it writes `flow-reel.json` and the scripts folder, `reels/`.
 
 ## 3. Write a script
 
-Save this as `tour.ts`:
+Save this as `reels/tour.reel.ts`:
 
 ```ts
 import { script, Sounds } from "flow-reel";
@@ -57,21 +60,24 @@ With a cloud voice (recommended, done in seconds):
 
 ```sh
 export OPENAI_API_KEY=...
-npx flow-reel compose tour.ts --voice openai
+npx flow-reel compose reels/tour.reel.ts --voice openai --save-config
 ```
 
 Or with the built-in local voice (no key, offline, about a minute a comment on a laptop CPU):
 
 ```sh
-npx flow-reel compose tour.ts
+npx flow-reel compose reels/tour.reel.ts
 ```
 
-The first compose pulls the composer image (several GB). Later ones start at once.
+The first compose pulls the composer image (several GB). Later ones start at once. `--save-config` keeps the voice in
+`flow-reel.json`, so the next compose, and anyone sharing your scripts, uses the same one. Commit the file with them.
+
+Each compose is a [run](../guide/runs.md). It shows its progress, and goes on if you close the terminal.
 
 ## 5. Watch it
 
 ```text
-tour.reel/
+reels/out/tour.reel/
 ├── video.mp4          ← the video, 1920×1080, with speech and sounds
 ├── captions.vtt       ← captions for a browser
 ├── captions.srt       ← captions for a video player
@@ -81,11 +87,8 @@ tour.reel/
 └── manifest.json      ← every file's size and hash
 ```
 
-Open `tour.reel/video.mp4`. The cursor glides to each button, clicks ripple, the camera zooms in on what is
+Open `reels/out/tour.reel/video.mp4`. The cursor glides to each button, clicks ripple, the camera zooms in on what is
 clicked, and each comment is spoken over its step.
-
-The first compose also wrote `flow-reel.json` with the settings it used, so the next compose, and anyone sharing
-your scripts, uses the same voice. Commit it along with the script.
 
 ## 6. Change a line
 

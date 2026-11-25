@@ -29,11 +29,11 @@ What's in it:
 
 ### The script
 
-```{literalinclude} demos/orbit-tour/script.ts
+```{literalinclude} demos/reels/orbit-tour.reel.ts
 :language: ts
 ```
 
-```{literalinclude} demos/orbit-tour/flow-reel.json
+```{literalinclude} demos/flow-reel.json
 :language: json
 :caption: flow-reel.json
 ```
@@ -44,7 +44,7 @@ What's in it:
 git clone https://github.com/codeonym-oss/flow-reel.git && cd flow-reel
 npm ci && npm run build
 node plugin/examples/saved-views/serve.mjs &           # Orbit on http://localhost:4173/
-node dist/cli.js compose docs/demos/orbit-tour/script.ts --out /tmp/reels
+node dist/cli.js compose docs/demos/reels/orbit-tour.reel.ts --out /tmp/reels
 ```
 
 With the built-in local voice this compose took a little over 9 minutes on an 8-core laptop, of which 5½ minutes
@@ -52,7 +52,7 @@ were speech for the five comments, at 5.5 GiB peak memory. With a cloud voice, t
 
 ```sh
 export OPENAI_API_KEY=...
-node dist/cli.js compose docs/demos/orbit-tour/script.ts --out /tmp/reels --voice openai
+node dist/cli.js compose docs/demos/reels/orbit-tour.reel.ts --out /tmp/reels --voice openai
 ```
 
 ## The worked example

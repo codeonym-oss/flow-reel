@@ -8,7 +8,7 @@
 
 [![A 31-second reel composed by flow-reel: cards, a lower third, a callout, sounds and automatic zoom](docs/_static/demos/orbit-tour.jpg)](https://docs.codeonym.work/projects/flow-reel/en/latest/demos/)
 
-<p align="center"><em>▶ <a href="https://docs.codeonym.work/projects/flow-reel/en/latest/demos/">Watch the demo</a>, a reel composed from <a href="docs/demos/orbit-tour/script.ts">this short script</a>.</em></p>
+<p align="center"><em>▶ <a href="https://docs.codeonym.work/projects/flow-reel/en/latest/demos/">Watch the demo</a>, a reel composed from <a href="docs/demos/reels/orbit-tour.reel.ts">this short script</a>.</em></p>
 
 You write the walkthrough of a feature as an ordinary Playwright **script**, and add a few flow-reel words:
 **comments** to speak, **sounds** to play, **effects**, **cards** and **overlays** for the picture. The **composer**,
@@ -27,10 +27,11 @@ You need **Node.js 22.18+** and **Docker or Podman**.
 
 ```sh
 npm install --save-dev flow-reel
+npx flow-reel init --title "My app"     # makes the project a workspace: flow-reel.json and reels/
 ```
 
 ```ts
-// demos/settings.ts
+// reels/settings.reel.ts
 import { script, Sounds } from "flow-reel";
 
 export default script({ url: "http://localhost:4173" }, async ({ page, comment, card }) => {
@@ -48,13 +49,13 @@ export default script({ url: "http://localhost:4173" }, async ({ page, comment, 
 
 ```sh
 export OPENAI_API_KEY=...                                  # a cloud voice: fast, and recommended
-npx flow-reel compose demos/settings.ts --voice openai     # writes demos/settings.reel/
-npx flow-reel verify demos/settings.reel                   # every file present and unaltered
+npx flow-reel compose reels/settings.reel.ts --voice openai --save-config   # writes reels/out/settings.reel/
+npx flow-reel verify reels/out/settings.reel               # every file present and unaltered
 ```
 
-`demos/settings.reel/video.mp4` is your video. The first compose pulls the composer image once (about 2.6 GB for a
-cloud voice, 7 GB for the built-in local voice), and writes `flow-reel.json` with the settings it used. Commit that
-file with your scripts.
+`reels/out/settings.reel/video.mp4` is your video. The first compose pulls the composer image once (about 2.6 GB for a
+cloud voice, 7 GB for the built-in local voice). `--save-config` keeps the voice in `flow-reel.json`. Commit that file
+with your scripts.
 
 → [Quickstart](https://docs.codeonym.work/projects/flow-reel/en/latest/getting-started/quickstart/) ·
 [Your first reel](https://docs.codeonym.work/projects/flow-reel/en/latest/tutorials/first-reel/)
@@ -120,11 +121,18 @@ flow-reel versions it supports, and its `preflight.mjs` checks your project's.
 ## Commands
 
 ```sh
-npx flow-reel compose <script.ts> [--out <dir>] [--voice <name>] [--speaker <name>] [--language <name>]
-                                  [--model <id>] [--api-key-env <var>] [--base-url <url>] [--no-sound] [--save-config]
-npx flow-reel verify <reel>           # the reel matches its manifest (no Docker needed)
+npx flow-reel init                        # make a project a workspace
+npx flow-reel compose <script.reel.ts>    # compose a script; --detach lets the run go on by itself
+npx flow-reel runs                        # list this workspace's runs, and what can be done with them
+npx flow-reel watch <run or script>       # show a run until it ends; also wait, logs and cancel
+npx flow-reel resume <run or script>      # go on with a run that stopped, without recording again
+npx flow-reel clean                       # remove finished runs' recordings, clips and videos
+npx flow-reel verify <reel>               # the reel matches its manifest (no Docker needed)
 npx flow-reel compare <a.reel> <b.reel>   # same steps, comments, voice and effects, starts within ±150 ms
 ```
+
+Every compose is a **run**: it shows its progress, survives the terminal that started it, and can be resumed after a
+crash. What it works on stays out of your project, which holds only scripts, settings and finished reels.
 
 → [CLI](https://docs.codeonym.work/projects/flow-reel/en/latest/reference/cli/)
 
@@ -144,6 +152,10 @@ The npm package and the composer image share one version.
 
 Breaking changes and how to move a script across them are in
 [Migration](https://docs.codeonym.work/projects/flow-reel/en/latest/migration/). In short:
+
+### From 0.7 to 0.8
+
+A project becomes a workspace: run `npx flow-reel init`, rename scripts to `*.reel.ts`, and find reels in `reels/out/`.
 
 ### From 0.4 to 0.5
 

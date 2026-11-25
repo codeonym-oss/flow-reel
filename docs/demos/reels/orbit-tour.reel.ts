@@ -1,5 +1,5 @@
 // The docs' showcase reel: Orbit's saved views, with cards, overlays, effects and sounds.
-// Serve the app first: `node plugin/examples/saved-views/serve.mjs`, then `npx flow-reel compose docs/demos/orbit-tour/script.ts`.
+// Serve the app first: `node plugin/examples/saved-views/serve.mjs`, then `npx flow-reel compose docs/demos/reels/orbit-tour.reel.ts`.
 import { script, Sounds } from "flow-reel";
 
 export default script({ url: "http://localhost:4173/" }, async ({ page, comment, sound, card, lowerThird }) => {

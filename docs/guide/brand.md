@@ -5,7 +5,10 @@ card's or overlay's own `theme`, `enter` and `exit` win over it.
 
 ```json
 {
-  "version": 1,
+  "version": 2,
+  "workspace": { "id": "k3v9q2m7x5ta", "slug": "orbit", "title": "Orbit" },
+  "scripts": "reels",
+  "output": "reels/out",
   "brand": {
     "theme": "paper",
     "accent": "#D6336C",
@@ -25,9 +28,9 @@ card's or overlay's own `theme`, `enter` and `exit` win over it.
 | `fonts.heading`, `fonts.body` | WOFF2, WOFF, TTF or OTF files. Replace Inter Tight (titles) and Inter (text). | bundled |
 | `enter`, `exit` | the default transitions: `fade`, `slide`, `wipe`, `zoom`, `blur`, `iris`, `cut` | `fade` |
 
-- Paths are relative to `flow-reel.json`, inside the script's folder.
+- Paths are relative to the scripts folder, and inside it.
 - `theme` and `accent` colour the overlays and the skip card too.
 - JetBrains Mono (labels), Inter Tight and Inter are bundled, and work offline.
 - `--save-config` keeps the brand when it rewrites `flow-reel.json`.
 
-Use the product's own colour and logo. One brand per folder means every reel in it looks the same.
+Use the product's own colour and logo. One brand per workspace means every reel in it looks the same.
