@@ -27,7 +27,7 @@ export interface BrandFonts {
   /** A font file for the rest of the text; Inter by default. */
   body?: string;
 }
-/** The `brand` block of `flow-reel.json`. Paths are relative to that file's folder, the script's. */
+/** The `brand` block of `flow-reel.json`. Paths are relative to the scripts folder (GH-108 decision 002). */
 export interface Brand {
   /** The theme cards use unless one sets its own; `ink` by default. */
   theme?: ThemeName;
@@ -86,17 +86,24 @@ export function validateBrand(value: unknown): string[] {
   return errors;
 }
 
+/** Where files named by a script are: paths are relative to `dir`, the script's own folder, and stay inside `root`. */
+export interface ScriptFiles {
+  /** The scripts folder, the only one the composer has (GH-108 decision 002). */
+  root: string;
+  dir: string;
+}
+
 /**
- * A file a script or the brand names, checked: relative, inside the script's folder (the only one the composer has)
- * and there. Returns its path relative to that folder, with forward slashes. `who` names the word, for the error.
+ * A file a script or the brand names, checked: relative, inside the scripts folder and there. Returns its path relative
+ * to the scripts folder, with forward slashes. `who` names the word, for the error.
  */
-export function scriptFile(scriptDir: string, path: unknown, who: string, types?: readonly string[]): { file: string; inside: string } {
+export function scriptFile({ root, dir }: ScriptFiles, path: unknown, who: string, types?: readonly string[]): { file: string; inside: string } {
   if (typeof path !== "string" || !path) throw new Error(`${who} takes a file's path, relative to the script`);
   if (isAbsolute(path)) throw new Error(`${who}: ${path} must be relative to the script's folder, not absolute`);
-  const file = resolve(scriptDir, path);
-  const inside = relative(scriptDir, file);
+  const file = resolve(dir, path);
+  const inside = relative(root, file);
   if (!inside || inside.startsWith("..") || isAbsolute(inside)) {
-    throw new Error(`${who}: ${path} is outside the script's folder; only that folder is available to the composer`);
+    throw new Error(`${who}: ${path} is outside the scripts folder; only that folder is available to the composer`);
   }
   if (types && !types.includes(extname(file).toLowerCase())) {
     throw new Error(`${who}: ${path} must be a ${types.map((t) => t.slice(1).toUpperCase()).join(", ")} file`);
@@ -105,11 +112,12 @@ export function scriptFile(scriptDir: string, path: unknown, who: string, types?
   return { file, inside: inside.split(sep).join("/") };
 }
 
-/** Checks that the brand's logo and fonts exist inside the script's folder; call it before composing. */
-export function checkBrandFiles(scriptDir: string, brand: Brand): void {
-  if (brand.logo) scriptFile(scriptDir, brand.logo, "brand.logo", LOGO_TYPES);
+/** Checks that the brand's logo and fonts exist inside the scripts folder; call it before composing. */
+export function checkBrandFiles(scriptsDir: string, brand: Brand): void {
+  const files = { root: scriptsDir, dir: scriptsDir };
+  if (brand.logo) scriptFile(files, brand.logo, "brand.logo", LOGO_TYPES);
   for (const key of ["heading", "body"] as const) {
-    if (brand.fonts?.[key]) scriptFile(scriptDir, brand.fonts[key], `brand.fonts.${key}`, FONT_TYPES);
+    if (brand.fonts?.[key]) scriptFile(files, brand.fonts[key], `brand.fonts.${key}`, FONT_TYPES);
   }
 }
 

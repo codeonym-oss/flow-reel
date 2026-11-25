@@ -23,20 +23,26 @@ const npm = { npm_config_cache: join(dir, "npm-cache"), npm_config_userconfig: "
 /** Composes in its own folder, checks the reel, and that only the image the voice needs was inspected, pulled or run. */
 async function consume(target: "cloud" | "full", config?: object) {
   const out = join(dir, target);
-  mkdirSync(out, { recursive: true });
+  const reels = join(out, "reels");
+  mkdirSync(reels, { recursive: true });
+  const reel = join(reels, "out/demo.reel");
   const commands = join(out, "docker.log");
-  writeFileSync(join(out, "demo.ts"), `import { script, Sounds } from "flow-reel";
+  writeFileSync(join(reels, "demo.reel.ts"), `import { script, Sounds } from "flow-reel";
 export default script({ url: "http://localhost:${app.port}/", viewport: [960, 540] }, async ({ page, comment }) => {
   comment("Enter a name.");
   await page.getByRole("textbox", { name: "Name" }).fill("Ada");
   await page.getByRole("button", { name: "Save" }).comment("Save the changes.").sound(Sounds.feedback.SUCCESS).click();
 });\n`);
-  if (config) writeFileSync(join(out, "flow-reel.json"), JSON.stringify(config));
+  const env = { ...process.env, PATH: `${dir}:${process.env.PATH}`, ...npm, FLOW_REEL_CONSUMER_LOG: commands, OPENAI_API_KEY: FAKE_KEY,
+    FLOW_REEL_DATA_DIR: join(dir, "data") };
+  const run = (...command: string[]) => promisify(execFile)("npx", [...args, ...command], { cwd: out, timeout: 900_000, maxBuffer: 4 << 20, env });
+  await run("init", "--title", `Consumer ${target}`);
+  if (config) {
+    const file = join(out, "flow-reel.json");
+    writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, "utf8")), ...config }));
+  }
   try {
-    const result = await promisify(execFile)("npx", [...args, "compose", join(out, "demo.ts")], {
-      cwd: out, timeout: 900_000, maxBuffer: 4 << 20,
-      env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, ...npm, FLOW_REEL_CONSUMER_LOG: commands, OPENAI_API_KEY: FAKE_KEY },
-    });
+    const result = await run("compose", "reels/demo.reel.ts");
     writeFileSync(join(out, "record.log"), result.stdout + result.stderr);
     assert.doesNotMatch(result.stderr, /building it locally/);
   } catch (error) {
@@ -48,22 +54,22 @@ export default script({ url: "http://localhost:${app.port}/", viewport: [960, 54
   assert.match(log, /^run /m);
   const tags = [...log.matchAll(/ghcr\.io\/codeonym-oss\/flow-reel:(\S+)/g)].map(([, tag]) => tag);
   for (const tag of tags) assert.match(tag, target === "cloud" ? /^[\d.]+-cloud$/ : /^[\d.]+$/);
-  const transcript = JSON.parse(readFileSync(join(out, "demo.reel", "transcript.json"), "utf8"));
+  const transcript = JSON.parse(readFileSync(join(reel, "transcript.json"), "utf8"));
   assert.deepEqual(validateTranscript(transcript), []);
   assert.deepEqual(validateSync(transcript), []);
-  assert.deepEqual(validateEvents(JSON.parse(readFileSync(join(out, "demo.reel", "events.json"), "utf8"))), []);
+  assert.deepEqual(validateEvents(JSON.parse(readFileSync(join(reel, "events.json"), "utf8"))), []);
   assert.match(transcript.voice.adapter, target === "cloud" ? /^openai:/ : /^qwen3-tts-0\.6b$/);
   assert.equal(transcript.steps.length, 2);
   assert(transcript.steps.every((s: { audio?: unknown }) => s.audio));
-  for (const file of ["captions.srt", "captions.vtt", "video.mp4"]) assert(readFileSync(join(out, "demo.reel", file)).length > 0);
-  const probe = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_streams", "-of", "json", join(out, "demo.reel", "video.mp4")], { encoding: "utf8" }));
+  for (const file of ["captions.srt", "captions.vtt", "video.mp4"]) assert(readFileSync(join(reel, file)).length > 0);
+  const probe = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_streams", "-of", "json", join(reel, "video.mp4")], { encoding: "utf8" }));
   assert.deepEqual(probe.streams.map((s: { codec_type: string }) => s.codec_type), ["video", "audio"]);
-  const verified = await promisify(execFile)("npx", [...args, "verify", join(out, "demo.reel")], { cwd: out, env: { ...process.env, ...npm } });
+  const verified = await promisify(execFile)("npx", [...args, "verify", reel], { cwd: out, env: { ...process.env, ...npm } });
   assert.match(verified.stdout, /^Reel matches its manifest/);
   console.log(`Consumer passed: ${spec}, ${[...new Set(tags)].join(", ")}; outputs ${out}`);
 }
 
 try {
-  await consume("cloud", { version: 1, voice: fakeVoice(app.port).voice });
+  await consume("cloud", { voice: fakeVoice(app.port).voice });
   await consume("full");
 } finally { app.close(); }

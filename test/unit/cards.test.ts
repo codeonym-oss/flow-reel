@@ -7,9 +7,13 @@ import { builtInBody } from "../../src/composer/cards/catalog.ts";
 import { customPage, pageHead } from "../../src/composer/cards/page.ts";
 import { cardRequest } from "../../src/composer/cards/words.ts";
 import { fileFor } from "../../src/composer/media/cards.ts";
-import { readConfig, validateConfig, writeConfig, resolveSettings } from "../../src/settings.ts";
+import { resolveSettings } from "../../src/settings.ts";
+import { type Config, readConfig, validateConfig, withSettings, writeConfig } from "../../src/workspace/config.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "flow-reel-cards-"));
+const files = { root: dir, dir };
+const config = (brand: unknown) => ({ version: 2, workspace: { id: "abcdefghijkl", slug: "shop", title: "Shop" }, scripts: "reels",
+  output: "reels/out", brand });
 mkdirSync(join(dir, "cards"));
 writeFileSync(join(dir, "cards/pricing.html"), "<!doctype html><html><head><title>p</title></head><body><b data-prop=\"plan\">Plan</b></body></html>");
 writeFileSync(join(dir, "logo.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\"/>");
@@ -19,16 +23,16 @@ for (const name of ["app.png", "old.png", "new.webp"]) writeFileSync(join(dir, "
 
 describe("card words (GH-76 decisions 001 and 002)", () => {
   it("checks a built-in card's props and fills in the brand's look", () => {
-    expect(cardRequest("intro", [{ kicker: "Orbit 2.4", title: "Saved views", ms: 4000 }], dir, { theme: "paper", exit: "wipe" })).toEqual({
+    expect(cardRequest("intro", [{ kicker: "Orbit 2.4", title: "Saved views", ms: 4000 }], files, { theme: "paper", exit: "wipe" })).toEqual({
       type: "card", card: "intro", props: { kicker: "Orbit 2.4", title: "Saved views" }, files: [], ms: 4000, enter: "fade", exit: "wipe", theme: "paper",
     });
-    expect(cardRequest("chapter", [{ title: "Save a view", theme: "ember", enter: "cut" }], dir, {}))
+    expect(cardRequest("chapter", [{ title: "Save a view", theme: "ember", enter: "cut" }], files, {}))
       .toMatchObject({ props: { title: "Save a view" }, enter: "cut", exit: "fade", theme: "ember" });
-    expect(cardRequest("outro", [{ title: "Try it", links: ["docs", "blog"] }], dir, {})).toMatchObject({ props: { title: "Try it", links: ["docs", "blog"] } });
+    expect(cardRequest("outro", [{ title: "Try it", links: ["docs", "blog"] }], files, {})).toMatchObject({ props: { title: "Try it", links: ["docs", "blog"] } });
   });
 
   it("names the word and the prop when a card is called wrong", () => {
-    const call = (word: "intro" | "chapter" | "outro", ...args: unknown[]) => () => cardRequest(word, args, dir, {});
+    const call = (word: "intro" | "chapter" | "outro", ...args: unknown[]) => () => cardRequest(word, args, files, {});
     expect(call("intro", { subtitle: "x" })).toThrow("card.intro() needs title");
     expect(call("intro", { title: "" })).toThrow('card.intro(): title must be non-empty text, got ""');
     expect(call("intro", { title: "x", tilte: "y" })).toThrow('card.intro(): unknown prop "tilte"; it takes kicker, title, subtitle, layout, ms, enter, exit, theme');
@@ -42,15 +46,15 @@ describe("card words (GH-76 decisions 001 and 002)", () => {
   });
 
   it("checks the feature, image and compare cards, hashing each image they show", () => {
-    const feature = cardRequest("feature", [{ title: "Saved views", points: ["One click", "Shared"], image: "shots/app.png", imageSide: "left" }], dir, {});
+    const feature = cardRequest("feature", [{ title: "Saved views", points: ["One click", "Shared"], image: "shots/app.png", imageSide: "left" }], files, {});
     expect(feature).toMatchObject({ card: "feature", props: { title: "Saved views", points: ["One click", "Shared"], image: "shots/app.png", imageSide: "left" } });
     expect(feature.files).toEqual([{ path: "shots/app.png", sha256: expect.stringMatching(/^[a-f0-9]{64}$/) }]);
-    expect(cardRequest("image", ["./shots/app.png", { title: "On your phone", frame: "phone", ms: 2000 }], dir, {}))
+    expect(cardRequest("image", ["./shots/app.png", { title: "On your phone", frame: "phone", ms: 2000 }], files, {}))
       .toMatchObject({ card: "image", props: { image: "shots/app.png", title: "On your phone", frame: "phone" }, ms: 2000 });
-    expect(cardRequest("image", ["shots/app.png"], dir, {})).toMatchObject({ props: { image: "shots/app.png" } });
-    const compare = cardRequest("compare", [{ before: "shots/old.png", after: "shots/new.webp", labels: ["2.3", "2.4"] }], dir, {});
+    expect(cardRequest("image", ["shots/app.png"], files, {})).toMatchObject({ props: { image: "shots/app.png" } });
+    const compare = cardRequest("compare", [{ before: "shots/old.png", after: "shots/new.webp", labels: ["2.3", "2.4"] }], files, {});
     expect(compare.files.map((f) => f.path)).toEqual(["shots/old.png", "shots/new.webp"]);
-    const call = (word: "feature" | "image" | "compare", ...args: unknown[]) => () => cardRequest(word, args, dir, {});
+    const call = (word: "feature" | "image" | "compare", ...args: unknown[]) => () => cardRequest(word, args, files, {});
     expect(call("feature", { title: "x", points: ["1", "2", "3", "4", "5", "6"] })).toThrow("card.feature(): points must be a list of 1 to 5 non-empty texts");
     expect(call("feature", { title: "x" })).toThrow("card.feature() needs points");
     expect(call("image", { title: "x" })).toThrow('card.image() takes the image\'s path first: card.image("shots/app.png", { title: "…" })');
@@ -61,13 +65,15 @@ describe("card words (GH-76 decisions 001 and 002)", () => {
     expect(call("compare", { before: "shots/old.png" })).toThrow("card.compare() needs after");
   });
 
-  it("takes a custom card's page from the script's folder, with JSON props and options apart", () => {
-    const request = cardRequest("custom", ["cards/pricing.html", { plan: "Team", seats: 5, tags: ["a"] }, { ms: 2500 }], dir, {});
+  it("takes a custom card's page from the scripts folder, with JSON props and options apart", () => {
+    const request = cardRequest("custom", ["cards/pricing.html", { plan: "Team", seats: 5, tags: ["a"] }, { ms: 2500 }], files, {});
     expect(request).toMatchObject({ card: "custom", props: { plan: "Team", seats: 5, tags: ["a"] }, ms: 2500, files: [{ path: "cards/pricing.html" }] });
     expect(request.files[0].sha256).toMatch(/^[a-f0-9]{64}$/);
-    const call = (...args: unknown[]) => () => cardRequest("custom", args, dir, {});
+    const call = (...args: unknown[]) => () => cardRequest("custom", args, files, {});
+    // From a script in a subfolder, paths start there, reach the whole scripts folder, and are logged from it.
+    expect(cardRequest("custom", ["../cards/pricing.html"], { root: dir, dir: join(dir, "admin") }, {})).toMatchObject({ files: [{ path: "cards/pricing.html" }] });
     expect(call("cards/missing.html")).toThrow("card.custom(): cards/missing.html doesn't exist");
-    expect(call("../outside.html")).toThrow("card.custom(): ../outside.html is outside the script's folder");
+    expect(call("../outside.html")).toThrow("card.custom(): ../outside.html is outside the scripts folder");
     expect(call("logo.svg")).toThrow("card.custom(): logo.svg must be a HTML, HTM file");
     expect(call("cards/pricing.html", { when: new Date() })).toThrow("card.custom(): props.when must be text, a number");
     expect(call("cards/pricing.html", {}, { mss: 1 })).toThrow('card.custom(): unknown option "mss"; it takes ms, enter, exit, theme');
@@ -86,10 +92,10 @@ describe("the brand (GH-76 decision 006)", () => {
       'brand.fonts: unknown key "title"; it takes heading, body',
       "brand.fonts.body must be the path of a WOFF2, WOFF, TTF or OTF font",
     ]);
-    expect(validateConfig({ version: 1, brand: [] })).toEqual(["brand must be an object"]);
+    expect(validateConfig(config([]))).toEqual(["brand must be an object"]);
   });
 
-  it("checks the brand's files exist in the script's folder", () => {
+  it("checks the brand's files exist in the scripts folder", () => {
     expect(() => checkBrandFiles(dir, { logo: "logo.svg", fonts: { heading: "Display.woff2" } })).not.toThrow();
     expect(() => checkBrandFiles(dir, { logo: "brand/logo.svg" })).toThrow("brand.logo: brand/logo.svg doesn't exist");
   });
@@ -102,8 +108,8 @@ describe("the brand (GH-76 decision 006)", () => {
 
   it("keeps the brand when the settings are saved", () => {
     const folder = mkdtempSync(join(tmpdir(), "flow-reel-brand-"));
-    writeFileSync(join(folder, "flow-reel.json"), JSON.stringify({ version: 1, brand: { theme: "ember" } }));
-    writeConfig(folder, resolveSettings(readConfig(folder)));
+    writeFileSync(join(folder, "flow-reel.json"), JSON.stringify(config({ theme: "ember" })));
+    writeConfig(folder, withSettings(readConfig(folder)!.config as Config, resolveSettings(undefined)));
     expect(JSON.parse(readFileSync(join(folder, "flow-reel.json"), "utf8")).brand).toEqual({ theme: "ember" });
   });
 });

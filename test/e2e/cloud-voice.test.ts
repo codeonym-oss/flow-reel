@@ -1,14 +1,13 @@
 // A cloud voice through the whole composer (GH-49): the host passes the key's variable by name, the container calls the
 // provider (here a server on the host that answers like OpenAI), and a second compose reuses every clip.
-import { execFile } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { type Server, createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join, resolve } from "node:path";
-import { promisify } from "node:util";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { FAKE_KEY, tone } from "./fixture-app.ts";
 import { prepareImage } from "./image.ts";
+import { compose, makeProject } from "./project.ts";
 
 const OUT = resolve("test/e2e/out/cloud-voice");
 const html = readFileSync(resolve("test/e2e/app/index.html"));
@@ -40,37 +39,30 @@ afterAll(() => server?.close());
 
 it("composes with a cloud voice, and reuses its clips on the next compose", async () => {
   const dir = join(OUT, "openai");
-  rmSync(dir, { recursive: true, force: true });
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "demo.ts"), `import { script } from "flow-reel";
+  const project = makeProject(dir, { "demo.reel.ts": `import { script } from "flow-reel";
 
 export default script({ url: "http://localhost:${port}/", viewport: [960, 540] }, async ({ page, comment }) => {
   comment("Type a name.");
   await page.getByRole("textbox", { name: "Name" }).fill("Ada");
   await page.getByRole("button", { name: "Save" }).comment("Save it.").click();
 });
-`);
-  writeFileSync(join(dir, "flow-reel.json"), JSON.stringify({ version: 1,
-    voice: { adapter: "openai", speaker: "nova", baseUrl: `http://localhost:${port}/v1` } }));
-  const compose = () => promisify(execFile)(process.execPath, ["dist/cli.js", "compose", join(dir, "demo.ts")],
-    { env: { ...process.env, OPENAI_API_KEY: KEY } });
+` }, { voice: { adapter: "openai", speaker: "nova", baseUrl: `http://localhost:${port}/v1` } });
 
-  const first = await compose();
-  writeFileSync(join(dir, "compose.log"), first.stderr);
+  const first = await compose(project);
   expect(first.stderr).toContain("voiced 2 of 2 comments (0 reused)");
   // Comments are voiced concurrently, so their requests arrive in either order.
   expect([...requests].sort((a, b) => a.body.input.localeCompare(b.body.input))).toEqual([
     { auth: `Bearer ${KEY}`, body: { model: "gpt-4o-mini-tts", input: "Save it.", voice: "nova", response_format: "pcm" } },
     { auth: `Bearer ${KEY}`, body: { model: "gpt-4o-mini-tts", input: "Type a name.", voice: "nova", response_format: "pcm" } },
   ]);
-  const transcript = JSON.parse(readFileSync(join(dir, "demo.reel/transcript.json"), "utf8"));
+  const transcript = JSON.parse(readFileSync(join(first.reel, "transcript.json"), "utf8"));
   expect(transcript.voice).toEqual({ adapter: "openai:gpt-4o-mini-tts", voice: "nova", seed: 0, language: "auto" });
   for (const step of transcript.steps) expect(step.audio.durationMs).toBe(1200);
   for (const file of ["transcript.json", "manifest.json", "events.json"]) {
-    expect(readFileSync(join(dir, "demo.reel", file), "utf8")).not.toContain(KEY);
+    expect(readFileSync(join(first.reel, file), "utf8")).not.toContain(KEY);
   }
 
-  const second = await compose();
+  const second = await compose(project);
   expect(second.stderr).toContain("voiced 0 of 2 comments (2 reused)");
   expect(requests).toHaveLength(2);
 }, 900_000);

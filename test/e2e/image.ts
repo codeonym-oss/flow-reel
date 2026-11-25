@@ -40,7 +40,7 @@ export async function renderCardsInImage(jobs: readonly import("../../src/compos
   }
   prepared ??= prepareImage("cloud");
   const { dirname } = await import("node:path");
-  const mounts = [...new Set([options.work, options.scriptDir, dirname(options.capture)])].flatMap((dir) => ["-v", `${dir}:${dir}`]);
+  const mounts = [...new Set([options.work, options.scriptsDir, dirname(options.capture)])].flatMap((dir) => ["-v", `${dir}:${dir}`]);
   const code = `const [jobs, options] = JSON.parse(process.argv[1]);
 const { renderCards } = await import("/opt/flow-reel/dist/composer/media/cards.js");
 const { chromiumPainter } = await import("/opt/flow-reel/dist/adapters/chromium/painter.js");

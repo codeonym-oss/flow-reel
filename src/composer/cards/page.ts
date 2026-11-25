@@ -8,7 +8,7 @@ export const ORIGIN = "http://card.flow-reel";
 export const FONTS_PATH = "/fr/fonts/";
 export const SCRIPT_PATH = "/script/";
 
-/** The URL a card page uses for a file in the script's folder, given relative to that folder. */
+/** The URL a card page uses for a file in the scripts folder, given relative to that folder. */
 export const scriptUrl = (inside: string) => SCRIPT_PATH + inside.split("/").map(encodeURIComponent).join("/");
 
 /** What a card page knows: `window.flowReel` holds the same. */

@@ -58,7 +58,7 @@ const job = (id: string, kind: CardJob["kind"], props: Record<string, unknown>, 
   ({ id, kind, props, theme: themeFor("ink"), enter: "fade", exit: "fade", frames: 45, frame: 30, ...more });
 const render = (jobs: CardJob[], work: string) => {
   mkdirSync(work, { recursive: true });
-  return renderCardsInImage(jobs, { capture, work, scriptDir: script, viewport, fps, brand: {} });
+  return renderCardsInImage(jobs, { capture, work, scriptsDir: script, viewport, fps, brand: {} });
 };
 const still = (clip: string, frame: number, file: string) => media(["-i", clip, "-vf", `select=eq(n\\,${frame})`, "-frames:v", "1", "-fps_mode", "passthrough", file]);
 const frames = (clip: string) => Number(execFileSync("ffprobe", ["-v", "error", "-count_frames", "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", clip], { encoding: "utf8" }));

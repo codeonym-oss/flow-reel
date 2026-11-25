@@ -93,8 +93,8 @@ export interface Reel {
 }
 
 export interface ReelStore {
-  /** Starts a new reel for `scriptPath`, beside it or inside `outDir`. */
-  open(scriptPath: string, outDir?: string): Reel;
+  /** Starts a new reel that will replace `reel`, the folder of the one on disk, if any. */
+  open(reel: string): Reel;
 }
 
 /** One card page to draw, frame by frame. */

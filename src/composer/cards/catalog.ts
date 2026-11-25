@@ -2,7 +2,7 @@
 // script names a card by its word (`card.intro`), and the event log by its kind (`"intro"`).
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { scriptFile } from "./brand.ts";
+import { type ScriptFiles, scriptFile } from "./brand.ts";
 import { type PageContext, esc, scriptUrl } from "./page.ts";
 import { formatDuration } from "../effects.ts";
 
@@ -205,7 +205,7 @@ const hash = (file: string) => createHash("sha256").update(readFileSync(file)).d
  * Checks a built-in card's props where the script calls `card.<kind>`: unknown props, missing or empty text, lists
  * and choices throw naming the word. Image props must be files in the script's folder; their hashes are returned.
  */
-export function checkProps(kind: Exclude<BuiltInKind, "skip">, value: unknown, scriptDir: string, extra: readonly string[]):
+export function checkProps(kind: Exclude<BuiltInKind, "skip">, value: unknown, scripts: ScriptFiles, extra: readonly string[]):
   { props: Record<string, unknown>; files: CardFile[] } {
   const word = `card.${kind}()`;
   const spec: Record<string, PropSpec> = KINDS[kind].props;
@@ -231,7 +231,7 @@ export function checkProps(kind: Exclude<BuiltInKind, "skip">, value: unknown, s
       throw new Error(`${word}: ${name} must be ${rule.choices.map((c) => JSON.stringify(c)).join(" or ")}, got ${JSON.stringify(v)}`);
     }
     if (rule.type === "image") {
-      const { file, inside } = scriptFile(scriptDir, v, `${word}: ${name}`, IMAGE_TYPES);
+      const { file, inside } = scriptFile(scripts, v, `${word}: ${name}`, IMAGE_TYPES);
       files.push({ path: inside, sha256: hash(file) });
       props[name] = inside;
       continue;

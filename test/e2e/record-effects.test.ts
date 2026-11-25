@@ -1,24 +1,23 @@
-import { execFile, execFileSync, spawnSync } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type EventLog, validateEvents } from "../../src/composer/schema/events.ts";
 import { planPolish } from "../../src/composer/polish.ts";
 import { verifyReel } from "../../src/reel.ts";
-import { startFixtureApp } from "./fixture-app.ts";
+import { fakeVoice, startFixtureApp } from "./fixture-app.ts";
 import { prepareImage } from "./image.ts";
+import { compose, makeProject } from "./project.ts";
 
 // Effects and overlays in reels composed in the image, without comments (split from record.test.ts, GH-92).
 const OUT = resolve("test/e2e/out/record");
 let app: Awaited<ReturnType<typeof startFixtureApp>>;
 let port: number;
-let image: string;
 
 beforeAll(async () => {
   mkdirSync(OUT, { recursive: true });
-  image = prepareImage("cloud");
+  prepareImage("cloud");
   app = await startFixtureApp();
   port = app.port;
 }, 900_000);
@@ -38,20 +37,11 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540], aut
 });`;
   const composeEffects = async (name: string, autoZoom = true) => {
     const dir = join(OUT, name);
-    rmSync(dir, { recursive: true, force: true });
-    mkdirSync(join(dir, "img"), { recursive: true });
-    execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "color=lime:s=480x540", "-frames:v", "1", join(dir, "img", "green.png")]);
-    writeFileSync(join(dir, "demo.ts"), effectsScript(port, autoZoom));
-    const container = `flow-reel-${name}-${randomUUID()}`;
-    try {
-      const { stderr } = await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g",
-        "--network", "host", "--user", `${process.getuid!()}:${process.getgid!()}`, "-v", `${dir}:/work`, image,
-        "compose", "/work/demo.ts"], { timeout: 180_000 });
-      if (stderr) writeFileSync(join(dir, "record.log"), stderr);
-    } finally {
-      spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
-    }
-    return { dir, reel: join(dir, "demo.reel"), events: JSON.parse(readFileSync(join(dir, "demo.reel/events.json"), "utf8")) as EventLog };
+    const project = makeProject(dir, { "demo.reel.ts": effectsScript(port, autoZoom) }, { voice: fakeVoice(port).voice });
+    mkdirSync(join(project.scripts, "img"));
+    execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "color=lime:s=480x540", "-frames:v", "1", join(project.scripts, "img", "green.png")]);
+    const { reel } = await compose(project);
+    return { project, reel, events: JSON.parse(readFileSync(join(reel, "events.json"), "utf8")) as EventLog };
   };
   let first: Awaited<ReturnType<typeof composeEffects>>;
   let second: Awaited<ReturnType<typeof composeEffects>>;
@@ -66,7 +56,7 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540], aut
     const effects = first.events.events.filter((e) => ["flash", "card", "zoom"].includes(e.type));
     expect(effects.map((e) => e.type === "zoom" ? `zoom ${e.zoom}` : e.type)).toEqual(["card", "zoom in", "flash", "zoom out", "flash"]);
     expect(effects[0]).toMatchObject({ card: "image", props: { image: "img/green.png", frame: "none", fit: "contain" }, ms: 1000,
-      files: [{ path: "img/green.png", sha256: createHash("sha256").update(readFileSync(join(first.dir, "img", "green.png"))).digest("hex") }] });
+      files: [{ path: "img/green.png", sha256: createHash("sha256").update(readFileSync(join(first.project.scripts, "img", "green.png"))).digest("hex") }] });
     expect(effects[1]).toMatchObject({ scale: 1.5, ms: 650, bounds: expect.any(Object) });
     expect(effects[2]).toMatchObject({ color: "#ff0000" });
     const click = first.events.events.find((e) => e.type === "click")!;
@@ -122,23 +112,11 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, a
   await page.getByRole("link", { name: "Settings" }).highlight({ ms: 1000, theme: "paper" });
   await page.getByRole("link", { name: "Settings" }).click();
 });`;
-  let run: { dir: string; reel: string; events: EventLog };
+  let run: { reel: string; events: EventLog };
   beforeAll(async () => {
     const dir = join(OUT, "overlays");
-    rmSync(dir, { recursive: true, force: true });
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "demo.ts"), overlayScript(port));
-    const container = `flow-reel-overlays-${randomUUID()}`;
-    try {
-      const { stderr } = await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g",
-        "--network", "host", "--user", `${process.getuid!()}:${process.getgid!()}`, "-v", `${dir}:/work`, image,
-        "compose", "/work/demo.ts"], { timeout: 300_000 });
-      if (stderr) writeFileSync(join(dir, "record.log"), stderr);
-    } finally {
-      spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
-    }
-    const reel = join(dir, "demo.reel");
-    run = { dir, reel, events: JSON.parse(readFileSync(join(reel, "events.json"), "utf8")) };
+    const { reel } = await compose(makeProject(dir, { "demo.reel.ts": overlayScript(port) }, { voice: fakeVoice(port).voice }));
+    run = { reel, events: JSON.parse(readFileSync(join(reel, "events.json"), "utf8")) };
   }, 600_000);
 
   it("logs each overlay with its words, its element and how long it showed", () => {

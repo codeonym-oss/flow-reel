@@ -205,7 +205,7 @@ it("cuts a skip and shows its card over the blurred frame before it (GH-62 decis
   const out = options("skip");
   const [{ frame, frames }] = timeline.cards;
   const clips = await renderCardsInImage([{ id: "skip0", kind: "skip", props: { label: "{duration} skipped", style: "clock", durationMs: 500 },
-    theme: THEMES.ink, enter: "fade", exit: "fade", frame, frames }], { capture: out.capture, work: dir, scriptDir: dir, viewport: [160, 90], fps: 30, brand: {} });
+    theme: THEMES.ink, enter: "fade", exit: "fade", frame, frames }], { capture: out.capture, work: dir, scriptsDir: dir, viewport: [160, 90], fps: 30, brand: {} });
   renderTimeline({ ...out, timeline, clips });
   expect(videoFrames(out.video)).toBe(75);
   const pixels = execFileSync("ffmpeg", ["-v", "error", "-i", out.video, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { maxBuffer: 64 << 20 });

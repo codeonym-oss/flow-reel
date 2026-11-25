@@ -1,24 +1,22 @@
-import { execFile, execFileSync, spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type EventLog, validateEvents } from "../../src/composer/schema/events.ts";
 import type { Transcript } from "../../src/composer/schema/transcript.ts";
 import { verifyReel } from "../../src/reel.ts";
 import { fakeVoice, SLOW_MS, startFixtureApp } from "./fixture-app.ts";
 import { prepareImage } from "./image.ts";
+import { compose, makeProject } from "./project.ts";
 
 // speedUp and skip in reels composed in the image, spoken by the fake voice (split from record.test.ts, GH-92).
 const OUT = resolve("test/e2e/out/record");
 let app: Awaited<ReturnType<typeof startFixtureApp>>;
 let port: number;
-let image: string;
 
 beforeAll(async () => {
   mkdirSync(OUT, { recursive: true });
-  image = prepareImage("cloud");
+  prepareImage("cloud");
   app = await startFixtureApp();
   port = app.port;
 }, 900_000);
@@ -37,19 +35,7 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, a
 });`;
   const composeSpeed = async (name: string, inside?: string, make = speedScript) => {
     const dir = join(OUT, name);
-    rmSync(dir, { recursive: true, force: true });
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "demo.ts"), make(port, inside));
-    const container = `flow-reel-${name}-${randomUUID()}`;
-    try {
-      const { stderr } = await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g",
-        "--network", "host", "--user", `${process.getuid!()}:${process.getgid!()}`, ...fakeVoice(port).dockerEnv, "-v", `${dir}:/work`, image,
-        "compose", "/work/demo.ts", ...fakeVoice(port).flags], { timeout: 300_000 });
-      if (stderr) writeFileSync(join(dir, "record.log"), stderr);
-    } finally {
-      spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
-    }
-    const reel = join(dir, "demo.reel");
+    const { reel } = await compose(makeProject(dir, { "demo.reel.ts": make(port, inside) }, { voice: fakeVoice(port).voice }));
     return { reel, events: JSON.parse(readFileSync(join(reel, "events.json"), "utf8")) as EventLog,
       transcript: JSON.parse(readFileSync(join(reel, "transcript.json"), "utf8")) as Transcript };
   };

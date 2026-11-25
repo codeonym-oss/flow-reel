@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { afterAll, describe, expect, it } from "vitest";
+import { COMMANDS } from "../../src/cli/commands.ts";
 
 const root = resolve(import.meta.dirname, "../..");
 const plugin = join(root, "plugin");
@@ -124,12 +125,12 @@ describe("what the plugin teaches", () => {
   }, 60_000);
 
   it("uses only the commands and flags the CLI has", () => {
-    const usage = readFileSync(join(root, "src/cli.ts"), "utf8").match(/const USAGE = ([\s\S]*?);\n/)![1];
-    const flags = new Set(usage.match(/--[a-z-]+/g));
     const wrong: string[] = [];
     for (const { file, text } of docs) {
       for (const [line] of text.matchAll(/npx flow-reel (\S+)[^\n`]*/g)) {
-        if (!["compose", "verify", "compare"].includes(line.split(" ")[2])) wrong.push(`${file}: ${line}`);
+        const command = line.split(" ")[2];
+        if (!Object.hasOwn(COMMANDS, command)) { wrong.push(`${file}: ${line}`); continue; }
+        const flags = new Set(COMMANDS[command].usage.match(/--[a-z-]+/g));
         for (const flag of line.match(/--[a-z-]+/g) ?? []) if (!flags.has(flag)) wrong.push(`${file}: ${flag}`);
       }
     }
