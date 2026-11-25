@@ -11,8 +11,8 @@ the locators marked as unverified, and verify them through a first compose.
 Playwright comes with flow-reel, but its browsers live in the composer image, not on the host: a host script that
 launches Chromium may fail with "Executable doesn't exist". Point it at a browser already installed
 (`chromium.launch({ executablePath: "/usr/bin/chromium" })`, or Chrome's path), or ask the person before running
-`npx playwright install chromium`, which downloads a browser. Keep exploration scripts outside the script's folder:
-only the reel's script belongs there.
+`npx playwright install chromium`, which downloads a browser. Keep exploration scripts outside the scripts folder:
+only the reels' scripts belong there.
 
 ## What to collect, scene by scene
 
@@ -33,12 +33,12 @@ Write each of these in the brief's scene table, marked as observed.
 
 ## Logins and data
 
-The composer starts a **fresh browser** from `url`, with only the script's folder mounted. Nothing from your
+The composer starts a **fresh browser** from `url`, with only the scripts folder mounted. Nothing from your
 exploration carries over: cookies, local storage, a signed-in session.
 
 - Prefer a route that needs no login (a local dev server with seed data, a demo mode).
 - If the reel must sign in, the script does it, with a test account the person provides for this purpose, from a
-  file in the script's folder or a fixture they set up. Never put a real person's password in a script.
+  file in the scripts folder or a fixture they set up. Never put a real person's password in a script.
 - If neither is possible, stop and say so: the reel can't be composed until there is a replayable way in.
 
 ## The URL

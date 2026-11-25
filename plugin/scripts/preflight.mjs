@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Checks what `flow-reel compose` needs, and changes nothing (GH-6 decision 009): Node, an engine whose daemon
-// answers, a runtime the plugin supports, the composer image, the voice and its key, the script, and the app's URL.
+// answers, a runtime the plugin supports, the workspace, the composer image, the voice and its key, the script, and the
+// app's URL.
 // Exit 0: every check passes. 1: a check failed. 2: bad arguments.
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -54,14 +55,30 @@ function installedVersion(from) {
 const CLOUD_KEYS = { openai: "OPENAI_API_KEY", gemini: "GEMINI_API_KEY", openrouter: "OPENROUTER_API_KEY",
   together: "TOGETHER_API_KEY", groq: "GROQ_API_KEY", elevenlabs: "ELEVENLABS_API_KEY", "openai-compatible": undefined };
 
-/** The voice in the folder's flow-reel.json, and whether its key is set; never reads or prints the key's value. */
-function checkVoice(dir) {
-  let config;
-  try { config = JSON.parse(readFileSync(join(dir, "flow-reel.json"), "utf8")); }
-  catch (error) {
-    if (error.code === "ENOENT") return { status: "ok", detail: "no flow-reel.json: the local voice (CPU, about a minute per comment)" };
-    return { status: "fail", detail: `flow-reel.json can't be read: ${error.message}` };
+/** The workspace's flow-reel.json: the nearest one upward, as flow-reel itself looks for it. */
+function findWorkspace(from) {
+  for (let dir = resolve(from); ; dir = dirname(dir)) {
+    const file = join(dir, "flow-reel.json");
+    if (existsSync(file)) {
+      try { return { file, config: JSON.parse(readFileSync(file, "utf8")) }; }
+      catch (error) { return { file, error: error.message }; }
+    }
+    if (dirname(dir) === dir) return undefined;
   }
+}
+
+function checkWorkspace(found) {
+  if (!found) return { status: "fail", detail: "no flow-reel.json here or above: not a workspace", fix: "npx flow-reel init --title <title>, at the project's root" };
+  if (found.error) return { status: "fail", detail: `${found.file} can't be read: ${found.error}` };
+  if (found.config?.version === 1) {
+    return { status: "fail", detail: `${found.file} is from before flow-reel 0.8`,
+      fix: "npx flow-reel init, at the project's root, takes it over and prints the git mv lines for its scripts" };
+  }
+  return { status: "ok", detail: `${found.config?.workspace?.title} (${found.file}); scripts in ${found.config?.scripts}, reels in ${found.config?.output}` };
+}
+
+/** The workspace's voice, and whether its key is set; never reads or prints the key's value. */
+function checkVoice(config) {
   const voice = config?.voice ?? {};
   const adapter = voice.adapter ?? "qwen3-tts-0.6b";
   if (!(adapter in CLOUD_KEYS)) return { status: "ok", detail: `${adapter}: a local voice (CPU, about a minute per comment)` };
@@ -75,12 +92,6 @@ function checkVoice(dir) {
     ? { status: "ok", detail: `${adapter}, key in ${variable}` }
     : { status: "fail", detail: `${adapter} needs ${variable}, which isn't set here`,
       fix: `the person sets it in the shell that composes (export ${variable}=...); never in flow-reel.json` };
-}
-
-/** Whether the folder's flow-reel.json names a cloud voice; an unreadable file is reported by checkVoice. */
-function hasCloudVoice(dir) {
-  try { return JSON.parse(readFileSync(join(dir, "flow-reel.json"), "utf8"))?.voice?.adapter in CLOUD_KEYS; }
-  catch { return false; }
 }
 
 const probe = (cmd, args) => spawnSync(cmd, args, { encoding: "utf8", timeout: 15_000 });
@@ -130,22 +141,25 @@ export async function preflight(args) {
     add("runtime", { status: "fail", detail: `flow-reel ${found.version} (${found.where}); this plugin supports ${range}`, fix: "npm install --save-dev flow-reel, or update the plugin" });
   } else add("runtime", { status: "ok", detail: `flow-reel ${found.version}, within ${range}` });
 
-  const dir = args.script ? dirname(args.script) : process.cwd();
+  const workspace = findWorkspace(args.script ? dirname(args.script) : process.cwd());
+  add("workspace", checkWorkspace(workspace));
   if (engine && found) {
-    // From 0.7.0, a cloud voice composes in a smaller image of its own.
-    const suffix = hasCloudVoice(dir) && satisfies(found.version, ">=0.7.0") ? "-cloud" : "";
+    // A cloud voice composes in a smaller image of its own.
+    const suffix = workspace?.config?.voice?.adapter in CLOUD_KEYS ? "-cloud" : "";
     const image = `ghcr.io/codeonym-oss/flow-reel:${found.version}${suffix}`;
     add("image", probe(engine, ["image", "inspect", image]).status === 0
       ? { status: "ok", detail: `${image} is present` }
       : { status: "note", detail: `${image} isn't present; the first compose pulls it (several GB), or builds it if it can't`, fix: `${engine} pull ${image}` });
   }
 
-  add("voice", checkVoice(dir));
+  add("voice", checkVoice(workspace?.config));
 
   if (args.script) {
-    add("script", existsSync(args.script)
-      ? { status: "ok", detail: `${args.script} exists` }
-      : { status: "fail", detail: `${args.script} doesn't exist` });
+    add("script", !existsSync(args.script)
+      ? { status: "fail", detail: `${args.script} doesn't exist` }
+      : !args.script.endsWith(".reel.ts")
+        ? { status: "fail", detail: `${args.script} isn't named <name>.reel.ts`, fix: "rename it" }
+        : { status: "ok", detail: `${args.script} exists` });
   }
   if (args.url) add("url", await checkUrl(args.url));
   return checks;

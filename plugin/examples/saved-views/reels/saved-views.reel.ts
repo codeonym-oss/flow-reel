@@ -1,4 +1,4 @@
-// A reel of Orbit's saved views: filter, read the chart, save the view, find it again. See brief.md for the plan.
+// A reel of Orbit's saved views: filter, read the chart, save the view, find it again. See saved-views.brief.md for the plan.
 import { script, Sounds } from "flow-reel";
 
 export default script({ url: "http://localhost:4173/" }, async ({ page, comment, sound }) => {

@@ -1,6 +1,6 @@
 # Brief: <feature>
 
-<!-- Copy beside the script as brief.md. Keep observed facts apart from assumptions. See references/story.md. -->
+<!-- Copy beside the script as <name>.brief.md. Keep observed facts apart from assumptions. See references/story.md. -->
 
 - **Audience:** reviewer / customer / learner — <who, and what they need>
 - **Takeaway:** <one sentence the viewer can say afterwards>

@@ -1,9 +1,8 @@
 # The flow-reel language
 
-**Supported runtime:** `>=0.5.0`
+**Supported runtime:** `>=0.8.0`
 
-Everything a script can say, and every command, for the runtime versions above. Cards, overlays and the brand need
-0.5; on 0.4, use none of them. If a word, option or flag is not
+Everything a script can say, and every command, for the runtime versions above. If a word, option or flag is not
 on this page, flow-reel doesn't have it: say so instead of inventing it. The plugin's `scripts/preflight.mjs`
 reports the project's version and whether it is in this range.
 
@@ -44,7 +43,8 @@ export default script({ url: "http://localhost:4173/" }, async ({ page, comment,
 
 Rules:
 - Erasable TypeScript only: no `enum`, `namespace` or parameter properties.
-- Import only from `flow-reel` and from files in the script's own folder. The composer mounts only that folder.
+- A script is a `<name>.reel.ts` file in the workspace's scripts folder (below), or in a folder of it.
+- Import only from `flow-reel` and from files in the scripts folder. The composer sees only that folder.
 - The composer's browser is fresh: no cookies, no login, no storage from exploring.
 
 ## Steps and comments
@@ -182,17 +182,17 @@ Every card also takes these options, in its props object (or as `options` for `c
 | `theme` | `ink`, `paper`, `ocean`, `ember` | the brand's, else `ink` |
 
 - **A comment written before a card is spoken over it**, and the card stays until it ends. That is how to pace one.
-- Images are PNG, JPEG, WebP or SVG files in the script's folder, relative to the script. Take them yourself (a
+- Images are PNG, JPEG, WebP or SVG files in the scripts folder, relative to the script. Take them yourself (a
   screenshot while exploring) or ask the person; never invent one.
 - The camera eases back to the full screen as a card comes. No cursor or zoom is drawn on a card.
 - A wrong prop, option or path throws where the card is written, naming it. Cards can't go inside `speedUp` or `skip`.
 
 ### Custom cards
 
-`card.custom("cards/pricing.html", props)` draws an HTML page from the script's folder: its own CSS, JavaScript,
+`card.custom("cards/pricing.html", props)` draws an HTML page from the scripts folder: its own CSS, JavaScript,
 images and fonts, at the reel's size. It is drawn frame by frame on a frozen clock, so `setTimeout`,
 `requestAnimationFrame`, `performance.now()` and CSS animations play the same way every time. The network is off:
-only the script's folder loads.
+only the scripts folder loads.
 
 - `data-prop="name"` fills an element with `props.name` (its text, an image's `src`, or a list's items).
 - `window.flowReel` holds `props`, `theme` (its colours), `durationMs` and `logo`.
@@ -224,12 +224,13 @@ shown, and it stays until the script's next action, through the hold that lets i
 or overlay's own `theme`, `enter` and `exit` win:
 
 ```json
-{ "version": 1, "brand": { "theme": "paper", "accent": "#D6336C", "logo": "brand/logo.svg", "fonts": { "heading": "brand/Display.woff2" }, "enter": "fade", "exit": "fade" } }
+{ "brand": { "theme": "paper", "accent": "#D6336C", "logo": "brand/logo.svg", "fonts": { "heading": "brand/Display.woff2" }, "enter": "fade", "exit": "fade" } }
 ```
 
 - `theme`: `ink` (dark, the default), `paper` (light), `ocean` (teal), `ember` (warm). `accent` replaces its accent
   colour. `logo` (SVG, PNG, JPEG or WebP) shows on the intro and the outro. `fonts.heading` and `fonts.body` (WOFF2,
-  WOFF, TTF or OTF) replace Inter Tight and Inter. Paths are inside the script's folder.
+  WOFF, TTF or OTF) replace Inter Tight and Inter. Paths are relative to the scripts folder,
+  and inside it.
 - Use the product's own colour and logo when the person has them; ask before guessing a brand.
 
 ## Polish (automatic, no word needed)
@@ -244,35 +245,81 @@ scrolling alone don't zoom. Target bounds are taken before the action. An effect
 Viewport, device scale, `prefers-reduced-motion`, the page's clock (`2026-01-05T09:00:00Z`) and `Math.random`'s
 seed. Two composes of one script have the same steps, each starting within ±150 ms.
 
+## The workspace
+
+A project is a **workspace** once it has a `flow-reel.json` at its root. `npx flow-reel init` writes it:
+
+```sh
+npx flow-reel init --title "Shop"                      # scripts in reels/, reels in reels/out/
+npx flow-reel init --title "Shop" --scripts demos      # scripts in demos/, reels in demos/out/
+```
+
+- One per project, and committed with the scripts. Without a terminal to ask in, `init` needs `--title`.
+- `init` takes over a 0.7 `flow-reel.json` and prints the `git mv` lines that rename its scripts. Ask before running
+  it in a project that has one.
+- `--slug` is the workspace's name in commands; if it is taken on this computer, `flow-reel init --alias <name>`.
+
 ## Commands
 
 ```sh
-npx flow-reel compose demos/settings.ts            # writes demos/settings.reel/
-npx flow-reel compose demos/settings.ts --out reels # writes reels/settings.reel/
-npx flow-reel compose demos/settings.ts --no-sound  # mutes every sound; they stay in the event log
-npx flow-reel compose demos/settings.ts --speaker Serena --language english
-npx flow-reel compose demos/settings.ts --voice openai --speaker nova   # a cloud voice; needs OPENAI_API_KEY set
-npx flow-reel verify demos/settings.reel
-npx flow-reel compare demos/a.reel demos/b.reel
+npx flow-reel compose reels/settings.reel.ts             # writes reels/out/settings.reel/
+npx flow-reel compose reels/settings.reel.ts --detach    # starts it and returns; it goes on by itself
+npx flow-reel compose reels/settings.reel.ts --no-sound  # mutes every sound; they stay in the event log
+npx flow-reel compose reels/settings.reel.ts --speaker Serena --language english
+npx flow-reel compose reels/settings.reel.ts --voice openai --speaker nova   # a cloud voice; needs OPENAI_API_KEY set
+npx flow-reel verify reels/out/settings.reel
+npx flow-reel compare reels/out/a.reel reels/out/b.reel
 ```
 
-- `compose` flags: `--no-sound`, `--out <dir>`, `--integration <name>`, `--voice <name>`, `--speaker <name>`,
-  `--language <name>`, `--model <id>`, `--api-key-env <variable>`, `--base-url <url>`, `--save-config`. Nothing
-  else: no duration, music, camera or export flags.
-- A failed compose leaves the previous reel untouched and its attempt in `<name>.reel.partial/`.
+- `compose` flags: `--detach`, `--no-sound`, `--out <dir>`, `--integration <name>`, `--voice <name>`,
+  `--speaker <name>`, `--language <name>`, `--model <id>`, `--api-key-env <variable>`, `--base-url <url>`,
+  `--save-config`. Nothing else: no duration, music, camera or export flags.
+- Every command takes `--json` and then prints JSON lines.
+- Exit codes: 0 done, 1 failed, 2 wrong arguments, 3 the run stopped, 4 it was cancelled.
 - `verify`: 0 when the reel matches its manifest, 1 naming each missing, extra or changed file, 2 when it isn't a
   reel. No Docker needed.
 - `compare`: 0 match, 1 different, 2 invalid. It compares steps, comments, the voice, audio hashes, step starts
   (±150 ms) and effects; not pixels, sounds or MP4 bytes.
 
-## Settings (`flow-reel.json` beside the scripts)
+## Runs
 
-```json
-{ "version": 1, "integration": "playwright", "voice": { "adapter": "qwen3-tts-0.6b", "speaker": "Ryan", "language": "english" } }
+Each compose is a **run**, with a process of its own: it records, voices, plans, renders and publishes. Name it by its
+script (`settings`, the latest run) or by its number (`12`).
+
+```sh
+npx flow-reel runs                # the workspace's runs, and what can be done with each
+npx flow-reel wait settings       # waits for its end; the exit code says how it ended
+npx flow-reel watch settings      # shows it until its end
+npx flow-reel logs settings       # what its script, browser and renderer printed
+npx flow-reel cancel settings
+npx flow-reel resume settings     # a run that stopped or failed goes on from where it was cut off
 ```
 
-Flags win over the file, the file over defaults. The first compose in a folder without the file writes it; an
-existing file is rewritten only with `--save-config`, which keeps its `brand` (above).
+- **A run that stopped or failed is resumed, not composed again**, when the script needn't change: what it finished is
+  kept, and the app's data isn't changed a second time. `resume` uses the script the run started with, so a changed
+  script needs a new `compose`.
+- A recording is never repeated by itself. If it is missing, `resume` refuses and says which `compose` to run.
+- Recording, rendering and the local voice wait for other runs' to finish; the waiting run says which.
+- A long compose: start it with `--detach`, then `wait`.
+- A failed, stopped or cancelled run leaves the previous reel as it was, and nothing in the project.
+
+## Settings (`flow-reel.json` at the workspace's root)
+
+```json
+{
+  "version": 2,
+  "workspace": { "id": "k3v9q2m7x5ta", "slug": "shop", "title": "Shop" },
+  "scripts": "reels",
+  "output": "reels/out",
+  "integration": "playwright",
+  "voice": { "adapter": "qwen3-tts-0.6b", "speaker": "Ryan", "language": "english" }
+}
+```
+
+`init` writes it, with the workspace's `id`: never write or copy one by hand. Flags win over the file, the file over
+defaults. `--save-config` writes a successful compose's integration and voice to it. It also takes `brand` (above),
+`limits` (`record`, `voice`, `render`: minutes, 60, 60 and 120) and `keepRuns` (how many finished runs of each script
+keep their large files, 5).
 
 | Setting | Values | Default |
 |---|---|---|
@@ -298,7 +345,7 @@ cloud voice speaks a whole script in seconds, and needs a key and a network:
 | `openai-compatible` | none: set `model` and `baseUrl` | `alloy` | none: set `apiKeyEnv` if the server needs a key |
 
 ```json
-{ "version": 1, "voice": { "adapter": "openai", "model": "gpt-4o-mini-tts", "speaker": "coral", "apiKeyEnv": "OPENAI_API_KEY" } }
+{ "voice": { "adapter": "openai", "model": "gpt-4o-mini-tts", "speaker": "coral", "apiKeyEnv": "OPENAI_API_KEY" } }
 ```
 
 - **The key never goes in a file.** `flow-reel.json` names the variable (`apiKeyEnv`); a file with `apiKey` is
@@ -315,7 +362,7 @@ bills only those. Deleting the reel deletes its cache.
 
 ## The reel
 
-`<name>.reel/` beside the script:
+`<name>.reel/` in the workspace's output folder, or in `--out`:
 
 | File | What it is |
 |---|---|
@@ -325,7 +372,6 @@ bills only those. Deleting the reel deletes its cache.
 | `captions.srt`, `captions.vtt` | The comments as captions. |
 | `audio/NNN.wav` | Each step's speech clip. |
 | `manifest.json` | Every file with its size and SHA-256, the script, composer version, integration, voice. |
-| `work/` | Intermediate files for debugging; not in the manifest. |
 
 ## Platforms
 
