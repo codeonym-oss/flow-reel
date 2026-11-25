@@ -127,8 +127,7 @@ describe("what the plugin teaches", () => {
   it("uses only the commands and flags the CLI has", () => {
     const wrong: string[] = [];
     for (const { file, text } of docs) {
-      for (const [line] of text.matchAll(/npx flow-reel (\S+)[^\n`]*/g)) {
-        const command = line.split(" ")[2];
+      for (const [line, command] of text.matchAll(/npx flow-reel ([a-z]+)[^\n`]*/g)) {
         if (!Object.hasOwn(COMMANDS, command)) { wrong.push(`${file}: ${line}`); continue; }
         const flags = new Set(COMMANDS[command].usage.match(/--[a-z-]+/g));
         for (const flag of line.match(/--[a-z-]+/g) ?? []) if (!flags.has(flag)) wrong.push(`${file}: ${flag}`);
