@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Voice } from "../../src/composer/ports.ts";
-import { voiceSteps } from "../../src/composer/voicing.ts";
+import { voiceSteps } from "../../src/composer/media/voicing.ts";
 
 // Python wave: mono PCM16, 8 kHz, sixteen silent samples (2 ms).
 const WAV = Buffer.from("UklGRkQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YSAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==", "base64");

@@ -1,13 +1,15 @@
 // A cloud voice through the whole composer (GH-49): the host passes the key's variable by name, the container calls the
 // provider (here a server on the host that answers like OpenAI), and a second compose reuses every clip.
-import { mkdirSync, readFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
+import { setTimeout as sleep } from "node:timers/promises";
 import { type Server, createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join, resolve } from "node:path";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { FAKE_KEY, tone } from "./fixture-app.ts";
 import { prepareImage } from "./image.ts";
-import { compose, makeProject } from "./project.ts";
+import { DATA_DIR, cliEnv, compose, lastRun, makeProject } from "./project.ts";
 
 const OUT = resolve("test/e2e/out/cloud-voice");
 const html = readFileSync(resolve("test/e2e/app/index.html"));
@@ -62,7 +64,38 @@ export default script({ url: "http://localhost:${port}/", viewport: [960, 540] }
     expect(readFileSync(join(first.reel, file), "utf8")).not.toContain(KEY);
   }
 
+  // The key reaches the voice's container only, and no file of the run.
+  const run = lastRun(project);
+  for (const file of readdirSync(run, { recursive: true, withFileTypes: true }).filter((entry) => entry.isFile())) {
+    expect(readFileSync(join(file.parentPath, file.name)).includes(KEY)).toBe(false);
+  }
+
   const second = await compose(project);
   expect(second.stderr).toContain("voiced 0 of 2 comments (2 reused)");
   expect(requests).toHaveLength(2);
 }, 900_000);
+
+it("ends its container when the CLI is killed, and leaves nothing in the project (GH-108 decision 011)", async () => {
+  const project = makeProject(join(OUT, "killed"), { "demo.reel.ts": `import { script } from "flow-reel";
+export default script({ url: "http://localhost:${port}/", viewport: [960, 540] }, async () => {
+  console.log("the script is running");
+  await new Promise((resolve) => setTimeout(resolve, 60_000));
+});
+` }, { voice: { adapter: "openai", baseUrl: `http://localhost:${port}/v1` } });
+  const containers = () => spawnSync("docker", ["ps", "--quiet", "--filter", "name=flow-reel-record-"], { encoding: "utf8" }).stdout.trim();
+  const until = async (what: () => boolean) => {
+    for (const deadline = Date.now() + 60_000; !what(); await sleep(200)) if (Date.now() > deadline) throw new Error("waited a minute");
+  };
+  const child = spawn(process.execPath, ["dist/cli.js", "compose", join(project.scripts, "demo.reel.ts")], { env: cliEnv(), stdio: "ignore" });
+  try {
+    // A script's own output goes to the run's log.
+    await until(() => existsSync(join(DATA_DIR, "workspaces")) && logOf(project).includes("the script is running"));
+    expect(containers()).not.toBe("");
+  } finally { child.kill("SIGKILL"); }
+  await until(() => containers() === "");
+  expect(readdirSync(project.scripts)).toEqual(["demo.reel.ts"]);
+}, 180_000);
+
+function logOf(project: Parameters<typeof lastRun>[0]): string {
+  try { return readFileSync(join(lastRun(project), "log.txt"), "utf8"); } catch { return ""; }
+}

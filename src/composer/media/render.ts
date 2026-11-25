@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import type { Timeline } from "../timeline.ts";
 import type { ComposerEvent } from "../schema/events.ts";
 import { assembleSfx } from "./sound-mix.ts";
+import { videoFrames } from "./recording.ts";
 import { polishFilters } from "./polish-render.ts";
 import type { DrawnOverlay } from "./overlays.ts";
 
@@ -11,15 +12,6 @@ function ffmpeg(args: string[]): string {
   return execFileSync("ffmpeg", ["-hide_banner", "-nostdin", "-y", ...args], {
     encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 4 << 20,
   });
-}
-
-/** The frame count an MP4's header records: ffmpeg writes one entry per frame, so nothing needs decoding. */
-export function videoFrames(file: string): number {
-  const result = execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0",
-    "-show_entries", "stream=nb_frames", "-of", "csv=p=0", file], { encoding: "utf8" });
-  const frames = Number(result.trim());
-  if (!Number.isInteger(frames) || frames <= 0) throw new Error(`invalid frame count in ${file}`);
-  return frames;
 }
 
 function audioDurationMs(file: string): number {

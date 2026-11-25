@@ -1,43 +1,38 @@
-// The reel store as a local folder (GH-31 decisions 001, 002 and 005): built in `<name>.reel.partial/` and swapped in only
-// once it is complete.
-import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+// The reel store as a local folder (GH-31 decisions 001 and 002): a finished reel is swapped in whole.
+import { lstatSync, mkdirSync } from "node:fs";
+import { rm } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
 import type { ReelStore } from "../../composer/ports.ts";
-import type { Manifest } from "../../composer/schema/manifest.ts";
-import { MANIFEST, hashFiles, listReelFiles } from "../../reel.ts";
+import { copyTree, renameWhenFree, syncTree } from "../../host/files.ts";
 
-const writeJson = (file: string, value: unknown) => writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
+const exists = (path: string) => lstatSync(path, { throwIfNoEntry: false }) !== undefined;
 
-export const folderStore: ReelStore = {
-  open(reel) {
-    const partial = `${reel}.partial`;
-    const work = join(partial, "work");
-    rmSync(partial, { recursive: true, force: true });
-    mkdirSync(work, { recursive: true });
-    // The intermediates are large and only help debugging: keep them out of git without touching the app's .gitignore.
-    writeFileSync(join(work, ".gitignore"), "*\n");
-    const stagedVideo = join(work, "delivery.mp4");
-    const videoFile = "video.mp4";
-    return {
-      work: {
-        capture: join(work, "capture.mp4"), masterInfo: join(work, "master.json"),
-        stagedVideo, voiceBus: join(work, "voice.wav"),
-      },
-      audioDir: join(partial, "audio"),
-      audioRoot: partial,
-      ...(existsSync(join(reel, "transcript.json")) ? { previous: reel } : {}),
-      videoFile,
-      commit({ transcript, events, captions, about }) {
-        renameSync(stagedVideo, join(partial, videoFile));
-        writeJson(join(partial, "transcript.json"), transcript);
-        writeJson(join(partial, "events.json"), events);
-        writeFileSync(join(partial, "captions.srt"), captions.srt, "utf8");
-        writeFileSync(join(partial, "captions.vtt"), captions.vtt, "utf8");
-        const manifest: Manifest = { version: 1, ...about, files: hashFiles(partial, listReelFiles(partial)) };
-        writeJson(join(partial, MANIFEST), manifest);
-        rmSync(reel, { recursive: true, force: true });
-        renameSync(partial, reel);
-      },
-    };
-  },
-};
+/**
+ * Replaces the folder `to` with a copy of `from`, whole: it is copied beside `to`, so the last step is a rename on one
+ * disk. An interrupted replacement leaves the old folder or the new one, and calling this again finishes it.
+ */
+async function publish(from: string, to: string): Promise<void> {
+  const beside = (kind: string) => join(dirname(to), `.${basename(to)}.${kind}`);
+  const [next, last] = [beside("new"), beside("old")];
+  const clear = (path: string) => rm(path, { recursive: true, force: true, maxRetries: 3 });
+  mkdirSync(dirname(to), { recursive: true });
+  if (exists(last) && !exists(to)) await renameWhenFree(last, to);
+  await clear(next);
+  await clear(last);
+  try {
+    copyTree(from, next);
+    syncTree(next);
+    if (exists(to)) await renameWhenFree(to, last);
+    try { await renameWhenFree(next, to); }
+    catch (error) {
+      if (exists(last)) await renameWhenFree(last, to);
+      throw error;
+    }
+  } catch (error) {
+    await clear(next);
+    throw new Error(`${to} can't be replaced: ${(error as Error).message}`, { cause: error });
+  }
+  await clear(last);
+}
+
+export const folderStore: ReelStore = { publish };

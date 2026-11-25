@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { type ImageTarget, imageFor } from "../../src/host/launch.ts";
+import { type ImageTarget, imageFor } from "../../src/host/engine.ts";
 
 const CANDIDATES = { full: "FLOW_REEL_TEST_IMAGE", cloud: "FLOW_REEL_TEST_IMAGE_CLOUD" } as const;
 
@@ -31,7 +31,7 @@ let prepared: string | undefined;
  * Draws cards with the composer's own renderer (GH-76 decision 003): in this process when the tests run inside the
  * image, else in the image, with the folders mounted at the same paths. CI runners have no Chromium of their own.
  */
-export async function renderCardsInImage(jobs: readonly import("../../src/composer/media/cards.ts").CardJob[],
+export async function renderCardsInImage(jobs: readonly import("../../src/composer/cards/job.ts").CardJob[],
   options: Omit<import("../../src/composer/media/cards.ts").CardRenderOptions, "painter">): Promise<Record<string, string>> {
   if (process.env.FLOW_REEL_IN_CONTAINER === "1") {
     const { renderCards } = await import("../../src/composer/media/cards.ts");

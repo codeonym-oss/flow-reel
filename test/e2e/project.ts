@@ -1,6 +1,6 @@
 // A workspace for the e2e tests, composed with the built CLI as a person would; its runs stay in test/e2e/out/data.
 import { execFile } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import type { Config } from "../../src/workspace/config.ts";
@@ -24,6 +24,13 @@ export function makeProject(root: string, files: Record<string, string>, config:
   const full: Config = { version: 2, workspace: { id: newId(), slug: slugify(title), title }, scripts: "reels", output: "reels/out", ...config };
   writeFileSync(join(root, "flow-reel.json"), `${JSON.stringify(full, null, 2)}\n`);
   return { root, scripts, output: join(scripts, "out") };
+}
+
+/** The folder of a project's latest run. */
+export function lastRun(project: Project): string {
+  const { workspace } = JSON.parse(readFileSync(join(project.root, "flow-reel.json"), "utf8")) as Config;
+  const runs = join(DATA_DIR, "workspaces", workspace.id, "runs");
+  return join(runs, String(Math.max(...readdirSync(runs).map(Number).filter(Number.isInteger))));
 }
 
 export const cliEnv = (env: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv =>

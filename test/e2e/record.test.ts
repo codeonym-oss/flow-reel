@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { CueSheet } from "../../src/composer/schema/cues.ts";
 import { SOUND_NAMES, type EventLog, validateEvents } from "../../src/composer/schema/events.ts";
 import { compareTranscripts } from "../../src/compare.ts";
 import { validateSync } from "../../src/composer/schema/sync.ts";
@@ -11,9 +12,10 @@ import { type Transcript, validateTranscript } from "../../src/composer/schema/t
 import { planPolish } from "../../src/composer/polish.ts";
 import { resolveSettings } from "../../src/settings.ts";
 import { verifyReel } from "../../src/reel.ts";
+import type { ContainerRequest } from "../../src/container/protocol.ts";
 import { startFixtureApp } from "./fixture-app.ts";
 import { prepareImage } from "./image.ts";
-import { type Project, compose, makeProject } from "./project.ts";
+import { type Project, compose, lastRun, makeProject } from "./project.ts";
 
 // The whole recorder, in Docker, against a fixture app served from the host's 127.0.0.1 (GH-2 impl.md step 12), with
 // the local voice. Effects, overlays, waits and cards are in record-*.test.ts, so CI can run them in parallel (GH-92).
@@ -89,7 +91,6 @@ export default script({ url: "http://localhost:${port}/", viewport: [960, 540] }
   expect(log.events.every((e: { t: number }, i: number) => i === 0 || e.t > log.events[i - 1].t)).toBe(true);
   const { streams } = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_streams", "-of", "json", join(reel, "video.mp4")], { encoding: "utf8" }));
   expect(streams.map((s: { codec_type: string }) => s.codec_type)).toEqual(["video"]);
-  expect(existsSync(join(reel, "work/sound.wav"))).toBe(false);
 }, 120_000);
 
 it("captures the settled response while keeping the callback finish time", async () => {
@@ -107,22 +108,26 @@ export default script({ url: "http://localhost:${port}/", viewport: [960, 540] }
   expect(painted).toBeLessThan(step.endMs);
 }, 120_000);
 
-it("fails the command without publishing a successful transcript when TTS assets are missing", async () => {
-  const project = makeProject(join(OUT, "missing-assets"), { "demo.reel.ts": script(port, [960, 540]) });
-  const assets = join(project.root, "empty-model");
-  for (const dir of [assets, project.output]) mkdirSync(dir);
-  const request = { script: "demo.reel.ts", reel: "demo.reel", settings: resolveSettings(undefined), brand: {}, sound: true };
+it("fails the voice phase without a result when TTS assets are missing", async () => {
+  const dir = join(OUT, "missing-assets");
+  rmSync(dir, { recursive: true, force: true });
+  for (const part of ["empty-model", "record", "previous", "out"]) mkdirSync(join(dir, part), { recursive: true });
+  const cues: CueSheet = { version: 1, script: { file: "demo.reel.ts", sha256: "a".repeat(64) }, integration: "playwright", platform: "linux/amd64",
+    viewport: [960, 540], fps: 30, autoZoom: true, capture: { file: "capture.mp4", frames: 60, cutMs: 1000 }, events: [],
+    steps: [{ index: 0, comment: "Hello.", startMs: 0, actionEndMs: 100, endMs: 200 }] };
+  writeFileSync(join(dir, "record/cues.json"), JSON.stringify(cues));
+  const request: ContainerRequest = { phase: "voice", voice: resolveSettings(undefined).voice };
   const container = `flow-reel-missing-tts-${randomUUID()}`;
   try {
-    await expect(promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g", "--network", "host",
-      "--user", `${process.getuid!()}:${process.getgid!()}`, "-v", `${project.scripts}:/scripts:ro`, "-v", `${project.output}:/out`,
-      "-v", `${assets}:/opt/flow-reel/tts-model:ro`, image, "compose", JSON.stringify(request)], { timeout: 90_000 }))
-      .rejects.toMatchObject({ code: 1, stderr: expect.stringContaining("Qwen TTS failed") });
+    await expect(promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--interactive", "--network", "none",
+      "--user", `${process.getuid!()}:${process.getgid!()}`, ...["record", "previous"].flatMap((part) => ["-v", `${join(dir, part)}:/${part}:ro`]),
+      "-v", `${join(dir, "out")}:/out`, "-v", `${join(dir, "empty-model")}:/opt/flow-reel/tts-model:ro`, image, JSON.stringify(request)], { timeout: 90_000 }))
+      .rejects.toMatchObject({ code: 1, stdout: expect.stringMatching(/^\{"type":"failed","message":"Qwen TTS failed/), stderr: expect.stringContaining("Qwen TTS failed") });
   } finally {
     // A killed Docker client can leave its container alive, holding the host-network X11 socket.
     spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
   }
-  expect(existsSync(join(project.output, "demo.reel"))).toBe(false);
+  expect(existsSync(join(dir, "out/voice.json"))).toBe(false);
 }, 120_000);
 
 describe("flow-reel compose", () => {
@@ -182,13 +187,15 @@ describe("flow-reel compose", () => {
     }
   });
 
-  it("writes a 1440p 30 fps capture and a 1080p copy, dropping no frames, with no master file", () => {
-    const capture = probe(join(a.reel, "work/capture.mp4"));
+  it("keeps the 1440p 30 fps capture in the run, dropping no frames, and a 1080p copy in the reel", () => {
+    const run = lastRun(a.project);
+    const capture = probe(join(run, "record/capture.mp4"));
     expect(capture).toMatchObject({ width: 2560, height: 1440, fps: "30/1" });
     expect(Math.abs(capture.frames - capture.seconds * 30)).toBeLessThanOrEqual(capture.seconds * 30 * 0.01 + 1);
-    expect(existsSync(join(a.reel, "work/master.mp4"))).toBe(false);
+    expect(JSON.parse(readFileSync(join(run, "record/cues.json"), "utf8")).capture.frames).toBe(capture.frames);
+    expect(readdirSync(run).sort()).toEqual(["log.txt", "plan", "previous", "record", "reel", "render", "request.json", "scripts", "voice"]);
+    expect(readdirSync(join(run, "render")).sort()).toEqual(["render.json", "result.json", "video.mp4"]);
     expect(probe(join(a.reel, "video.mp4"))).toMatchObject({ width: 1920, height: 1080, fps: "30/1" });
-    expect(readFileSync(join(a.reel, "work/.gitignore"), "utf8")).toBe("*\n");
   });
 
   it("writes a valid transcript and event log", () => {
@@ -211,7 +218,7 @@ describe("flow-reel compose", () => {
       expect(readdirSync(run.project.scripts).sort()).toEqual(["demo.reel.ts", "out"]);
       expect(readdirSync(run.project.output).filter((f) => f !== "captions.png")).toEqual(["demo.reel"]); // the player test's picture
       expect(readdirSync(run.reel).sort()).toEqual([
-        "audio", "captions.srt", "captions.vtt", "events.json", "manifest.json", "transcript.json", "video.mp4", "work",
+        "audio", "captions.srt", "captions.vtt", "events.json", "manifest.json", "transcript.json", "video.mp4",
       ]);
       const { errors, differences, manifest } = verifyReel(run.reel);
       expect({ errors, differences }).toEqual({ errors: [], differences: [] });

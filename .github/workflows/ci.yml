@@ -108,6 +108,26 @@ jobs:
         run: |
           node dist/cli.js compare 2>&1 | grep -q "usage: flow-reel"
 
+  # What depends on the operating system: the data folder, paths, and the swap of a finished reel (GH-108 decision 012).
+  systems:
+    name: systems (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22.18.0
+          cache: npm
+      - run: npm ci
+      - run: npm run test:systems
+
   # The images each shard uses, built per architecture, and the e2e tests in parallel shards on each (GH-92, GH-101).
   e2e:
     name: e2e (${{ matrix.arch }}, ${{ matrix.shard.name }})

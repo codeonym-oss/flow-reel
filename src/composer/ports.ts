@@ -1,8 +1,7 @@
 // The composer's ports (GH-27 decision 007; the card painter, GH-76 decision 003). The core depends on these interfaces; the adapters in
 // src/adapters implement them, and src/cli.ts chooses which.
-import type { Bounds, ComposerEvent, EventLog, OverlayKind, Sound } from "./schema/events.ts";
+import type { Bounds, ComposerEvent, OverlayKind, Sound } from "./schema/events.ts";
 import type { cardWords } from "./cards/words.ts";
-import type { ManifestAbout } from "./schema/manifest.ts";
 import type { Transcript } from "./schema/transcript.ts";
 
 export interface ClipRequest { index: number; text: string; file: string }
@@ -68,33 +67,10 @@ export interface Integration {
   load(scriptPath: string): Promise<LoadedScript>;
 }
 
-export interface ReelResult {
-  transcript: Transcript;
-  events: EventLog;
-  captions: { srt: string; vtt: string };
-  /** What the manifest says about how the reel was composed; the store adds the file list. */
-  about: ManifestAbout;
-}
-
-/** Where one script's reel is built: its work files, its audio, and the step that publishes it. */
-export interface Reel {
-  /** Intermediate files; the composer writes them, nothing reads them afterwards except to debug. */
-  work: { capture: string; masterInfo: string; stagedVideo: string; voiceBus: string };
-  /** Where the voice's clips go. */
-  audioDir: string;
-  /** The folder a clip's transcript path (`audio/000.wav`) is relative to. */
-  audioRoot: string;
-  /** The reel already on disk for this script, if any: its clips are the reel cache (GH-33 decision 002). */
-  previous?: string;
-  /** The finished video's file name, as the transcript records it. */
-  videoFile: string;
-  /** Writes the transcript, captions, event log and manifest, and replaces the previous reel with this one. */
-  commit(result: ReelResult): void;
-}
-
+/** Where finished reels are kept. */
 export interface ReelStore {
-  /** Starts a new reel that will replace `reel`, the folder of the one on disk, if any. */
-  open(reel: string): Reel;
+  /** Puts a finished reel, the folder `built`, at `reel`, replacing the one there only once the new one is complete. */
+  publish(built: string, reel: string): Promise<void>;
 }
 
 /** One card page to draw, frame by frame. */

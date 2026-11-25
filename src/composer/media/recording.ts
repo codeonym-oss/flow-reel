@@ -1,6 +1,6 @@
 // ffmpeg captures the virtual display into the 1440p master (GH-2 decisions 001 and 005). The wall-clock time x11grab
 // stamps on its first frame is the origin every step and event is timed on.
-import { type ChildProcess, spawn, spawnSync } from "node:child_process";
+import { type ChildProcess, execFileSync, spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { DISPLAY } from "./display.ts";
 
@@ -81,4 +81,13 @@ export function firstFrameOfColour(file: string, rgb: [number, number, number], 
     if (px.every((v, i) => Math.abs(v - rgb[i % 3]) <= 40)) return (f * 1000) / FPS;
   }
   return undefined;
+}
+
+/** The frame count an MP4's header records: ffmpeg writes one entry per frame, so nothing needs decoding. */
+export function videoFrames(file: string): number {
+  const result = execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0",
+    "-show_entries", "stream=nb_frames", "-of", "csv=p=0", file], { encoding: "utf8" });
+  const frames = Number(result.trim());
+  if (!Number.isInteger(frames) || frames <= 0) throw new Error(`invalid frame count in ${file}`);
+  return frames;
 }

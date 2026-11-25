@@ -2,13 +2,9 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildRunArgs, detectEngine, imageFor, sourceCheckoutWarning, targetFor } from "../../src/host/launch.ts";
+import { detectEngine, imageFor, sourceCheckoutWarning, targetFor } from "../../src/host/engine.ts";
 import { type SettingsFlags, resolveSettings } from "../../src/settings.ts";
 import type { ConfiguredSettings } from "../../src/workspace/config.ts";
-
-const request = { script: "admin/refund.reel.ts", reel: "refund.reel", settings: resolveSettings(undefined), brand: {}, sound: true };
-const base = { image: "ghcr.io/codeonym-oss/flow-reel:0.1.0", scriptsDir: "/home/me/app/reels", outDir: "/home/me/app/reels/out/admin",
-  uid: 1000, gid: 1000, request };
 
 describe("imageFor", () => {
   it("tags the image with the package version", () => {
@@ -27,54 +23,29 @@ describe("imageFor", () => {
   });
 });
 
-describe("buildRunArgs", () => {
-  it("Linux Docker: host network, the host's uid, the scripts folder read-only, and the request", () => {
-    expect(buildRunArgs({ ...base, engine: "docker", desktop: false })).toEqual([
-      "run", "--rm", "--init", "--shm-size=1g",
-      "-v", "/home/me/app/reels:/scripts:ro", "-v", "/home/me/app/reels/out/admin:/out", "-w", "/scripts",
-      "--user", "1000:1000",
-      "--network", "host",
-      "ghcr.io/codeonym-oss/flow-reel:0.1.0", "compose", JSON.stringify(request),
-    ]);
-  });
-
-  it("Docker Desktop: no host network; Chromium maps localhost to the host instead", () => {
-    const args = buildRunArgs({ ...base, engine: "docker", desktop: true });
-    expect(args).not.toContain("host");
-    expect(args).toEqual(expect.arrayContaining(["-e", "FLOW_REEL_HOST_MAP=1"]));
-  });
-
-  it("Podman: keeps the host's uid through the user namespace instead of --user", () => {
-    const args = buildRunArgs({ ...base, engine: "podman", desktop: false });
-    expect(args).toContain("--userns=keep-id");
-    expect(args).not.toContain("--user");
-    expect(args).toEqual(expect.arrayContaining(["--network", "host"]));
-  });
-
-  it("passes credentials by name only (GH-33 decision 004)", () => {
-    const args = buildRunArgs({ ...base, engine: "docker", desktop: false, credentials: ["FAKE_TOKEN"] });
-    expect(args.slice(args.indexOf("-e"), args.indexOf("-e") + 2)).toEqual(["-e", "FAKE_TOKEN"]);
-    expect(args.indexOf("-e")).toBeLessThan(args.indexOf(base.image));
-  });
-});
-
 describe("detectEngine", () => {
   const probe = (answers: Record<string, { status: number; stdout?: string }>) =>
     (cmd: string, args: string[]) => ({ stdout: "", ...(answers[`${cmd} ${args[0]}`] ?? { status: 1 }) });
 
   it("uses the first engine whose daemon answers", () => {
-    expect(detectEngine(probe({ "docker --version": { status: 0, stdout: "Docker version 28" }, "docker info": { status: 0 } })))
-      .toEqual({ command: "docker", engine: "docker" });
+    expect(detectEngine(probe({ "docker --version": { status: 0, stdout: "Docker version 28" }, "docker info": { status: 0 } }), "linux"))
+      .toEqual({ command: "docker", kind: "docker", desktop: false });
   });
 
   it("skips an installed engine that isn't running when another one answers", () => {
-    expect(detectEngine(probe({ "docker --version": { status: 0 }, "podman --version": { status: 0 }, "podman info": { status: 0 } })))
-      .toEqual({ command: "podman", engine: "podman" });
+    expect(detectEngine(probe({ "docker --version": { status: 0 }, "podman --version": { status: 0 }, "podman info": { status: 0 } }), "linux"))
+      .toEqual({ command: "podman", kind: "podman", desktop: false });
   });
 
   it("treats a podman-docker `docker` command as Podman, for its user namespace", () => {
-    expect(detectEngine(probe({ "docker --version": { status: 0, stdout: "podman version 5.6.0" }, "docker info": { status: 0 } })))
-      .toEqual({ command: "docker", engine: "podman" });
+    expect(detectEngine(probe({ "docker --version": { status: 0, stdout: "podman version 5.6.0" }, "docker info": { status: 0 } }), "linux"))
+      .toEqual({ command: "docker", kind: "podman", desktop: false });
+  });
+
+  it("knows Docker Desktop, on macOS and Windows and inside Linux", () => {
+    const answering = { "docker --version": { status: 0 }, "docker info": { status: 0, stdout: "Docker Desktop" } };
+    expect(detectEngine(probe(answering), "linux").desktop).toBe(true);
+    expect(detectEngine(probe({ ...answering, "docker info": { status: 0, stdout: "Ubuntu 24.04" } }), "darwin").desktop).toBe(true);
   });
 
   it("says the engine isn't running rather than failing later", () => {

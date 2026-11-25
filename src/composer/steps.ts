@@ -16,9 +16,11 @@ export interface StepTimerOptions {
   idle(): Promise<boolean>;
   sleep?: (ms: number) => Promise<unknown>;
   warn?: (message: string) => void;
+  /** Called as a step opens. */
+  opened?: (step: { index: number; comment?: string }) => void;
 }
 
-export function stepTimer({ clock, idle, sleep: wait = sleep, warn = console.warn }: StepTimerOptions) {
+export function stepTimer({ clock, idle, sleep: wait = sleep, warn = console.warn, opened = () => {} }: StepTimerOptions) {
   const steps: TranscriptStep[] = [];
   const queued: string[] = [];
   let open: { comment?: string; startMs: number; actionEndMs: number } | undefined;
@@ -41,6 +43,7 @@ export function stepTimer({ clock, idle, sleep: wait = sleep, warn = console.war
     await until(settle);
     const startMs = Math.round(clock.now());
     open = { ...(comment === undefined ? {} : { comment }), startMs, actionEndMs: startMs };
+    opened({ index: steps.length, ...(comment === undefined ? {} : { comment }) });
   }
 
   async function end() {
