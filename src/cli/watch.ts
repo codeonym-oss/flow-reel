@@ -1,7 +1,9 @@
 // Watching runs: `watch` shows one to its end, `wait` says nothing until then, and `compose` watches the one it started.
-import { relative } from "node:path";
+import { join, relative } from "node:path";
 import { sendCommand } from "../host/control.ts";
+import { slashes } from "../host/files.ts";
 import { follow } from "../host/owner.ts";
+import { whatNext } from "../host/resume.ts";
 import { type Run, logFile } from "../host/run-folder.ts";
 import { type RunState, isEnded, next } from "../run/machine.ts";
 import { type Command, EXIT, parse } from "./command.ts";
@@ -11,11 +13,32 @@ import { latestRun } from "./runs.ts";
 const CODES: Record<"done" | "failed" | "stopped" | "cancelled", number> =
   { done: EXIT.ok, failed: EXIT.failed, stopped: EXIT.stopped, cancelled: EXIT.cancelled };
 
-/** How a run ended, for a person. */
-export function ending(id: string, run: Run, end: RunState): string {
-  if (end.state === "done") return `composed ${relative(process.cwd(), end.reel!.path) || end.reel!.path}`;
+const here = (path: string) => slashes(relative(process.cwd(), path)) || path;
+
+/** The command that records a run's script again. */
+export const composeAgain = ({ request: { workspace, scripts, script } }: Run): string =>
+  `\`flow-reel compose ${here(join(workspace.root, scripts, script.path))}\``;
+
+/** Says that a run goes on by itself. */
+export function announce(id: string, run: Run, json?: boolean): number {
+  const { script } = run.request;
+  if (json) console.log(JSON.stringify({ run: id, script: script.name, state: "running" }));
+  else console.log(`${id} is composing ${script.name}: \`flow-reel watch ${run.number}\` shows it, \`flow-reel cancel ${run.number}\` ends it`);
+  return EXIT.ok;
+}
+
+/** How a run ended and what can be done, for a person. */
+export async function ending(id: string, run: Run, end: RunState): Promise<string> {
+  const { reel } = run.request;
+  if (end.state === "done") {
+    const { path, newer } = end.reel!;
+    return newer === undefined ? `composed ${here(path)}` : `composed ${path}; ${here(reel)} is the reel of a newer run, ${newer}`;
+  }
   if (end.state === "cancelled") return `${id} is cancelled`;
-  return `${id} ${end.state}: ${end.ended!.message}\nThe log is ${logFile(run.dir)}`;
+  const next = await whatNext(run, end);
+  const advice = next && ("resume" in next ? `\`flow-reel resume ${run.number}\` goes on from its ${next.resume} phase`
+    : `It can't go on (${next.lost}): ${composeAgain(run)} starts a new run`);
+  return [`${id} ${end.state}: ${end.ended!.message}`, `The log is ${logFile(run.dir)}`, ...(advice ? [advice] : [])].join("\n");
 }
 
 interface Watching {
@@ -23,10 +46,12 @@ interface Watching {
   silent?: boolean;
   /** What Ctrl+C does: cancels the run, or leaves it running. */
   interrupt: "cancels" | "leaves";
+  /** How many of its first entries were shown before. */
+  skip?: number;
 }
 
 /** Shows a run until it has ended; returns its state then, and the exit code that says it. */
-export async function watchToEnd(id: string, run: Run, { json, silent, interrupt }: Watching): Promise<{ code: number; state?: RunState }> {
+export async function watchToEnd(id: string, run: Run, { json, silent, interrupt, skip = 0 }: Watching): Promise<{ code: number; state?: RunState }> {
   const view = silent ? silentView : json ? jsonView(id) : process.stderr.isTTY ? liveView(process.stderr) : plainView();
   const leave = new AbortController();
   let asked = false;
@@ -39,10 +64,11 @@ export async function watchToEnd(id: string, run: Run, { json, silent, interrupt
   };
   process.on("SIGINT", onSignal).on("SIGTERM", onSignal);
   let state: RunState | undefined;
+  let count = 0;
   try {
     for await (const entry of follow(run.dir, leave.signal)) {
       state = next(state, entry);
-      view.show(entry);
+      if (++count > skip) view.show(entry);
     }
   } catch (error) {
     if (!leave.signal.aborted) throw error;
@@ -54,7 +80,7 @@ export async function watchToEnd(id: string, run: Run, { json, silent, interrupt
     view.say(`${id} is still ${state?.state ?? "queued"}`);
     return { code: interrupt === "leaves" ? EXIT.ok : EXIT.cancelled, state };
   }
-  view.say(ending(id, run, state));
+  view.say(await ending(id, run, state));
   return { code: CODES[state.state as keyof typeof CODES], state };
 }
 

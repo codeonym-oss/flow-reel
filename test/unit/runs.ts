@@ -1,5 +1,6 @@
 // A run in a throwaway data folder, for the tests of what drives and watches one.
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach } from "vitest";
@@ -11,7 +12,9 @@ import type { Config } from "../../src/workspace/config.ts";
 import { findScript, reelFolder } from "../../src/workspace/workspace.ts";
 
 const dirs: string[] = [];
-afterEach(() => dirs.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true })));
+// A run's process ends just after its last entry, and Windows keeps its folder until then. Not rmSync: Node 22's
+// doesn't retry a folder that is busy itself.
+afterEach(async () => { for (const dir of dirs.splice(0)) await rm(dir, { recursive: true, force: true, maxRetries: 10 }); });
 
 export function folder(): string {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "flow-reel-run-")));

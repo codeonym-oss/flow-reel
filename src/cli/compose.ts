@@ -6,7 +6,7 @@ import { credentialsFor, resolveSettings } from "../settings.ts";
 import { CONFIG_FILE, withSettings, writeConfig } from "../workspace/config.ts";
 import { findScript, reelFolder } from "../workspace/workspace.ts";
 import { type Command, EXIT, UsageError, parse } from "./command.ts";
-import { watchToEnd } from "./watch.ts";
+import { announce, watchToEnd } from "./watch.ts";
 
 export const compose: Command = {
   summary: "compose a script into a reel",
@@ -30,11 +30,7 @@ export const compose: Command = {
     const run = await createRun(data, { workspace, script, settings, sound: !flags["no-sound"], reel, credentials, flowReel: version });
     await startProcess(run, { engine, image });
     const id = `${localSlug(known)}/${run.number}`;
-    if (flags.detach) {
-      if (flags.json) console.log(JSON.stringify({ run: id, script: script.name, state: "running" }));
-      else console.log(`${id} is composing ${script.name}: \`flow-reel watch ${run.number}\` shows it, \`flow-reel cancel ${run.number}\` ends it`);
-      return EXIT.ok;
-    }
+    if (flags.detach) return announce(id, run, flags.json);
     const { code } = await watchToEnd(id, run, { json: flags.json, interrupt: "cancels" });
     if (code !== EXIT.ok) return code;
     if (flags["save-config"]) {

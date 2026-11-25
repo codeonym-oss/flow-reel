@@ -7,6 +7,7 @@ import { listen } from "./control.ts";
 import { type Driver, type Work, drive } from "./driver.ts";
 import { journalReader, openJournal, readJournal } from "./journal.ts";
 import { isLocked, takeLock } from "./lock.ts";
+import { whatNext } from "./resume.ts";
 import type { Run } from "./run-folder.ts";
 
 const LOCK_FILE = "owner.lock";
@@ -20,6 +21,9 @@ export async function ownRun(run: Run, work: Work, started: () => void = () => {
   const lock = takeLock(lockFile(run.dir), TAKE_MS);
   if (!lock) throw new Error("another process is running it");
   try {
+    const last = replay(readJournal(run.dir));
+    const lost = last && await whatNext(run, last, "contents");
+    if (lost && "lost" in lost) throw new Error(lost.lost);
     let driver: Driver | undefined;
     const control = await listen(run.dir, (command) => {
       if (!driver) throw new Error("it is starting");

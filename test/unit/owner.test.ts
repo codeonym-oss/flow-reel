@@ -13,6 +13,7 @@ import { follow, runState } from "../../src/host/owner.ts";
 import { readRun } from "../../src/host/run-folder.ts";
 import { findRuns } from "../../src/host/runs.ts";
 import { startProcess } from "../../src/host/start.ts";
+import { PHASES } from "../../src/run/phases.ts";
 import { findWorkspace } from "../../src/workspace/workspace.ts";
 import { folder, project, startRun } from "./runs.ts";
 
@@ -113,6 +114,15 @@ describe("a run's process", () => {
     expect(readRun(data, "abcdefghijkl", 1)).toBeUndefined();
   });
 
+  it("doesn't die of its starter closing their channel first", async () => {
+    const run = await begin();
+    await recording(run.dir);
+    await sleep(200);
+    expect(isLocked(join(run.dir, "owner.lock"))).toBe(true);
+    await sendCommand(run.dir, "cancel");
+    await entries(run.dir);
+  });
+
   it("is alone: another one can't own the same run", async () => {
     const run = await begin();
     await recording(run.dir);
@@ -158,7 +168,7 @@ describe("the commands", () => {
     };
     const cli = (...args: string[]) => start(...args).done;
     const go = async () => { const run = await begin(data, root); await recording(run.dir); return run; };
-    return { cli, go, start };
+    return { cli, go, start, data, root };
   }
 
   it("say how a run ended by their exit codes", async () => {
@@ -181,6 +191,35 @@ describe("the commands", () => {
     expect(await cli("wait", "b")).toMatchObject({ code: 1, stderr: 'flow-reel: there is no run of "b" in this workspace\n' });
     const lines = (await cli("watch", "shop/3", "--json")).stdout.trim().split("\n").map((line) => JSON.parse(line) as { run: string; type: string });
     expect(lines.map(({ run, type }) => `${run} ${type}`)).toEqual(["shop/3 created", "shop/3 phase-started", "shop/3 cancel", "shop/3 cancelled"]);
+  }, 30_000);
+
+  it("let a run that was killed go on with what it has, and never record again", async () => {
+    const { cli, go, data, root } = await setUp();
+    kill((await go()).dir);
+    expect(await cli("resume", "a")).toMatchObject({ code: 1,
+      stderr: "flow-reel: shop/1 can't go on (recording lost): `flow-reel compose reels/a.reel.ts` starts a new run\n" });
+    expect((await cli("watch", "a")).stderr).toContain("It can't go on (recording lost)");
+    await expect(startProcess(readRun(data, "abcdefghijkl", 1)!, { engine: ENGINE, image: "none" }, PROGRAM)).rejects.toThrow("recording lost");
+
+    expect(await cli("resume", "1")).toMatchObject({ code: 1, stderr: expect.stringContaining("recording lost") as string });
+  }, 30_000);
+
+  it.each(["voice", "plan", "render", "publish"] as const)("let a run killed in its %s phase go on from there", async (phase) => {
+    const { cli, data, root } = await setUp();
+    const run = await startRun(data, root);
+    writeFileSync(join(run.dir, "at"), phase);
+    await startProcess(run, { engine: ENGINE, image: "none" }, PROGRAM);
+    await until(() => readJournal(run.dir).some((entry) => entry.type === "phase-started" && entry.phase === phase));
+    kill(run.dir);
+    expect((await cli("watch", "a")).stderr).toContain(`\`flow-reel resume 1\` goes on from its ${phase} phase`);
+    writeFileSync(join(run.dir, "go"), "");
+    await startProcess(run, { engine: ENGINE, image: "none" }, PROGRAM);
+    expect((await entries(run.dir)).at(-1)).toBe("done");
+    const journal = readJournal(run.dir).map((entry) => "phase" in entry && entry.phase ? `${entry.type} ${entry.phase}${"reused" in entry ? " again" : ""}` : entry.type);
+    const at = PHASES.indexOf(phase);
+    expect(journal.slice(journal.indexOf("stopped"))).toEqual(["stopped", "resumed", ...PHASES.slice(0, at).map((done) => `phase-finished ${done} again`),
+      ...PHASES.slice(at).flatMap((next) => [`phase-started ${next}`, `phase-finished ${next}`]), "done"]);
+    expect(await cli("resume", "1")).toMatchObject({ code: 1, stderr: "flow-reel: shop/1 is done: it has nothing to go on with\n" });
   }, 30_000);
 
   it("refuse to change a run when the name means several", async () => {

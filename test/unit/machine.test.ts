@@ -7,7 +7,7 @@ const run = (...events: RunEvent[]): RunState => events.reduce<RunState | undefi
 const through = (...phases: Phase[]): RunEvent[] => phases.flatMap((phase) => [{ type: "phase-started", phase }, { type: "phase-finished", phase }]);
 const created: RunEvent = { type: "created" };
 const recording: RunEvent[] = [created, { type: "phase-started", phase: "record" }];
-const done: RunEvent = { type: "done", reel: "/out/a.reel", published: true };
+const done: RunEvent = { type: "done", reel: "/out/a.reel" };
 
 /** A run in each situation that takes events differently. */
 const SITUATIONS: Record<string, RunState> = {
@@ -98,7 +98,7 @@ describe("the state machine", () => {
 
   it("goes through the phases in order to a reel", () => {
     const state = SITUATIONS.done;
-    expect(state).toEqual({ state: "done", finished: PHASES, holding: false, cancelling: false, reel: { path: "/out/a.reel", published: true } });
+    expect(state).toEqual({ state: "done", finished: PHASES, holding: false, cancelling: false, reel: { path: "/out/a.reel" } });
     expect(Object.values(SITUATIONS).filter(isEnded).map((s) => s.state)).toEqual(["stopped", "failed", "cancelled", "done"]);
   });
 

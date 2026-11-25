@@ -12,7 +12,7 @@ export const DATA_DIR = resolve("test/e2e/out/data");
 export interface Project { root: string; scripts: string; output: string }
 
 /** A fresh workspace in `root`, with `files` in its scripts folder. */
-export function makeProject(root: string, files: Record<string, string>, config: Pick<Config, "voice" | "brand"> = {}): Project {
+export function makeProject(root: string, files: Record<string, string>, config: Pick<Config, "voice" | "brand" | "limits"> = {}): Project {
   rmSync(root, { recursive: true, force: true });
   const scripts = join(root, "reels");
   mkdirSync(root, { recursive: true });

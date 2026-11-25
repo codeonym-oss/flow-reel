@@ -68,6 +68,8 @@ export function runContainer(phase: PhaseContainer, { report, log, signal }: Pha
     const stop = () => {
       child.stdin.end();
       setTimeout(() => { spawn(engine.command, ["rm", "--force", name], { stdio: "ignore", windowsHide: true }).on("error", () => {}); }, GRACE_MS).unref();
+      // An engine that doesn't answer doesn't keep the run from ending.
+      setTimeout(() => child.kill("SIGKILL"), 2 * GRACE_MS).unref();
     };
     signal?.addEventListener("abort", stop, { once: true });
     child.stdin.on("error", () => {}); // the container is gone; its exit says so
