@@ -3,12 +3,12 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildRunArgs, detectEngine, imageFor, sourceCheckoutWarning, targetFor } from "../../src/host/launch.ts";
-import { type ConfigFile, type SettingsFlags, resolveSettings } from "../../src/settings.ts";
+import { type SettingsFlags, resolveSettings } from "../../src/settings.ts";
+import type { ConfiguredSettings } from "../../src/workspace/config.ts";
 
-const settings = resolveSettings(undefined);
-const SETTINGS = ["--integration", "playwright", "--voice", "qwen3-tts-0.6b", "--speaker", "Ryan", "--language", "english"];
-const base = { image: "ghcr.io/codeonym-oss/flow-reel:0.1.0", workDir: "/home/me/app", script: "demo.ts", uid: 1000, gid: 1000,
-  settings };
+const request = { script: "admin/refund.reel.ts", reel: "refund.reel", settings: resolveSettings(undefined), brand: {}, sound: true };
+const base = { image: "ghcr.io/codeonym-oss/flow-reel:0.1.0", scriptsDir: "/home/me/app/reels", outDir: "/home/me/app/reels/out/admin",
+  uid: 1000, gid: 1000, request };
 
 describe("imageFor", () => {
   it("tags the image with the package version", () => {
@@ -16,34 +16,25 @@ describe("imageFor", () => {
     expect(imageFor("0.1.0", "cloud")).toBe("ghcr.io/codeonym-oss/flow-reel:0.1.0-cloud");
   });
   it("follows the voice that speaks: the smaller image for a cloud voice (GH-101 decision 001)", () => {
-    const target = (file?: ConfigFile, flags?: SettingsFlags) => targetFor(resolveSettings(file, flags).voice.adapter);
-    const openai: ConfigFile = { version: 1, voice: { adapter: "openai" } };
+    const target = (file?: ConfiguredSettings, flags?: SettingsFlags) => targetFor(resolveSettings(file, flags).voice.adapter);
+    const openai: ConfiguredSettings = { voice: { adapter: "openai" } };
     expect(target()).toBe("full");
-    expect(target({ version: 1, voice: { adapter: "qwen3-tts-0.6b" } })).toBe("full");
+    expect(target({ voice: { adapter: "qwen3-tts-0.6b" } })).toBe("full");
     expect(target(openai)).toBe("cloud");
     expect(target(undefined, { voice: "gemini" })).toBe("cloud");
     expect(target(openai, { voice: "qwen3-tts-0.6b" })).toBe("full");
-    expect(target({ version: 1, voice: { adapter: "openai-compatible", baseUrl: "http://localhost:8880/v1", model: "kokoro" } })).toBe("cloud");
+    expect(target({ voice: { adapter: "openai-compatible", baseUrl: "http://localhost:8880/v1", model: "kokoro" } })).toBe("cloud");
   });
 });
 
 describe("buildRunArgs", () => {
-  it("passes muting into the container after the script", () => {
-    expect(buildRunArgs({ ...base, engine: "docker", desktop: false, sound: false }).slice(-11))
-      .toEqual(["compose", "/work/demo.ts", "--no-sound", ...SETTINGS]);
-  });
-  it("mounts --out at /out and passes it on", () => {
-    const args = buildRunArgs({ ...base, engine: "docker", desktop: false, outDir: "/home/me/reels" });
-    expect(args).toEqual(expect.arrayContaining(["-v", "/home/me/reels:/out"]));
-    expect(args.slice(-12)).toEqual(["compose", "/work/demo.ts", "--out", "/out", ...SETTINGS]);
-  });
-  it("Linux Docker: host network, the host's uid, the script's folder at /work", () => {
+  it("Linux Docker: host network, the host's uid, the scripts folder read-only, and the request", () => {
     expect(buildRunArgs({ ...base, engine: "docker", desktop: false })).toEqual([
       "run", "--rm", "--init", "--shm-size=1g",
-      "-v", "/home/me/app:/work", "-w", "/work",
+      "-v", "/home/me/app/reels:/scripts:ro", "-v", "/home/me/app/reels/out/admin:/out", "-w", "/scripts",
       "--user", "1000:1000",
       "--network", "host",
-      "ghcr.io/codeonym-oss/flow-reel:0.1.0", "compose", "/work/demo.ts", ...SETTINGS,
+      "ghcr.io/codeonym-oss/flow-reel:0.1.0", "compose", JSON.stringify(request),
     ]);
   });
 
@@ -60,11 +51,8 @@ describe("buildRunArgs", () => {
     expect(args).toEqual(expect.arrayContaining(["--network", "host"]));
   });
 
-  it("passes the resolved settings to the composer, and credentials by name only (GH-33 decision 004)", () => {
-    const voice = resolveSettings(undefined, { speaker: "Aiden", language: "french" });
-    const args = buildRunArgs({ ...base, settings: voice, engine: "docker", desktop: false, credentials: ["FAKE_TOKEN"] });
-    expect(args.slice(-8)).toEqual(["--integration", "playwright", "--voice", "qwen3-tts-0.6b", "--speaker", "Aiden",
-      "--language", "french"]);
+  it("passes credentials by name only (GH-33 decision 004)", () => {
+    const args = buildRunArgs({ ...base, engine: "docker", desktop: false, credentials: ["FAKE_TOKEN"] });
     expect(args.slice(args.indexOf("-e"), args.indexOf("-e") + 2)).toEqual(["-e", "FAKE_TOKEN"]);
     expect(args.indexOf("-e")).toBeLessThan(args.indexOf(base.image));
   });

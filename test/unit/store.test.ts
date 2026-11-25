@@ -8,10 +8,10 @@ import { verifyReel } from "../../src/reel.ts";
 
 const dirs: string[] = [];
 afterEach(() => dirs.forEach((dir) => rmSync(dir, { recursive: true, force: true })));
-const scriptIn = () => {
+const reelIn = () => {
   const dir = mkdtempSync(join(tmpdir(), "flow-reel-store-"));
   dirs.push(dir);
-  return { dir, script: join(dir, "settings.ts") };
+  return { dir, reel: join(dir, "settings.reel") };
 };
 
 const transcript = { version: 2 as const, script: "settings.ts", steps: [],
@@ -29,15 +29,15 @@ const compose = (reel: Reel, video = "video") => {
 };
 
 it("points at the reel already on disk, whose clips are the reel cache", () => {
-  const { dir, script } = scriptIn();
-  expect(folderStore.open(script).previous).toBeUndefined();
-  compose(folderStore.open(script));
-  expect(folderStore.open(script).previous).toBe(join(dir, "settings.reel"));
+  const { dir, reel: target } = reelIn();
+  expect(folderStore.open(target).previous).toBeUndefined();
+  compose(folderStore.open(target));
+  expect(folderStore.open(target).previous).toBe(join(dir, "settings.reel"));
 });
 
 it("builds the reel in a partial folder, with self-ignoring work files and the audio inside", () => {
-  const { dir, script } = scriptIn();
-  const reel = folderStore.open(script);
+  const { dir, reel: target } = reelIn();
+  const reel = folderStore.open(target);
   const partial = join(dir, "settings.reel.partial");
   const work = join(partial, "work");
   expect(reel.work).toEqual({
@@ -50,12 +50,11 @@ it("builds the reel in a partial folder, with self-ignoring work files and the a
   expect(reel.videoFile).toBe("video.mp4");
 });
 
-it("commits one reel with fixed names and a manifest that verifies, and nothing else beside the script", () => {
-  const { dir, script } = scriptIn();
-  writeFileSync(script, "");
-  compose(folderStore.open(script));
+it("commits one reel with fixed names and a manifest that verifies, and nothing else beside it", () => {
+  const { dir, reel: target } = reelIn();
+  compose(folderStore.open(target));
   const reel = join(dir, "settings.reel");
-  expect(readdirSync(dir).sort()).toEqual(["settings.reel", "settings.ts"]);
+  expect(readdirSync(dir)).toEqual(["settings.reel"]);
   expect(readdirSync(reel).sort()).toEqual([
     "audio", "captions.srt", "captions.vtt", "events.json", "manifest.json", "transcript.json", "video.mp4", "work",
   ]);
@@ -70,30 +69,22 @@ it("commits one reel with fixed names and a manifest that verifies, and nothing 
 });
 
 it("replaces the previous reel only when the new one commits", () => {
-  const { dir, script } = scriptIn();
-  compose(folderStore.open(script), "first");
+  const { dir, reel: target } = reelIn();
+  compose(folderStore.open(target), "first");
   const reel = join(dir, "settings.reel");
-  folderStore.open(script); // a compose that fails before committing
+  folderStore.open(target); // a compose that fails before committing
   expect(readFileSync(join(reel, "video.mp4"), "utf8")).toBe("first");
   expect(verifyReel(reel).differences).toEqual([]);
   expect(existsSync(join(dir, "settings.reel.partial"))).toBe(true);
-  compose(folderStore.open(script), "second");
+  compose(folderStore.open(target), "second");
   expect(readFileSync(join(reel, "video.mp4"), "utf8")).toBe("second");
   expect(existsSync(join(dir, "settings.reel.partial"))).toBe(false);
 });
 
 it("clears a leftover partial folder when a compose starts", () => {
-  const { dir, script } = scriptIn();
-  folderStore.open(script);
+  const { dir, reel: target } = reelIn();
+  folderStore.open(target);
   writeFileSync(join(dir, "settings.reel.partial", "stale.txt"), "");
-  compose(folderStore.open(script));
+  compose(folderStore.open(target));
   expect(existsSync(join(dir, "settings.reel", "stale.txt"))).toBe(false);
-});
-
-it("puts the reel in outDir, named after the script without its extension", () => {
-  const { dir } = scriptIn();
-  const out = join(dir, "reels");
-  compose(folderStore.open(join(dir, "tour.mts"), out));
-  expect(readdirSync(out)).toEqual(["tour.reel"]);
-  expect(readdirSync(dir).sort()).toEqual(["reels"]);
 });

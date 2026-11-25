@@ -2,7 +2,7 @@
 // display, then voice, render and hand the results to the reel store.
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
-import { basename, dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { CardPainter, Integration, ReelStore, Voice } from "./ports.ts";
 import { type ComposerEvent, validateEvents } from "./schema/events.ts";
@@ -17,12 +17,11 @@ import { stepTimer } from "./steps.ts";
 import { dropSkipped, planTimeline, retimeEvents } from "./timeline.ts";
 import { voiceSteps } from "./voicing.ts";
 import { zoomOutEvent, zoomOutSettings } from "./effects.ts";
-import { checkBrandFiles, themeFor } from "./cards/brand.ts";
+import { type Brand, checkBrandFiles, themeFor } from "./cards/brand.ts";
 import { cardRequest, cardWords } from "./cards/words.ts";
 import { type CardJob, renderCards } from "./media/cards.ts";
 import { renderOverlays } from "./media/overlays.ts";
 import { overlayRequest } from "./cards/overlays.ts";
-import { readConfig } from "../settings.ts";
 
 // A still moment before the first step and after the last (story decision 009).
 const LEAD_IN_MS = 500;
@@ -37,7 +36,19 @@ const MARK_HOLD_MS = 200;
 const CUT_MS = 1000;
 const MARK_RGB: [number, number, number] = [0, 255, 0];
 
-export interface ComposeOptions {
+export interface ComposeJob {
+  /** The scripts folder; the script's files and the brand's are inside it. */
+  scriptsDir: string;
+  /** The script's path in the scripts folder, with forward slashes. */
+  script: string;
+  /** The folder the reel goes to. */
+  reel: string;
+  /** How cards and overlays look (GH-76 decision 006); its paths are relative to the scripts folder. */
+  brand: Brand;
+  sound: boolean;
+}
+
+export interface ComposeAdapters {
   integration: Integration;
   voice: Voice;
   store: ReelStore;
@@ -45,20 +56,16 @@ export interface ComposeOptions {
   painter: CardPainter;
   /** The package version, for the manifest. */
   composerVersion: string;
-  /** Where the reel goes; beside the script when omitted. */
-  outDir?: string;
-  sound?: boolean;
 }
 
 const ARCH: Record<string, string> = { x64: "amd64", arm64: "arm64" };
 
-export async function compose(scriptPath: string, { integration, voice, store, painter, composerVersion, outDir, sound }: ComposeOptions): Promise<void> {
+export async function compose(job: ComposeJob, { integration, voice, store, painter, composerVersion }: ComposeAdapters): Promise<void> {
+  const { scriptsDir, brand, sound } = job;
+  const scriptPath = join(scriptsDir, job.script);
   const script = await integration.load(scriptPath);
-  const scriptDir = dirname(scriptPath);
-  // The brand (GH-76 decision 006): flow-reel.json beside the script, checked on the host; its files are checked here.
-  const brand = readConfig(scriptDir)?.brand ?? {};
-  checkBrandFiles(scriptDir, brand);
-  const reel = store.open(scriptPath, outDir);
+  checkBrandFiles(scriptsDir, brand);
+  const reel = store.open(job.reel);
   const out = reel.work;
   const { viewport } = script;
   const events: ComposerEvent[] = [];
@@ -89,7 +96,7 @@ export async function compose(scriptPath: string, { integration, voice, store, p
           // A card is an action of its step, inserted into the video (GH-76 decision 002).
           card: cardWords(async (word, args) => {
             timer.outsideStretch(`card.${word}`);
-            const request = cardRequest(word, args, scriptDir, brand);
+            const request = cardRequest(word, args, { root: scriptsDir, dir: dirname(scriptPath) }, brand);
             await timer.action(async () => { events.push({ t: recording.now(), ...request }); });
           }),
           // An overlay is an action of its step, shown until the script's next action (GH-76 decision 007).
@@ -174,21 +181,21 @@ export async function compose(scriptPath: string, { integration, voice, store, p
       theme: themeFor(card.theme, brand), enter: card.enter, exit: card.exit, frame, frames,
       ...(number ? { chapter: { number, total: chapters.length } } : {}) };
   });
-  const clips = await renderCards(jobs, { capture: out.capture, work: dirname(out.capture), scriptDir, viewport, fps: FPS, brand, painter });
+  const clips = await renderCards(jobs, { capture: out.capture, work: dirname(out.capture), scriptsDir, viewport, fps: FPS, brand, painter });
   const overlays = await renderOverlays(log.events.flatMap((e) => e.type === "overlay" ? [e] : []),
-    { work: dirname(out.capture), scriptDir, viewport, fps: FPS, brand, painter });
+    { work: dirname(out.capture), scriptsDir, viewport, fps: FPS, brand, painter });
   renderTimeline({ capture: out.capture, video: out.stagedVideo,
     voice: out.voiceBus, audioDir: reel.audioRoot, viewport, timeline, clips, overlays, events: log.events, sound, autoZoom: script.autoZoom });
   const transcript: Transcript = {
     version: 2,
-    script: basename(scriptPath),
+    script: job.script,
     video: { file: reel.videoFile, width: viewport[0], height: viewport[1], fps: FPS, durationMs: durationMs(out.stagedVideo) },
     voice: voiced.voice, steps: timeline.steps,
   };
   const errors = validateSync(transcript);
   if (errors.length) throw new Error(`recording is invalid:\n  ${errors.join("\n  ")}`);
   reel.commit({ transcript, events: log, captions: renderCaptions(transcript.steps), about: {
-    script: { file: basename(scriptPath), sha256: createHash("sha256").update(readFileSync(scriptPath)).digest("hex") },
+    script: { file: job.script, sha256: createHash("sha256").update(readFileSync(scriptPath)).digest("hex") },
     composer: { version: composerVersion, platform: `linux/${ARCH[process.arch] ?? process.arch}` },
     integration: integration.name,
     voice: voiced.voice,

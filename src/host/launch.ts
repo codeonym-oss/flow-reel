@@ -4,8 +4,9 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CONFIG_FILE, KNOWN, type Settings, type SettingsFlags, credentialsFor, readConfig, resolveSettings, settingsFlags,
-  writeConfig } from "../settings.ts";
+import { type ComposeRequest, OUTPUT_MOUNT, SCRIPTS_MOUNT } from "../container/request.ts";
+import { KNOWN, type Settings } from "../settings.ts";
+import type { Workspace, WorkspaceScript } from "../workspace/workspace.ts";
 
 export type Engine = "docker" | "podman";
 
@@ -14,15 +15,13 @@ export interface RunArgsInput {
   /** Docker Desktop (macOS, Windows/WSL2): no host network, so localhost is mapped instead (GH-2 decision 003). */
   desktop: boolean;
   image: string;
-  workDir: string;
-  script: string;
+  /** The scripts folder, mounted read-only (GH-108 decision 002). */
+  scriptsDir: string;
+  /** The folder the reel goes in. */
+  outDir: string;
   uid: number;
   gid: number;
-  sound?: boolean;
-  /** An absolute folder for the reel, mounted at /out. */
-  outDir?: string;
-  /** The resolved settings, passed to the composer as flags. */
-  settings: Settings;
+  request: ComposeRequest;
   /** Environment variables the adapters need: passed by name, so the engine reads each value from this environment. */
   credentials?: string[];
 }
@@ -39,13 +38,11 @@ export const imageFor = (version: string, target: ImageTarget) =>
 export function buildRunArgs(i: RunArgsInput): string[] {
   return [
     "run", "--rm", "--init", "--shm-size=1g",
-    "-v", `${i.workDir}:/work`, "-w", "/work",
-    ...(i.outDir ? ["-v", `${i.outDir}:/out`] : []),
+    "-v", `${i.scriptsDir}:${SCRIPTS_MOUNT}:ro`, "-v", `${i.outDir}:${OUTPUT_MOUNT}`, "-w", SCRIPTS_MOUNT,
     ...(i.engine === "podman" ? ["--userns=keep-id"] : ["--user", `${i.uid}:${i.gid}`]),
     ...(i.desktop ? ["-e", "FLOW_REEL_HOST_MAP=1"] : ["--network", "host"]),
     ...(i.credentials ?? []).flatMap((name) => ["-e", name]),
-    i.image, "compose", `/work/${i.script}`, ...(i.sound === false ? ["--no-sound"] : []),
-    ...(i.outDir ? ["--out", "/out"] : []), ...settingsFlags(i.settings),
+    i.image, "compose", JSON.stringify(i.request),
   ];
 }
 
@@ -99,25 +96,18 @@ function ensureImage(engine: Engine, image: string, target: ImageTarget) {
   if (built.status !== 0) throw new Error(`building ${image} failed`);
 }
 
-export interface LaunchOptions { sound?: boolean; outDir?: string; flags?: SettingsFlags; saveConfig?: boolean }
-
-/**
- * Writes the settings to the script folder's flow-reel.json after a successful compose, when there is none or with
- * --save-config (GH-33 decisions 001 and 005). Returns whether it wrote.
- */
-export function saveSettings(status: number, dir: string, settings: Settings, rewrite: boolean): boolean {
-  if (status !== 0 || !rewrite) return false;
-  writeConfig(dir, settings);
-  console.error(`flow-reel: saved the settings in ${CONFIG_FILE}`);
-  return true;
+export interface LaunchOptions {
+  workspace: Workspace;
+  script: WorkspaceScript;
+  /** The reel's folder. */
+  reel: string;
+  settings: Settings;
+  credentials: string[];
+  sound: boolean;
 }
 
 /** Runs the recording in the container; resolves to its exit code. */
-export function launch(scriptPath: string, options: LaunchOptions = {}): number {
-  const script = resolve(scriptPath);
-  const config = readConfig(dirname(script));
-  const settings = resolveSettings(config, options.flags);
-  const credentials = credentialsFor(settings, process.env);
+export function launch({ workspace, script, reel, settings, credentials, sound }: LaunchOptions): number {
   const { command, engine } = detectEngine();
   const { version } = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8")) as { version: string };
   const target = targetFor(settings.voice.adapter);
@@ -128,13 +118,11 @@ export function launch(scriptPath: string, options: LaunchOptions = {}): number 
   const desktop = process.platform !== "linux"
     || run(command, ["info", "--format", "{{.OperatingSystem}}"]).stdout.includes("Docker Desktop");
   // Created here, so the engine doesn't create the mount point as root.
-  const outDir = options.outDir === undefined ? undefined : resolve(options.outDir);
-  if (outDir) mkdirSync(outDir, { recursive: true });
+  const outDir = dirname(reel);
+  mkdirSync(outDir, { recursive: true });
   const args = buildRunArgs({
-    engine, desktop, image, workDir: dirname(script), script: basename(script),
-    uid: process.getuid?.() ?? 1000, gid: process.getgid?.() ?? 1000, sound: options.sound, outDir, settings, credentials,
+    engine, desktop, image, scriptsDir: workspace.scriptsDir, outDir, uid: process.getuid?.() ?? 1000, gid: process.getgid?.() ?? 1000,
+    request: { script: script.path, reel: basename(reel), settings, brand: workspace.config.brand ?? {}, sound }, credentials,
   });
-  const status = run(command, args, true).status ?? 1;
-  saveSettings(status, dirname(script), settings, !config || Boolean(options.saveConfig));
-  return status;
+  return run(command, args, true).status ?? 1;
 }

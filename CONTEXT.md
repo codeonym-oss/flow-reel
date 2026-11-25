@@ -6,14 +6,36 @@ it, the same way every time.
 This file is the project's vocabulary. Use these words, with these meanings, in code, documentation, commit
 messages, issues and the plugin. Each concept has one word; the "avoid" words are older or looser names for it.
 
-> **Status:** this is the 0.2 language, with cards (GH-76). Scripts use it (`script`, `comment`, `sound`, the effects
+> **Status:** this is the 0.2 language, with cards (GH-76) and workspaces (GH-108). Scripts use it (`script`, `comment`, `sound`, the effects
 > `flash`, `zoomIn`, `zoomOut`, `speedUp` and `skip`, the `card` words, `flow-reel compose`), and a compose writes a
 > reel. `showFrame` was retired for `card.image` in 0.5.
+
+## Where the work lives
+
+**Workspace**
+A project made ready for flow-reel with `flow-reel init`: one `flow-reel.json` at its root gives it an id, a slug and a
+title, and says where its scripts and reels are. Two checkouts of a project are the same workspace.
+_Avoid:_ project (the person's app and its code), repository.
+
+**Scripts folder**
+The one folder of a workspace that holds its scripts and everything they use: helpers, images, card pages, the brand's
+logo and fonts. A running script can read nothing else. `reels/` unless the workspace says otherwise.
+
+**Output folder**
+Where a workspace's finished reels go: `reels/out/` unless the workspace, or one compose, says otherwise.
+
+**Alias**
+A name for a workspace on one computer, used when another workspace there has the same slug.
+
+**Data folder**
+flow-reel's own folder on the person's computer, outside every project.
+_Avoid:_ app data, cache.
 
 ## What a person writes
 
 **Script**
-The file a person or an agent writes: the E2E tool's own script, plus flow-reel words.
+The file a person or an agent writes: the E2E tool's own script, plus flow-reel words. It is named `*.reel.ts` or
+`*.reel.js`; its **name** is its path in the scripts folder without that ending, such as `admin/refund`.
 _Avoid:_ scenario, flow, demo.
 
 **Step**
@@ -54,7 +76,7 @@ left. The skip card is a card too.
 _Avoid:_ slide, title screen, frame (a frame is one picture of the video).
 
 **Custom card**
-A card the person writes as an HTML page in the script's folder, with its own CSS, JavaScript, images and fonts, and
+A card the person writes as an HTML page in the scripts folder, with its own CSS, JavaScript, images and fonts, and
 shows with `card.custom(page, props)`.
 _Avoid:_ template, component.
 
@@ -93,8 +115,8 @@ The speech model that speaks comments. It may be local or a cloud service.
 _Avoid:_ TTS, transcription model.
 
 **Settings**
-Which integration and voice the composer uses, and the voice's speaker and language. They come from flags, then
-`flow-reel.json` beside the scripts, then the defaults.
+Which integration and voice the composer uses, and the voice's speaker and language. They come from flags, then the
+workspace's `flow-reel.json`, then the defaults.
 _Avoid:_ options (a script's own options, such as `url` and `autoZoom`).
 
 **Recording**
@@ -153,6 +175,7 @@ The skills and references that teach an agent this language: what to use, when, 
 
 ## How the terms relate
 
+- A **workspace** has one **scripts folder** and one **output folder**; a **script** gives one reel.
 - A **script** is made of **steps**. A step can carry **comments**, **sounds** and **effects**, and show **cards**.
 - A card follows the **brand**: its **theme** and its **transitions**, unless the card sets its own. An **overlay**
   follows its theme too.

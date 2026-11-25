@@ -22,7 +22,7 @@ COPY docker/fonts ./docker/fonts
 
 ENV FLOW_REEL_IN_CONTAINER=1 HOME=/tmp
 USER pwuser
-ENTRYPOINT ["node", "/opt/flow-reel/dist/cli.js"]
+ENTRYPOINT ["node", "/opt/flow-reel/dist/container/main.js"]
 
 # The voice's layers come before the app's, so changing the app rebuilds none of them.
 FROM base AS full
@@ -38,4 +38,4 @@ COPY --from=cloud /opt/flow-reel ./
 
 ENV FLOW_REEL_IN_CONTAINER=1 HOME=/tmp HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 TOKENIZERS_PARALLELISM=false
 USER pwuser
-ENTRYPOINT ["node", "/opt/flow-reel/dist/cli.js"]
+ENTRYPOINT ["node", "/opt/flow-reel/dist/container/main.js"]

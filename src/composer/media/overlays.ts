@@ -17,10 +17,10 @@ const name = (i: number) => `${String(i).padStart(5, "0")}.png`;
 
 /** Draws the overlays of a retimed event log; their `t` and `durationMs` are on the video's clock. */
 export async function renderOverlays(events: readonly OverlayEvent[], options:
-  { work: string; scriptDir: string; viewport: [number, number]; fps: number; brand: Brand; painter: CardPainter }): Promise<DrawnOverlay[]> {
+  { work: string; scriptsDir: string; viewport: [number, number]; fps: number; brand: Brand; painter: CardPainter }): Promise<DrawnOverlay[]> {
   const shown = events.filter((e) => e.durationMs > 0);
   if (!shown.length) return [];
-  const { work, scriptDir, viewport, fps, brand, painter } = options;
+  const { work, scriptsDir, viewport, fps, brand, painter } = options;
   const canvas = await painter.open();
   try {
     const drawn: DrawnOverlay[] = [];
@@ -38,7 +38,7 @@ export async function renderOverlays(events: readonly OverlayEvent[], options:
         fonts: { ...(brand.fonts?.heading ? { heading: scriptUrl(brand.fonts.heading) } : {}), ...(brand.fonts?.body ? { body: scriptUrl(brand.fonts.body) } : {}) } },
       overlayBody(event.overlay, event.props, viewport, event.bounds));
       const layer = LAYER[event.overlay];
-      await canvas.paint({ url: `${ORIGIN}/overlay.html`, html, file: (path) => fileFor(path, "", scriptDir), viewport,
+      await canvas.paint({ url: `${ORIGIN}/overlay.html`, html, file: (path) => fileFor(path, "", scriptsDir), viewport,
         scale: layer === "app" ? SCALE : 1, transparent: true, times: painted.map((i) => i * 1000 / fps), frame: (i) => join(dir, name(painted[i])) });
       for (let i = into + 1; i < frames - out; i++) linkSync(join(dir, name(into)), join(dir, name(i)));
       drawn.push({ pattern: join(dir, "%05d.png"), startMs: event.t, frames, layer });

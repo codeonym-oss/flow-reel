@@ -1,24 +1,22 @@
-import { execFile, execFileSync, spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type EventLog, validateEvents } from "../../src/composer/schema/events.ts";
 import type { Transcript } from "../../src/composer/schema/transcript.ts";
 import { verifyReel } from "../../src/reel.ts";
 import { fakeVoice, startFixtureApp } from "./fixture-app.ts";
 import { prepareImage } from "./image.ts";
+import { compose, makeProject } from "./project.ts";
 
 // Cards in reels composed in the image, spoken by the fake voice (split from record.test.ts, GH-92).
 const OUT = resolve("test/e2e/out/record");
 let app: Awaited<ReturnType<typeof startFixtureApp>>;
 let port: number;
-let image: string;
 
 beforeAll(async () => {
   mkdirSync(OUT, { recursive: true });
-  image = prepareImage("cloud");
+  prepareImage("cloud");
   app = await startFixtureApp();
   port = app.port;
 }, 900_000);
@@ -39,22 +37,11 @@ export default script({ url: "http://localhost:${p}/", viewport: [960, 540] }, a
 });`;
   const composeCards = async (name: string, make = cardScript) => {
     const dir = join(OUT, name);
-    rmSync(dir, { recursive: true, force: true });
-    mkdirSync(join(dir, "cards"), { recursive: true });
-    writeFileSync(join(dir, "demo.ts"), make(port));
-    writeFileSync(join(dir, "flow-reel.json"), JSON.stringify({ version: 1, brand: { theme: "ocean", accent: "#46D3C8" } }));
-    writeFileSync(join(dir, "cards/hello.html"), "<!doctype html><html><head><style>body{margin:0;background:#ffcc00}</style></head>" +
-      "<body><h1 class=\"fr-title\" data-prop=\"name\">x</h1></body></html>");
-    const container = `flow-reel-${name}-${randomUUID()}`;
-    try {
-      const { stderr } = await promisify(execFile)("docker", ["run", "--name", container, "--rm", "--init", "--shm-size=1g",
-        "--network", "host", "--user", `${process.getuid!()}:${process.getgid!()}`, ...fakeVoice(port).dockerEnv, "-v", `${dir}:/work`, image,
-        "compose", "/work/demo.ts", ...fakeVoice(port).flags], { timeout: 600_000 });
-      if (stderr) writeFileSync(join(dir, "record.log"), stderr);
-    } finally {
-      spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 10_000 });
-    }
-    const reel = join(dir, "demo.reel");
+    const project = makeProject(dir, { "demo.reel.ts": make(port),
+      "cards/hello.html": "<!doctype html><html><head><style>body{margin:0;background:#ffcc00}</style></head>" +
+        "<body><h1 class=\"fr-title\" data-prop=\"name\">x</h1></body></html>" },
+    { voice: fakeVoice(port).voice, brand: { theme: "ocean", accent: "#46D3C8" } });
+    const { reel } = await compose(project);
     return { reel, events: JSON.parse(readFileSync(join(reel, "events.json"), "utf8")) as EventLog,
       transcript: JSON.parse(readFileSync(join(reel, "transcript.json"), "utf8")) as Transcript };
   };

@@ -5,35 +5,40 @@ import { join } from "node:path";
 import { expect, it } from "vitest";
 import { hashFiles } from "../../src/reel.ts";
 
-it("accepts --no-sound on either side of the script, and rejects malformed compose options before Docker", () => {
-  const run = (args: string[]) => spawnSync(process.execPath, ["src/cli.ts", ...args], {
-    encoding: "utf8", env: { ...process.env, FLOW_REEL_IN_CONTAINER: "1" },
-  });
-  for (const args of [["compose", "--no-sound", "missing.ts"], ["compose", "missing.ts", "--no-sound"],
-    ["compose", "missing.ts", "--out", "reels"],
-    ["compose", "missing.ts", "--integration", "playwright", "--voice", "qwen3-tts-0.6b", "--speaker", "Aiden", "--language", "french"]]) {
-    const result = run(args);
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("missing.ts");
-    expect(result.stderr).not.toContain("usage:");
-  }
-  for (const args of [["compose", "--no-sound"], ["compose", "demo.ts", "--no-sound", "--no-sound"],
-    ["compose", "demo.ts", "--no-sfx"], ["compose", "a.ts", "b.ts"], ["compare", "a.reel", "b.reel", "--no-sound"],
-    ["compose", "demo.ts", "--out"], ["compose", "demo.ts", "--out", "--no-sound"], ["compose", "demo.ts", "--out", "a", "--out", "b"],
-    ["compose", "demo.ts", "--speaker"], ["compose", "demo.ts", "--speaker", "--no-sound"],
-    ["compose", "demo.ts", "--speaker", "Ryan", "--speaker", "Aiden"], ["compose", "demo.ts", "--save-config", "--save-config"],
-    ["verify"], ["verify", "a.reel", "b.reel"]]) {
-    expect(run(args).status).toBe(2);
-  }
-}, 30_000); // 18 CLI processes in a row, beside the other unit files' processes: 10 s isn't enough on a busy runner.
+const cli = (...args: string[]) => spawnSync(process.execPath, ["src/cli.ts", ...args], { encoding: "utf8" });
 
-it("checks the settings in the container before any adapter loads (GH-33)", () => {
-  const result = spawnSync(process.execPath, ["src/cli.ts", "compose", "missing.ts", "--speaker", "Nobody"], {
-    encoding: "utf8", env: { ...process.env, FLOW_REEL_IN_CONTAINER: "1" },
-  });
-  expect(result.status).toBe(1);
-  expect(result.stderr).toMatch(/^flow-reel: unknown speaker "Nobody"; known speakers: Aiden, /);
+it("rejects malformed arguments with the command's usage, before anything runs", () => {
+  for (const args of [["compose"], ["compose", "--no-sound"], ["compose", "demo.reel.ts", "--no-sound", "--no-sound"],
+    ["compose", "demo.reel.ts", "--no-sfx"], ["compose", "a.reel.ts", "b.reel.ts"], ["compare", "a.reel", "b.reel", "--no-sound"],
+    ["compose", "demo.reel.ts", "--out"], ["compose", "demo.reel.ts", "--out", "--no-sound"], ["compose", "demo.reel.ts", "--out", "a", "--out", "b"],
+    ["compose", "demo.reel.ts", "--speaker"], ["compose", "demo.reel.ts", "--speaker", "Ryan", "--speaker", "Aiden"],
+    ["verify"], ["verify", "a.reel", "b.reel"]]) {
+    const { status, stderr } = cli(...args);
+    expect({ args, status, stderr }).toEqual({ args, status: 2, stderr: expect.stringContaining(`usage: flow-reel ${args[0]} `) });
+  }
+}, 30_000); // 13 CLI processes in a row, beside the other unit files' processes: 10 s isn't enough on a busy runner.
+
+it("lists its commands, and shows one command's usage", () => {
+  expect(cli("--help")).toMatchObject({ status: 0, stdout: expect.stringMatching(/^usage: flow-reel <command>\n\n {2}init .*\n {2}compose /) });
+  expect(cli("compose", "--help")).toMatchObject({ status: 0, stdout: expect.stringMatching(/^usage: flow-reel compose </) });
+  for (const args of [[], ["demo"], ["toString"]]) expect(cli(...args)).toMatchObject({ status: 2, stderr: expect.stringContaining("usage: flow-reel <command>") });
 });
+
+it("accepts flags on either side of the script, and checks the settings before it looks for an engine (GH-33)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "flow-reel-cli-"));
+  const env = { ...process.env, FLOW_REEL_DATA_DIR: join(dir, "data"), PATH: "" };
+  const run = (...args: string[]) => spawnSync(process.execPath, ["src/cli.ts", ...args], { encoding: "utf8", env });
+  const script = join(dir, "reels/demo.reel.ts");
+  try {
+    expect(run("compose", "--no-sound", script)).toMatchObject({ status: 1, stderr: `flow-reel: ${script} doesn't exist\n` });
+    expect(run("init", dir, "--title", "Shop").status).toBe(0);
+    writeFileSync(script, "");
+    expect(run("compose", script, "--speaker", "Nobody")).toMatchObject({ status: 1, stderr: expect.stringMatching(/^flow-reel: unknown speaker "Nobody"; known speakers: Aiden, /) });
+    for (const args of [["--no-sound", script], [script, "--no-sound", "--out", join(dir, "o"), "--speaker", "Aiden", "--language", "french"]]) {
+      expect(run("compose", ...args)).toMatchObject({ status: 1, stderr: "flow-reel: flow-reel needs Docker or Podman: neither was found on PATH\n" });
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}, 30_000);
 
 it("says that record is now compose", () => {
   const result = spawnSync(process.execPath, ["src/cli.ts", "record", "demo.ts"], { encoding: "utf8" });
@@ -59,5 +64,5 @@ it("verifies a reel: 0 when whole, 1 naming a changed file, 2 for a folder that 
 
 it("tells someone passing transcripts to compare reels instead", () => {
   const result = spawnSync(process.execPath, ["src/cli.ts", "compare", "a.transcript.json", "b.transcript.json"], { encoding: "utf8" });
-  expect(result).toMatchObject({ status: 2, stderr: "flow-reel: compare takes two reel folders, e.g. demos/a.reel demos/b.reel\n" });
+  expect(result).toMatchObject({ status: 2, stderr: expect.stringContaining("flow-reel: compare takes two reel folders, e.g. demos/a.reel demos/b.reel\n") });
 });

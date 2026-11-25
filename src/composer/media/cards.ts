@@ -34,7 +34,7 @@ export interface CardRenderOptions {
   capture: string;
   /** Where the frames, stills and clips go. */
   work: string;
-  scriptDir: string;
+  scriptsDir: string;
   viewport: [number, number];
   fps: number;
   brand: Brand;
@@ -72,7 +72,7 @@ function transitionFrames(job: CardJob, fps: number): [enter: number, exit: numb
 /** Draws every card; returns each one's clip by id. */
 export async function renderCards(jobs: readonly CardJob[], options: CardRenderOptions): Promise<Record<string, string>> {
   if (!jobs.length) return {};
-  const { capture, work, scriptDir, viewport, fps, brand, painter } = options;
+  const { capture, work, scriptsDir, viewport, fps, brand, painter } = options;
   const probe = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0",
     "-show_entries", "stream=width,height", "-of", "json", capture], { encoding: "utf8" })).streams[0];
   const sourceFrames = videoFrames(capture);
@@ -98,10 +98,10 @@ export async function renderCards(jobs: readonly CardJob[], options: CardRenderO
       const durationMs = job.frames * 1000 / fps;
       const context: PageContext = { theme: job.theme, props: job.props, durationMs, fonts, ...(logo ? { logo } : {}) };
       const html = job.kind === "custom"
-        ? customPage(context, readFileSync(join(scriptDir, job.page!), "utf8"))
+        ? customPage(context, readFileSync(join(scriptsDir, job.page!), "utf8"))
         : builtInPage(context, builtInBody(job.kind, job.props, { ...context, ...(job.chapter ? { chapter: job.chapter } : {}) }));
       const url = job.kind === "custom" ? `${ORIGIN}${scriptUrl(job.page!)}` : `${ORIGIN}/card.html`;
-      await canvas.paint({ url, html, file: (path) => fileFor(path, before, scriptDir), viewport, scale: SCALE,
+      await canvas.paint({ url, html, file: (path) => fileFor(path, before, scriptsDir), viewport, scale: SCALE,
         times: Array.from({ length: job.frames }, (_, i) => i * 1000 / fps), frame: (i) => join(dir, `${String(i).padStart(5, "0")}.png`) });
       clips[job.id] = join(work, `${job.id}.mp4`);
       assemble(job, dir, before, after, clips[job.id], fps, size);
@@ -115,9 +115,9 @@ export async function renderCards(jobs: readonly CardJob[], options: CardRenderO
 
 /**
  * The file a card page may load for a path on the card origin (GH-76 decision 003): the skip card's backdrop, a
- * bundled font, or a file inside the script's folder; nothing else.
+ * bundled font, or a file inside the scripts folder; nothing else.
  */
-export function fileFor(pathname: string, backdrop: string, scriptDir: string): string | undefined {
+export function fileFor(pathname: string, backdrop: string, scriptsDir: string): string | undefined {
   if (pathname === "/fr/backdrop.png") return backdrop;
   if (pathname.startsWith(FONTS_PATH)) {
     const name = pathname.slice(FONTS_PATH.length);
@@ -126,8 +126,8 @@ export function fileFor(pathname: string, backdrop: string, scriptDir: string): 
   if (!pathname.startsWith(SCRIPT_PATH)) return undefined;
   let path: string;
   try { path = decodeURIComponent(pathname.slice(SCRIPT_PATH.length)); } catch { return undefined; }
-  const file = resolve(scriptDir, path);
-  const inside = relative(scriptDir, file);
+  const file = resolve(scriptsDir, path);
+  const inside = relative(scriptsDir, file);
   return inside && !inside.startsWith("..") && !isAbsolute(inside) ? file : undefined;
 }
 

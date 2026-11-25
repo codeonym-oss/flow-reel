@@ -55,7 +55,7 @@ const probe = (file: string) => JSON.parse(execFileSync("ffprobe", ["-v", "error
 
 /** The settings for `adapter` pointed at the local server, with the key in the environment. */
 const voiceFor = (adapter: string, extra: Record<string, string> = {}) => {
-  const { voice } = resolveSettings({ version: 1, voice: { adapter, baseUrl: base, ...extra } });
+  const { voice } = resolveSettings({ voice: { adapter, baseUrl: base, ...extra } });
   return cloudVoice(voice, { env: { [voice.apiKeyEnv ?? "NONE"]: KEY }, backoffMs: 1 });
 };
 
@@ -111,7 +111,7 @@ it("passes a language only to providers that take one", async () => {
 
 it("sends no key to an OpenAI-compatible server that needs none", async () => {
   answer = (_, res) => res.end(wav(200));
-  const { voice } = resolveSettings({ version: 1, voice: { adapter: "openai-compatible", baseUrl: `${base}/`, model: "kokoro" } });
+  const { voice } = resolveSettings({ voice: { adapter: "openai-compatible", baseUrl: `${base}/`, model: "kokoro" } });
   await cloudVoice(voice, { env: {} }).synthesize([{ index: 0, text: "Hi.", file: join(folder(), "0.wav") }]);
   expect(seen[0].url).toBe("/v1/audio/speech");
   expect(seen[0].headers.authorization).toBeUndefined();
