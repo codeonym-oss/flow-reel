@@ -1,5 +1,6 @@
 // Finds runs by the names a person uses (GH-108 decision 008, GH-116 decision 003): a run's number in this workspace, a
 // workspace and a number, or a script, which means its latest run.
+import { basename, dirname } from "node:path";
 import type { RunState } from "../run/machine.ts";
 import type { Workspace } from "../workspace/workspace.ts";
 import { type KnownWorkspace, knownWorkspaces, localSlug } from "./data.ts";
@@ -11,6 +12,13 @@ export interface FoundRun {
   id: string;
   run: Run;
   state: RunState;
+}
+
+/** The id of the run in a folder. */
+export function runId(runDir: string): string {
+  const workspace = dirname(dirname(runDir));
+  const known = knownWorkspaces(dirname(dirname(workspace))).find(({ id }) => id === basename(workspace));
+  return `${known ? localSlug(known) : basename(workspace)}/${basename(runDir)}`;
 }
 
 const NUMBER = /^[1-9]\d*$/;

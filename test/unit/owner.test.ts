@@ -4,18 +4,23 @@ import { appendFileSync, existsSync, readFileSync, statSync, writeFileSync } fro
 import { connect } from "node:net";
 import { join, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { sendCommand } from "../../src/host/control.ts";
 import { rememberWorkspace } from "../../src/host/data.ts";
 import { readJournal } from "../../src/host/journal.ts";
 import { isLocked, takeLock } from "../../src/host/lock.ts";
 import { follow, runState } from "../../src/host/owner.ts";
-import { readRun } from "../../src/host/run-folder.ts";
+import { isHeavy } from "../../src/host/queue.ts";
+import { type Run, readRun } from "../../src/host/run-folder.ts";
 import { findRuns } from "../../src/host/runs.ts";
 import { startProcess } from "../../src/host/start.ts";
 import { PHASES } from "../../src/run/phases.ts";
+import { resolveSettings } from "../../src/settings.ts";
 import { findWorkspace } from "../../src/workspace/workspace.ts";
 import { folder, project, startRun } from "./runs.ts";
+
+// A process starts slowly on a busy Windows machine.
+vi.setConfig({ testTimeout: 60_000 });
 
 const PROGRAM = resolve(import.meta.dirname, "slow-run.ts");
 const ENGINE = { command: "docker", kind: "docker", desktop: false } as const;
@@ -25,7 +30,7 @@ const begin = async (data = folder(), root?: string) => {
   return run;
 };
 const until = async (what: () => boolean) => {
-  for (const deadline = Date.now() + 8000; !what(); await sleep(20)) if (Date.now() > deadline) throw new Error("waited too long");
+  for (const deadline = Date.now() + 30_000; !what(); await sleep(20)) if (Date.now() > deadline) throw new Error("waited too long");
 };
 const recording = (dir: string) => until(() => readJournal(dir).some(({ type }) => type === "phase-started"));
 const entries = async (dir: string) => {
@@ -129,7 +134,7 @@ describe("a run's process", () => {
     await expect(startProcess(run, { engine: ENGINE, image: "none" }, PROGRAM)).rejects.toThrow("another process is running it");
     await sendCommand(run.dir, "cancel");
     await entries(run.dir);
-  }, 15_000);
+  });
 });
 
 describe("finding a run", () => {
@@ -191,7 +196,7 @@ describe("the commands", () => {
     expect(await cli("wait", "b")).toMatchObject({ code: 1, stderr: 'flow-reel: there is no run of "b" in this workspace\n' });
     const lines = (await cli("watch", "shop/3", "--json")).stdout.trim().split("\n").map((line) => JSON.parse(line) as { run: string; type: string });
     expect(lines.map(({ run, type }) => `${run} ${type}`)).toEqual(["shop/3 created", "shop/3 phase-started", "shop/3 cancel", "shop/3 cancelled"]);
-  }, 30_000);
+  });
 
   it("let a run that was killed go on with what it has, and never record again", async () => {
     const { cli, go, data, root } = await setUp();
@@ -202,7 +207,7 @@ describe("the commands", () => {
     await expect(startProcess(readRun(data, "abcdefghijkl", 1)!, { engine: ENGINE, image: "none" }, PROGRAM)).rejects.toThrow("recording lost");
 
     expect(await cli("resume", "1")).toMatchObject({ code: 1, stderr: expect.stringContaining("recording lost") as string });
-  }, 30_000);
+  });
 
   it.each(["voice", "plan", "render", "publish"] as const)("let a run killed in its %s phase go on from there", async (phase) => {
     const { cli, data, root } = await setUp();
@@ -220,16 +225,16 @@ describe("the commands", () => {
     expect(journal.slice(journal.indexOf("stopped"))).toEqual(["stopped", "resumed", ...PHASES.slice(0, at).map((done) => `phase-finished ${done} again`),
       ...PHASES.slice(at).flatMap((next) => [`phase-started ${next}`, `phase-finished ${next}`]), "done"]);
     expect(await cli("resume", "1")).toMatchObject({ code: 1, stderr: "flow-reel: shop/1 is done: it has nothing to go on with\n" });
-  }, 30_000);
+  });
 
   it("refuse to change a run when the name means several", async () => {
-    const { cli, go } = await setUp();
+    const { cli, go, data, root } = await setUp();
     await go();
-    await go();
+    await begin(data, root);
     expect(await cli("cancel", "a")).toMatchObject({ code: 1, stderr: 'flow-reel: "a" means 2 runs: name one of shop/2, shop/1\n' });
     expect((await cli("cancel", "1")).code).toBe(0);
     expect((await cli("cancel", "a")).stdout).toBe("shop/2 is cancelled\n");
-  }, 30_000);
+  });
 
   // Windows has no interrupt to send another process.
   it.skipIf(process.platform === "win32")("stop watching on an interrupt, and the run goes on", async () => {
@@ -241,5 +246,65 @@ describe("the commands", () => {
     expect(await watching.done).toMatchObject({ code: 0, stderr: expect.stringContaining("shop/1 is still running") as string });
     expect(runState(run.dir)).toMatchObject({ state: "running" });
     await cli("cancel", "1");
-  }, 30_000);
+  });
+});
+
+describe("heavy work", () => {
+  /** When each heavy phase went on, in a data folder's runs, in the order they started. */
+  const heavy = (runs: Run[]) => runs.flatMap(({ number, dir }) => {
+    const journal = readJournal(dir);
+    return journal.flatMap((entry) => {
+      if (entry.type !== "phase-started" || !["record", "voice", "render"].includes(entry.phase)) return [];
+      const end = journal.find((other) => other.type === "phase-finished" && other.phase === entry.phase);
+      return [{ what: `${entry.phase} ${number}`, from: Date.parse(entry.at), to: Date.parse(end!.at) }];
+    });
+  }).sort((a, b) => a.from - b.from);
+  const waitsFor = (dir: string) => readJournal(dir).flatMap((entry) => entry.type === "waiting" ? [`${entry.phase} behind ${entry.behind}`] : []);
+
+  it("takes turns, in the order it was asked for", async () => {
+    const [data, root] = [folder(), project()];
+    rememberWorkspace(data, findWorkspace(root));
+    const runs: Run[] = [];
+    for (const _ of [1, 2, 3]) {
+      const run = await startRun(data, root);
+      runs.push(run);
+      await startProcess(run, { engine: ENGINE, image: "none" }, PROGRAM);
+      await until(() => readJournal(run.dir).length > 1); // it has asked
+    }
+    await until(() => waitsFor(runs[2].dir).length > 0);
+    expect(runs.map(({ dir }) => runState(dir))).toMatchObject([{ state: "running", phase: "record" },
+      { state: "queued", waiting: { phase: "record", behind: "shop/1" } }, { state: "queued", waiting: { phase: "record", behind: "shop/1" } }]);
+    for (const { dir } of runs) writeFileSync(join(dir, "go"), "");
+    for (const { dir } of runs) expect((await entries(dir)).at(-1)).toBe("done");
+    const work = heavy(runs);
+    expect(work.map(({ what }) => what)).toEqual(["record", "voice", "render"].flatMap((phase) => [1, 2, 3].map((run) => `${phase} ${run}`)));
+    for (const [i, { what, from }] of work.entries()) expect([what, i === 0 || from >= work[i - 1].to]).toEqual([what, true]);
+  });
+
+  it("skips a run that died while it worked or waited, and one that was cancelled while it waited", async () => {
+    const [data, root] = [folder(), project()];
+    const runs: Run[] = [];
+    for (const _ of [1, 2, 3, 4]) {
+      const run = await startRun(data, root);
+      runs.push(run);
+      await startProcess(run, { engine: ENGINE, image: "none" }, PROGRAM);
+      await until(() => readJournal(run.dir).length > 1);
+    }
+    const [worked, waited, cancelled, last] = runs;
+    kill(waited.dir);
+    await sendCommand(cancelled.dir, "cancel");
+    expect((await entries(cancelled.dir)).at(-1)).toBe("cancelled");
+    expect(runState(last.dir)).toMatchObject({ state: "queued" });
+    kill(worked.dir);
+    await recording(last.dir);
+    writeFileSync(join(last.dir, "go"), "");
+    expect((await entries(last.dir)).at(-1)).toBe("done");
+  });
+
+  it("is a recording, a render and a local voice, not a cloud voice", () => {
+    const local = resolveSettings(undefined);
+    const cloud = resolveSettings({ voice: { adapter: "openai" } });
+    expect(PHASES.filter((phase) => isHeavy(phase, local))).toEqual(["record", "voice", "render"]);
+    expect(PHASES.filter((phase) => isHeavy(phase, cloud))).toEqual(["record", "render"]);
+  });
 });

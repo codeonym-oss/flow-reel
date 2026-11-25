@@ -18,6 +18,8 @@ export interface Published { reel: string; newer?: number }
 export interface Work {
   /** Runs one phase whose inputs are ready, and keeps its result; rejects when it fails or `signal` aborts it. */
   phase(phase: Phase, hooks: PhaseHooks): Promise<Published | void>;
+  /** Waits for the run's turn to do a phase, when it needs one; returns what ends the turn. */
+  turn?(phase: Phase, behind: (run: string) => void, signal: AbortSignal): Promise<(() => void) | undefined>;
   /** A line for the run's log. */
   log(line: string): void;
   /** Everything added to the journal, and the state it led to. */
@@ -49,6 +51,18 @@ export function drive(run: Run, work: Work): Driver {
   async function runPhase(phase: Phase): Promise<void> {
     // A run that goes on keeps the results that still hold.
     if (hasResult(phase) && await resultProblem(run.dir, phase) === undefined) return append({ type: "phase-finished", phase, reused: true });
+    let endTurn: (() => void) | undefined;
+    try { endTurn = await work.turn?.(phase, (behind) => append({ type: "waiting", phase, behind }), cancelled.signal); }
+    catch (error) {
+      // Cancelled while it waited.
+      if (journal.state.cancelling) return;
+      throw error;
+    }
+    try { if (todo(journal.state).do === "phase") await doPhase(phase); }
+    finally { endTurn?.(); }
+  }
+
+  async function doPhase(phase: Phase): Promise<void> {
     append({ type: "phase-started", phase });
     const over = new AbortController();
     const limit = limitMs(limits, phase);

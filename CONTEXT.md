@@ -132,6 +132,10 @@ _Avoid:_ log (a run's log is what its containers and its script print).
 A point where a run can be held: before each phase, and before each step while it records.
 _Avoid:_ breakpoint, checkpoint.
 
+**Heavy work**
+A recording, a render or a local voice. Runs do it in **turns**, one at a time on a computer, in the order they asked.
+_Avoid:_ slot, lease.
+
 **Result**
 What a phase leaves in its run, complete or not there at all, and what it was made from.
 _Avoid:_ artifact, output.

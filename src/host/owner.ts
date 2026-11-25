@@ -16,6 +16,9 @@ const TAKE_MS = 5000;
 
 const lockFile = (runDir: string) => join(runDir, LOCK_FILE);
 
+/** Whether a process owns a run. */
+export const isOwned = (runDir: string): boolean => isLocked(lockFile(runDir));
+
 /** Owns a run until it ends: drives it, and takes commands for it. `started` is called once it does. */
 export async function ownRun(run: Run, work: Work, started: () => void = () => {}): Promise<RunState> {
   const lock = takeLock(lockFile(run.dir), TAKE_MS);
@@ -45,7 +48,7 @@ export function runState(runDir: string): RunState | undefined {
 
 /** Records that a run stopped when its owner is gone; false when it has one. */
 function settle(runDir: string): boolean {
-  if (isLocked(lockFile(runDir))) return false;
+  if (isOwned(runDir)) return false;
   const lock = takeLock(lockFile(runDir));
   if (!lock) return false;
   try {

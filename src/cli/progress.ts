@@ -17,6 +17,7 @@ const DOING: Record<Phase, string> = { record: "recording", voice: "voicing", pl
 /** What an entry says to a person, or undefined when it says nothing. */
 export function lineFor(entry: Entry): string | undefined {
   switch (entry.type) {
+    case "waiting": return `waiting for ${entry.behind} before ${DOING[entry.phase]}`;
     case "phase-started": return DOING[entry.phase];
     case "phase-finished": return entry.reused ? `${DOING[entry.phase]}: already done` : undefined;
     case "progress": return lineForProgress(entry.what as PhaseProgress);
@@ -57,6 +58,7 @@ export function liveView(terminal: { write(text: string): unknown; columns?: num
       const line = lineFor(entry);
       if (line !== undefined) terminal.write(`${doing ? CLEAR : ""}flow-reel: ${line}\n`);
       if (entry.type === "phase-started") doing = { what: DOING[entry.phase], since: Date.parse(entry.at) };
+      else if (entry.type === "waiting") doing = { what: `waiting for ${entry.behind}`, since: doing?.since ?? Date.parse(entry.at) };
       else if (entry.type !== "progress") { if (doing) terminal.write(CLEAR); doing = undefined; }
       status();
     },

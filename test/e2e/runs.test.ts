@@ -170,3 +170,15 @@ describe("a run that stopped (GH-118)", () => {
     expect(containers("record")).toBe("");
   }, 180_000);
 });
+
+it("takes turns with another run at heavy work (GH-119)", async () => {
+  const runs = [workspace("turn-1", SPOKEN), workspace("turn-2", SPOKEN)].map((project) => ({ project, ...composing(project) }));
+  expect(await Promise.all(runs.map(({ exited }) => exited))).toEqual([0, 0]);
+  const work = runs.flatMap(({ project }) => {
+    const journal = readJournal(lastRun(project));
+    const at = (type: string, phase: Phase) => Date.parse(journal.find((entry) => entry.type === type && "phase" in entry && entry.phase === phase)!.at);
+    return (["record", "render"] as const).map((phase) => ({ from: at("phase-started", phase), to: at("phase-finished", phase) }));
+  }).sort((a, b) => a.from - b.from);
+  expect(work).toHaveLength(4);
+  for (const [i, { from }] of work.entries()) expect(i === 0 || from >= work[i - 1].to).toBe(true);
+}, 300_000);
