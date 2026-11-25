@@ -1,5 +1,6 @@
-// A run's process whose phases use no container: recording lasts until the folder holds a file called `go`.
-import { existsSync, writeFileSync } from "node:fs";
+// A run's process whose phases use no container. Recording, or the phase named in the file `at`, lasts until the run's
+// folder holds a file called `go`.
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { ownRun } from "../../src/host/owner.ts";
@@ -12,11 +13,12 @@ writeFileSync(join(run.dir, "pid"), String(process.pid));
 ownRun(run, {
   log: console.log,
   async phase(phase, { signal }) {
-    if (phase === "record") while (!existsSync(join(run.dir, "go"))) {
+    const at = existsSync(join(run.dir, "at")) ? readFileSync(join(run.dir, "at"), "utf8") : "record";
+    if (phase === at) while (!existsSync(join(run.dir, "go"))) {
       if (!existsSync(run.dir)) process.exit(); // its test is over
       await sleep(20, undefined, { signal });
     }
     if ((RESULTS as readonly string[]).includes(phase)) await makeResult(run.dir, phase as ResultPhase, async () => {});
   },
-}, () => { process.send?.({ type: "started" }, () => process.disconnect?.()); })
+}, () => { process.send?.({ type: "started" }); })
   .then(() => process.exit(0), (error: Error) => { process.send?.({ type: "failed", message: error.message }, () => process.exit(1)); });

@@ -27,8 +27,11 @@ describe("flow-reel.json", () => {
       voice: { adapter: "a", speaker: "b", language: "c" } })).toEqual([]);
     expect(validateConfig([])).toEqual(["must be a JSON object"]);
     expect(validateConfig({ ...config, version: 3 })).toEqual(["version must be 2"]);
-    expect(validateConfig({ ...config, env: ["KEY"] })).toEqual(['unknown key "env"; it takes version, workspace, scripts, output, integration, voice, brand']);
+    expect(validateConfig({ ...config, env: ["KEY"] })).toEqual(['unknown key "env"; it takes version, workspace, scripts, output, integration, voice, brand, limits']);
     expect(validateConfig({ ...config, voice: { seed: 1 } })).toEqual(['voice: unknown key "seed"; it takes adapter, speaker, language, model, apiKeyEnv, baseUrl']);
+    expect(validateConfig({ ...config, limits: { record: 90, render: 0.5 } })).toEqual([]);
+    expect(validateConfig({ ...config, limits: { record: 0, voice: "5", render: 2000, plan: 1 } })).toEqual(['limits: unknown key "plan"; it takes record, voice, render',
+      ...["record", "voice", "render"].map((phase) => `limits.${phase} must be a number of minutes, more than 0 and at most 1440`)]);
     expect(validateConfig({ ...config, integration: 1, voice: { speaker: 2 } })).toEqual(["integration must be a string", "voice.speaker must be a string"]);
     expect(validateConfig({ ...config, workspace: { id: "x", slug: "My Shop", title: " ", owner: "me" } })).toEqual([
       'workspace: unknown key "owner"; it takes id, slug, title, description',

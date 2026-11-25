@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { drive, type Work } from "../../src/host/driver.ts";
 import { JOURNAL_FILE, openJournal, readJournal } from "../../src/host/journal.ts";
 import type { Run } from "../../src/host/run-folder.ts";
+import { whatNext } from "../../src/host/resume.ts";
 import { replay } from "../../src/run/journal.ts";
 import type { RunState } from "../../src/run/machine.ts";
 import { PHASES, type Phase } from "../../src/run/phases.ts";
@@ -72,7 +73,7 @@ describe("driving a run", () => {
       added: (_, state) => states.push(state),
     })).ended;
     expect(did).toEqual([...PHASES]);
-    expect(end).toMatchObject({ state: "done", finished: [...PHASES], reel: { path: run.request.reel, published: true } });
+    expect(end).toMatchObject({ state: "done", finished: [...PHASES], reel: { path: run.request.reel } });
     expect(types(run)).toEqual(["created", "phase-started record", "progress record", "phase-finished record",
       ...PHASES.slice(1).flatMap((phase) => [`phase-started ${phase}`, `phase-finished ${phase}`]), "done"]);
     expect(read(run)).toEqual(end);
@@ -128,13 +129,31 @@ describe("driving a run", () => {
     expect(gates).toEqual(["voice", "plan"]);
   });
 
+  it("fails when a phase is over its limit, after ending it", async () => {
+    const run = await startRun(folder());
+    run.request.limits = { ...run.request.limits, voice: 0.001 };
+    let ended = false;
+    const end = await drive(run, working(run, { async phase(phase, { signal }) {
+      if (phase !== "voice") return doPhase(run, phase);
+      await new Promise((_, reject) => { signal!.addEventListener("abort", () => { ended = true; reject(signal!.reason as Error); }); });
+    } })).ended;
+    expect(ended).toBe(true);
+    expect(end).toMatchObject({ state: "failed", finished: ["record"], ended: { phase: "voice",
+      message: "voicing took longer than its limit of 0.001 minutes (limits.voice in flow-reel.json)" } });
+  });
+
+  it("says where the reel is, and which newer run's is in its place", async () => {
+    const run = await startRun(folder());
+    const end = await drive(run, working(run, { async phase(phase) { await doPhase(run, phase); if (phase === "publish") return { reel: "/runs/1/reel", newer: 2 }; } })).ended;
+    expect(end.reel).toEqual({ path: "/runs/1/reel", newer: 2 });
+  });
+
   it("goes on after it failed, keeping the results that still hold", async () => {
     const run = await startRun(folder());
     await drive(run, working(run, { async phase(phase) { if (phase === "render") throw new Error("no disk space"); await doPhase(run, phase); } })).ended;
-    const journal = openJournal(run.dir);
-    journal.append({ type: "resumed" });
-    journal.close();
-    writeFileSync(join(run.dir, "plan/plan.txt"), "changed");
+    writeFileSync(join(run.dir, "plan/plan.txt"), "plam");
+    expect(await whatNext(run, read(run)!)).toEqual({ resume: "render" }); // only contents tell
+    expect(await whatNext(run, read(run)!, "contents")).toEqual({ resume: "plan" });
     const did: Phase[] = [];
     const end = await drive(run, working(run, { async phase(phase) { did.push(phase); await doPhase(run, phase); } })).ended;
     expect(end.state).toBe("done");

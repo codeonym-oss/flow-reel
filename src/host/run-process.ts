@@ -5,15 +5,13 @@ import { ownRun } from "./owner.ts";
 import { logFile, readRunIn } from "./run-folder.ts";
 import type { StartMessage, Tools } from "./start.ts";
 
-const tell = (message: StartMessage) => { if (process.connected) process.send?.(message, () => process.disconnect?.()); };
-
 async function main([dir, tools]: string[]): Promise<void> {
   const run = readRunIn(dir);
   if (!run) throw new Error(`${dir} holds no run`);
   const { engine, image } = JSON.parse(tools) as Tools;
   const log = logFile(dir);
   await ownRun(run, { phase: (phase, hooks) => runPhase(phase, { run, engine, image }, hooks),
-    log: (line) => appendFileSync(log, `${line}\n`) }, () => tell({ type: "started" }));
+    log: (line) => appendFileSync(log, `${line}\n`) }, () => { if (process.connected) process.send!({ type: "started" } satisfies StartMessage); });
 }
 
 main(process.argv.slice(2)).then(() => process.exit(0), (error: Error) => {

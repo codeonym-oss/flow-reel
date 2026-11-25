@@ -32,8 +32,8 @@ export type RunEvent =
   | { type: "failed"; phase: Phase; message: string }
   /** It ended without an error and without finishing: its process died, or nobody came (decision 007). */
   | { type: "stopped"; reason: StopReason }
-  /** The reel is complete; `published` is false when a newer run's reel is in its place (decision 010). */
-  | { type: "done"; reel: string; published: boolean }
+  /** The reel is complete, and where; `newer` is the run whose reel is in its place, when one is (decision 010). */
+  | { type: "done"; reel: string; newer?: number }
   /** A person asked an ended run to go on. */
   | { type: "resumed" };
 
@@ -60,8 +60,8 @@ export interface RunState {
   waiting?: { phase: Phase; behind?: string };
   /** Why it ended, unless it is done. */
   ended?: { phase?: Phase; message: string };
-  /** The finished reel. */
-  reel?: { path: string; published: boolean };
+  /** Where the finished reel is, and the newer run whose reel is in its place. */
+  reel?: { path: string; newer?: number };
 }
 
 /** The states a run doesn't leave by itself. */
@@ -140,7 +140,7 @@ export function next(run: RunState | undefined, event: RunEvent): RunState {
       return ended(run, "stopped", event.reason);
     case "done": {
       if (nextPhase(run)) return refuse(`its ${nextPhase(run)} phase isn't finished`);
-      return { state: "done", finished: run.finished, holding: false, cancelling: false, reel: { path: event.reel, published: event.published } };
+      return { state: "done", finished: run.finished, holding: false, cancelling: false, reel: { path: event.reel, ...(event.newer === undefined ? {} : { newer: event.newer }) } };
     }
   }
 }

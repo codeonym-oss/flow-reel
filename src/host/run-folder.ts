@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync }
 import { rename } from "node:fs/promises";
 import { basename, join, relative } from "node:path";
 import type { Brand } from "../composer/cards/brand.ts";
+import { DEFAULT_LIMITS, type Limits } from "../workspace/limits.ts";
 import type { Settings } from "../settings.ts";
 import { type Workspace, type WorkspaceScript, skipped } from "../workspace/workspace.ts";
 import { workspaceDir } from "./data.ts";
@@ -17,9 +18,12 @@ export interface RunRequest {
   workspace: { id: string; title: string; root: string };
   /** The script's name and path in the scripts folder, its hash, and one for the whole folder as it was copied. */
   script: { name: string; path: string; sha256: string; folder: string };
+  /** The scripts folder, relative to the workspace's root. */
+  scripts: string;
   settings: Settings;
   brand: Brand;
   sound: boolean;
+  limits: Limits;
   /** The folder the reel goes to. */
   reel: string;
   /** The environment variables that hold the voice's key. */
@@ -77,7 +81,8 @@ export async function createRun(data: string, { workspace, script, settings, sou
     const request: RunRequest = { version: 1, flowReel, workspace: { id, title, root: workspace.root },
       script: { name: script.name, path: script.path, sha256: await sha256(join(scripts, script.path)),
         folder: treeHash(await describeFiles(scripts, listFiles(scripts))) },
-      settings, brand: workspace.config.brand ?? {}, sound, reel, credentials, startedAt: new Date().toISOString() };
+      scripts: workspace.config.scripts, settings, brand: workspace.config.brand ?? {}, sound,
+      limits: { ...DEFAULT_LIMITS, ...workspace.config.limits }, reel, credentials, startedAt: new Date().toISOString() };
     writeDurable(join(building, REQUEST_FILE), `${JSON.stringify(request, null, 2)}\n`);
     for (;;) {
       const number = Math.max(0, ...runNumbers(runs)) + 1;
@@ -107,11 +112,8 @@ function keepClips(reel: string, to: string): void {
 
 const runNumbers = (runs: string): number[] => readdirSync(runs).filter((name) => /^[1-9]\d*$/.test(name)).map(Number);
 
-/** The numbers of a workspace's runs, newest first. */
-export function runNumbersOf(data: string, workspaceId: string): number[] {
-  const runs = runsDir(data, workspaceId);
-  return existsSync(runs) ? runNumbers(runs).sort((a, b) => b - a) : [];
-}
+/** The numbers of the runs in a workspace's folder of runs, newest first. */
+export const runNumbersIn = (runs: string): number[] => existsSync(runs) ? runNumbers(runs).sort((a, b) => b - a) : [];
 
 export const readRun = (data: string, workspaceId: string, number: number): Run | undefined =>
   readRunIn(join(runsDir(data, workspaceId), String(number)));

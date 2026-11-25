@@ -3,6 +3,7 @@
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join, posix } from "node:path";
 import { type Brand, validateBrand } from "../composer/cards/brand.ts";
+import { LIMITED, LONGEST, type Limits } from "./limits.ts";
 import type { Settings, VoiceSettings } from "../settings.ts";
 
 export const CONFIG_FILE = "flow-reel.json";
@@ -23,6 +24,8 @@ export interface Config extends ConfiguredSettings {
   /** Where reels go, relative to the root, with forward slashes. */
   output: string;
   brand?: Brand;
+  /** How many minutes a phase may take. */
+  limits?: Partial<Limits>;
 }
 
 /** A `flow-reel.json` from before 0.8: it sat beside the scripts and had no workspace. */
@@ -75,7 +78,7 @@ export function folderProblem(key: string, value: unknown): string | undefined {
 export function validateConfig(value: unknown): string[] {
   if (!isObject(value)) return ["must be a JSON object"];
   const errors: string[] = [];
-  const extra = unknownKey("", value, ["version", "workspace", "scripts", "output", "integration", "voice", "brand"]);
+  const extra = unknownKey("", value, ["version", "workspace", "scripts", "output", "integration", "voice", "brand", "limits"]);
   if (extra) errors.push(extra);
   if (value.version !== CONFIG_VERSION) errors.push(`version must be ${CONFIG_VERSION}`);
   if (!isObject(value.workspace)) errors.push("workspace must be an object");
@@ -94,7 +97,15 @@ export function validateConfig(value: unknown): string[] {
     const [scripts, output] = [value.scripts, value.output].map((path) => posix.normalize(`${path as string}/`));
     if (scripts.startsWith(output)) errors.push("output must not be the scripts folder or hold it; it can be inside it");
   }
-  return [...errors, ...validateSettings(value)];
+  return [...errors, ...validateLimits(value.limits), ...validateSettings(value)];
+}
+
+function validateLimits(value: unknown): string[] {
+  if (value === undefined) return [];
+  if (!isObject(value)) return ["limits must be an object"];
+  const extra = unknownKey("limits: ", value, LIMITED);
+  return [...(extra ? [extra] : []), ...LIMITED.filter((phase) => value[phase] !== undefined && !(typeof value[phase] === "number" && value[phase] > 0 && value[phase] <= LONGEST))
+    .map((phase) => `limits.${phase} must be a number of minutes, more than 0 and at most ${LONGEST}`)];
 }
 
 /** A config file as found: today's, or one from before 0.8, whose settings `init` takes over. */

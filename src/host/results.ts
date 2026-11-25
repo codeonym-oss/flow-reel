@@ -1,10 +1,10 @@
 // The results of a run's phases, as folders (GH-108 decision 015): a phase works in `<phase>.tmp/`, and its result counts
 // once the folder has its final name. `result.json` says what it was made from and what it holds, so a later phase, or a
 // resumed run, can tell whether it still holds.
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { INPUTS, type Phase, type ResultPhase } from "../run/phases.ts";
-import { type FileEntry, describeFiles, listFiles, renameWhenFree, sha256Text, syncTree, writeDurable } from "./files.ts";
+import { type FileEntry, describeFiles, listFiles, renameWhenFree, sha256 as hashFile, sha256Text, syncTree, writeDurable } from "./files.ts";
 
 const RESULT_FILE = "result.json";
 
@@ -39,8 +39,11 @@ export async function makeResult(runDir: string, phase: ResultPhase, work: (dir:
   await renameWhenFree(dir, resultDir(runDir, phase));
 }
 
-/** Why a phase's result can't be used, or undefined when it can: its inputs and its files are still what it says. */
-export async function resultProblem(runDir: string, phase: ResultPhase): Promise<string | undefined> {
+/**
+ * Why a phase's result can't be used, or undefined when it can: its inputs and its files are still what it says. Checking
+ * sizes is enough to tell a person; contents are checked before they are used.
+ */
+export async function resultProblem(runDir: string, phase: ResultPhase, check: "sizes" | "contents" = "contents"): Promise<string | undefined> {
   const dir = resultDir(runDir, phase);
   if (!existsSync(join(dir, RESULT_FILE))) return "it has no result";
   let result: Result;
@@ -52,9 +55,9 @@ export async function resultProblem(runDir: string, phase: ResultPhase): Promise
   const changed = Object.keys(inputs).find((name) => inputs[name] !== result.inputs[name]);
   if (changed) return `it was made from another ${changed}`;
   for (const { path, bytes, sha256 } of result.files) {
-    const [now] = existsSync(join(dir, path)) ? await describeFiles(dir, [path]) : [];
-    if (!now) return `${path} is missing`;
-    if (now.bytes !== bytes || now.sha256 !== sha256) return `${path} changed`;
+    const size = statSync(join(dir, path), { throwIfNoEntry: false })?.size;
+    if (size === undefined) return `${path} is missing`;
+    if (size !== bytes || (check === "contents" && await hashFile(join(dir, path)) !== sha256)) return `${path} changed`;
   }
   return undefined;
 }

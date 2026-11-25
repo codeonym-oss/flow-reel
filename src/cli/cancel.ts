@@ -8,7 +8,7 @@ export const cancel: Command = {
   usage: "flow-reel cancel <run or script> [--json]",
   async run(args) {
     const { positionals: [name], flags } = parse(args, { json: "switch" }, { min: 1, max: 1 });
-    const { id, run, state } = theRun(name, isGoing, ({ id, state }) => `${id} isn't running: it is ${state.state}`);
+    const { id, run, state } = await theRun(name, isGoing, ({ id, state }) => `${id} isn't running: it is ${state.state}`);
     if (!state.cancelling) {
       try { await sendCommand(run.dir, "cancel"); }
       catch (error) { throw new Error(`${id} can't be cancelled: ${(error as Error).message}`, { cause: error }); }
