@@ -1,0 +1,26 @@
+- 2026-11-25: shaping started, from the person's words: "the composer container shall offer a web-app to inspect running jobs, step by step compositions, replyability, importing a script directly from a path and scripts will be suffixed with *.reel.ts|js .... i need to mock features offered by cypress server! so the composer can run either from CLI, or from the web app! it shall has a very unqiue and beutiful design!"
+- 2026-11-25: decision 001, the app is a rehearsal room.
+- 2026-11-25: decision 002, the server runs in the composer container.
+- 2026-11-25: decision 003, TypeScript core, Python voice. Decision 002 is being questioned (several workspaces); the architecture is not settled.
+- 2026-11-25: decisions 001 to 003 withdrawn; they were recorded from short replies that were not agreement. Starting again from no previous idea.
+- 2026-11-25: decisions 004 to 007, agreed or stated explicitly: container runner first, a dead runner loses its recording, global and local config, run data outside the project.
+- 2026-11-25: decisions 008 and 009, keys in the keychain with a protected file as fallback, workspaces are initialized.
+- 2026-11-25: decision 010, the config names a key and its scope; prefixes are internal.
+- 2026-11-25: decision 011, a key is tied to its server.
+- 2026-11-25: decision 012, one recording, pauses cut out.
+- 2026-11-25: decision 013, two execution modes.
+- 2026-11-25: decision 014 supersedes 013, one kind of run.
+- 2026-11-25: decision 015, the interrupt word.
+- 2026-11-25: decisions 016 and 017, held runs wait then stop; scripts can redact or blur.
+- 2026-11-25: decision 018 supersedes 012, capture stops while a run is held.
+- 2026-11-25: decision 019, interrupt is the only hold word in scripts.
+- 2026-11-25: decision 020, the same tab inside the studio; the clock is fixed in this work.
+- 2026-11-25: decision 021, the first studio has five screens.
+- 2026-11-25: decision 022, the local voice is a separate optional server.
+- 2026-11-25: decision 023, each run has its own process.
+- 2026-11-25: decision 024, the studio looks like a score, for now.
+- 2026-11-25: decision 025, nothing is released until it works.
+- 2026-11-25: decisions 026 (studio branch) and 027 (CLI and studio, stated earlier and recorded late). The questions at this level are finished; waiting for the person to confirm a shared understanding.
+- 2026-11-25: decisions 028 to 032 confirmed with the shared understanding. Kind changed from story to epic, slug from composer-web-app to flow-reel-studio. Epic and five stories drafted.
+- 2026-11-25: issue GH-107 created; folder rename waits until every issue of the epic exists.
+- 2026-11-25: stories GH-108 to GH-112 created; folder renamed to GH-107-flow-reel-studio.
