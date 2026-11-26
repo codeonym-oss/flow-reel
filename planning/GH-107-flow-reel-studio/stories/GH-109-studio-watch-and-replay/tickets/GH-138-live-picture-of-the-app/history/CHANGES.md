@@ -3,3 +3,4 @@
 - 2026-11-26: ticket pass: decisions 001 to 004, impl.md; status planned.
 - 2026-11-26: building; gate 4 measured (decision 003).
 - 2026-11-26: built; PR #146; status in-review.
+- 2026-11-26: done: merged into studio.

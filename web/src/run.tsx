@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import type { ClientMessage, LiveRun, RunEntry, RunLog, RunView, ServerMessage, StartedRun } from "../../src/studio/api.ts";
 import { isGoing, send, shown, took, usePolled, when } from "./data.ts";
 import { navigate } from "./route.ts";
+import { Score } from "./score.tsx";
 import { label } from "./workspaces.tsx";
 
 const PHASES = [["record", "Recording"], ["voice", "Voicing"], ["plan", "Planning"], ["render", "Rendering"], ["publish", "Publishing"]] as const;
@@ -11,7 +12,7 @@ const DOING: Record<string, string> = Object.fromEntries(PHASES.map(([phase, nam
 const AGAIN_MS = 2000;
 
 /** The live picture's newest JPEG, as an object URL, and who shows it: a picture doesn't re-render the screen. */
-interface Pictures { latest(): string | undefined; subscribe(show: (url: string) => void): () => void }
+interface Pictures { latest(): string | undefined; subscribe(show: (url: string) => void): () => void; snapshot(): string | undefined }
 
 interface Watched { run?: LiveRun; entries: RunEntry[]; problem?: string; gone?: boolean; live?: boolean; pictures: Pictures; cancel: () => void }
 
@@ -21,12 +22,17 @@ function useRunSocket(id: string): Watched {
   const socket = useRef<WebSocket | undefined>(undefined);
   const [pictures] = useState(() => {
     let latest: string | undefined;
+    let blob: Blob | undefined;
     const shows = new Set<(url: string) => void>();
     return {
       latest: () => latest,
+      /** A URL of its own for the newest picture, kept by the score until the page closes (GH-139 decision 003). */
+      snapshot: () => blob && URL.createObjectURL(blob),
       subscribe: (show: (url: string) => void) => { shows.add(show); return () => { shows.delete(show); }; },
-      put(url: string | undefined) {
+      put(picture: Blob | undefined) {
         const before = latest;
+        const url = picture && URL.createObjectURL(picture);
+        blob = picture;
         latest = url;
         if (url) for (const show of shows) show(url);
         if (before) URL.revokeObjectURL(before);
@@ -44,7 +50,7 @@ function useRunSocket(id: string): Watched {
       ws.onmessage = (event) => {
         // A binary message is a picture of the app while it is recorded (GH-138).
         if (event.data instanceof Blob) {
-          pictures.put(URL.createObjectURL(event.data));
+          pictures.put(event.data);
           setState((before) => before.live ? before : { ...before, live: true });
           return;
         }
@@ -145,6 +151,7 @@ function Watch({ id, toast }: { id: string; toast: (text: string) => void }) {
           </div></section>
         </div>
       </div>
+      <Score run={run} entries={entries} snapshots={live ? pictures : undefined} />
     </section>
   );
 }

@@ -235,3 +235,15 @@ describe("overlays (GH-76 decision 007)", () => {
     void advance;
   });
 });
+
+it("says each step as it opens, with its start on the clock (GH-139 decision 001)", async () => {
+  let now = 0;
+  const opened: unknown[] = [];
+  const timer = stepTimer({ clock: { now: () => now }, sleep: async (ms) => { now += ms; }, idle: async () => true,
+    opened: (step) => opened.push(step) });
+  timer.comment("First.");
+  await timer.action(async () => { now += 40; });
+  await timer.action(async () => { now += 10; });
+  await timer.finish();
+  expect(opened).toEqual([{ index: 0, comment: "First.", startMs: 100 }]);
+});

@@ -5,7 +5,7 @@ import { type IncomingMessage, type ServerResponse, createServer } from "node:ht
 import type { AddressInfo } from "node:net";
 import { extname, join, resolve, sep } from "node:path";
 import type { Duplex } from "node:stream";
-import { type AddWorkspace, type Hello, type ClientMessage, type OnSaveSwitch, type Problem, type ResumeRun, STUDIO_API_VERSION, type ServerMessage, type StartRun,
+import { type AddWorkspace, type Hello, type ClientMessage, type OnSaveSwitch, type Problem, type ResumeRun, type Score, STUDIO_API_VERSION, type ServerMessage, type StartRun,
   type StartedRun } from "./api.ts";
 import { type Verdict, check as checkLock } from "./locks.ts";
 import { type Connection, accept, isUpgrade } from "./websocket.ts";
@@ -18,6 +18,7 @@ import { sendCommand, watchPictures } from "../host/control.ts";
 import { newestOnly } from "../host/screen.ts";
 import { resumeRun } from "../host/new-run.ts";
 import { runState } from "../host/owner.ts";
+import { scoreOf, stepPicture } from "../host/score.ts";
 import { type FoundRun, findRun, followRun, liveRun, logTail } from "./live.ts";
 import { OnSave } from "./on-save.ts";
 import { openScript, scriptOf, scripts, source, workspaceOf } from "./scripts.ts";
@@ -182,6 +183,11 @@ async function api(request: IncomingMessage, url: URL, { data, version, onSave, 
       return { on: onSave.isOn(file) };
     }
     case "GET /api/log": return logTail(findRun(data, text(url.searchParams.get("run"), "run")).run.dir);
+    case "GET /api/score": {
+      const score: Score | undefined = scoreOf(findRun(data, text(url.searchParams.get("run"), "run")).run.dir);
+      if (!score) throw new Refused(404, "this run has no recording yet");
+      return score;
+    }
     case "POST /api/runs/resume": {
       const found = findRun(data, text((await body(request) as Partial<ResumeRun> | null)?.run, "run"));
       const state = runState(found.run.dir);
@@ -217,6 +223,17 @@ export async function startStudio({ port, key, web, data, version, start = start
     if (!verdict.allow) return refuse(response, verdict);
     const url = new URL(request.url ?? "/", "http://studio");
     const { pathname } = url;
+    // A step's picture is the one answer of the API that isn't JSON (GH-139 decision 003).
+    if (pathname === "/api/step-picture" && request.method === "GET") {
+      try {
+        const step = Number(url.searchParams.get("step"));
+        const file = stepPicture(findRun(data, text(url.searchParams.get("run"), "run")).run.dir, step);
+        if (!file) throw new Refused(404, `step ${url.searchParams.get("step")} has no picture`);
+        response.writeHead(200, { ...HEADERS, "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=3600" });
+        createReadStream(file).pipe(response);
+      } catch (error) { problem(response, error instanceof Refused ? error.status : 500, (error as Error).message); }
+      return;
+    }
     if (pathname.startsWith("/api/")) {
       api(request, url, context).then(
         (answer) => answer === undefined ? problem(response, 404, `there is no ${request.method} ${pathname}`) : json(response, answer),
