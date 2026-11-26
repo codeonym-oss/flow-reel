@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
+import { COMMANDS } from "../../src/cli/commands.ts";
 import { hashFiles } from "../../src/reel.ts";
 
 const cli = (...args: string[]) => spawnSync(process.execPath, ["src/cli.ts", ...args], { encoding: "utf8" });
@@ -17,6 +18,10 @@ it("rejects malformed arguments with the command's usage, before anything runs",
     expect({ args, status, stderr }).toEqual({ args, status: 2, stderr: expect.stringContaining(`usage: flow-reel ${args[0]} `) });
   }
 }, 30_000); // 13 CLI processes in a row, beside the other unit files' processes: 10 s isn't enough on a busy runner.
+
+it("takes --json for every command", () => {
+  for (const [name, { usage }] of Object.entries(COMMANDS)) expect([name, usage]).toEqual([name, expect.stringContaining("[--json]")]);
+});
 
 it("lists its commands, and shows one command's usage", () => {
   expect(cli("--help")).toMatchObject({ status: 0, stdout: expect.stringMatching(/^usage: flow-reel <command>\n\n {2}init .*\n {2}compose /) });
@@ -53,10 +58,16 @@ it("verifies a reel: 0 when whole, 1 naming a changed file, 2 for a folder that 
     writeFileSync(join(dir, "manifest.json"), JSON.stringify({ version: 1, script: { file: "demo.ts", sha256: "a".repeat(64) },
       composer: { version: "0.2.0", platform: "linux/amd64" }, integration: "playwright",
       files: hashFiles(dir, ["video.mp4"]) }));
-    const verify = () => spawnSync(process.execPath, ["src/cli.ts", "verify", dir], { encoding: "utf8" });
+    const verify = (...args: string[]) => spawnSync(process.execPath, ["src/cli.ts", "verify", dir, ...args], { encoding: "utf8" });
+    const json = (status: number, errors: string[], differences: string[]) =>
+      expect(verify("--json")).toMatchObject({ status, stdout: `${JSON.stringify({ reel: dir, matches: status === 0, errors, differences })}\n`, stderr: "" });
     expect(verify()).toMatchObject({ status: 0, stdout: "Reel matches its manifest (1 file).\n" });
+    json(0, [], []);
     writeFileSync(join(dir, "video.mp4"), "other");
     expect(verify()).toMatchObject({ status: 1, stdout: `${dir}: video.mp4 changed\n` });
+    json(1, [], [`${dir}: video.mp4 changed`]);
+    // Comparing it with itself stops at the same difference.
+    expect(cli("compare", dir, dir, "--json")).toMatchObject({ status: 2, stdout: expect.stringContaining(`"matches":false,"errors":["${dir}: video.mp4 changed"`) as string });
     rmSync(join(dir, "manifest.json"));
     expect(verify()).toMatchObject({ status: 2, stderr: expect.stringContaining(`${dir}: manifest.json:`) });
   } finally { rmSync(dir, { recursive: true, force: true }); }

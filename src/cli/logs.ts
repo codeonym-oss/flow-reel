@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { logFile } from "../host/run-folder.ts";
 import { type Command, EXIT, parse } from "./command.ts";
-import { latestRun } from "./runs.ts";
+import { latestRun } from "./find.ts";
 
 export const logs: Command = {
   summary: "print what a run's script, browser and renderer printed",

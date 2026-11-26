@@ -11,14 +11,14 @@ import { type Command, EXIT, UsageError, parse } from "./command.ts";
 export const init: Command = {
   summary: "make a project a workspace",
   usage: "flow-reel init [folder] [--title <title>] [--description <text>] [--slug <name>] [--scripts <folder>] " +
-    "[--output <folder>]\n       flow-reel init [folder] --alias <name>",
+    "[--output <folder>] [--json]\n       flow-reel init [folder] --alias <name> [--json]",
   async run(args) {
     const { positionals: [folder = "."], flags } = parse(args, { title: "text", description: "text", slug: "text", scripts: "text",
-      output: "text", alias: "text" }, { min: 0, max: 1 });
+      output: "text", alias: "text", json: "switch" }, { min: 0, max: 1 });
     const root = resolve(folder);
     if (!existsSync(root)) throw new UsageError(`${folder} doesn't exist`);
     const data = dataDir();
-    if (flags.alias !== undefined) return giveAlias(data, root, flags.alias);
+    if (flags.alias !== undefined) return giveAlias(data, root, flags.alias, flags.json);
 
     const found = survey(root);
     const answers = await ask(flags, proposedScripts(found), (slug) => slugOwner(data, slug));
@@ -29,11 +29,16 @@ export const init: Command = {
     rememberWorkspace(data, workspace);
 
     const { config } = workspace;
+    const renames = scriptsToRename(workspace);
+    if (flags.json) {
+      console.log(JSON.stringify({ workspace: config.workspace, root, scripts: config.scripts, output: config.output,
+        ...(found.legacy ? { tookOver: found.legacy.file } : {}), renames }));
+      return EXIT.ok;
+    }
     const at = (path: string) => slashes(relative(process.cwd(), path));
     console.log(`${config.workspace.title} (${config.workspace.slug}) is a workspace now: ${at(join(root, CONFIG_FILE))}`);
     console.log(`Scripts go in ${config.scripts}/ as <name>.reel.ts; reels are written to ${config.output}/`);
     if (found.legacy) console.log(`Took over the settings of ${at(found.legacy.file)}`);
-    const renames = scriptsToRename(workspace);
     if (renames.length) console.log(`Rename these scripts:\n${renames.map(({ from, to }) => `  git mv ${from} ${to}`).join("\n")}`);
     return EXIT.ok;
   },
@@ -42,12 +47,13 @@ export const init: Command = {
 const taken = (slug: string, owner: KnownWorkspace) => `"${slug}" is already the name of ${owner.title} (${owner.roots[0]}) on this ` +
   "computer: choose another title, or another name with --slug";
 
-function giveAlias(data: string, root: string, alias: string): number {
+function giveAlias(data: string, root: string, alias: string, json?: boolean): number {
   if (!SLUG.test(alias)) throw new UsageError(`--alias must be lowercase words joined by hyphens, not ${JSON.stringify(alias)}`);
   const found = readConfig(root);
   if (found?.kind !== "config") throw new Error(`${root} isn't a workspace: run \`flow-reel init\` without --alias first`);
   const known = rememberWorkspace(data, workspaceAt(root, found.config), alias);
-  console.log(`${known.title} is ${localSlug(known)} on this computer`);
+  if (json) console.log(JSON.stringify({ workspace: known.id, title: known.title, alias }));
+  else console.log(`${known.title} is ${localSlug(known)} on this computer`);
   return EXIT.ok;
 }
 

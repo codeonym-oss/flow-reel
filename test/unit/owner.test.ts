@@ -17,7 +17,7 @@ import { startProcess } from "../../src/host/start.ts";
 import { PHASES } from "../../src/run/phases.ts";
 import { resolveSettings } from "../../src/settings.ts";
 import { findWorkspace } from "../../src/workspace/workspace.ts";
-import { folder, project, startRun } from "./runs.ts";
+import { CONFIG, folder, project, startRun } from "./runs.ts";
 
 // A process starts slowly on a busy Windows machine.
 vi.setConfig({ testTimeout: 60_000 });
@@ -247,6 +247,21 @@ describe("the commands", () => {
     expect(runState(run.dir)).toMatchObject({ state: "running" });
     await cli("cancel", "1");
   });
+});
+
+it("a run's process trims the older runs of its script when it ends (GH-120)", async () => {
+  const [data, root] = [folder(), project()];
+  writeFileSync(join(root, "flow-reel.json"), JSON.stringify({ ...CONFIG, keepRuns: 1 }));
+  const runs: Run[] = [];
+  for (const _ of [1, 2]) {
+    const run = await startRun(data, root);
+    writeFileSync(join(run.dir, "go"), "");
+    await startProcess(run, { engine: ENGINE, image: "none" }, PROGRAM);
+    await entries(run.dir);
+    runs.push(run);
+  }
+  await until(() => !existsSync(join(runs[0].dir, "scripts")));
+  expect(existsSync(join(runs[1].dir, "scripts"))).toBe(true);
 });
 
 describe("heavy work", () => {

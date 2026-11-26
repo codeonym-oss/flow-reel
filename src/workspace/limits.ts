@@ -12,6 +12,9 @@ export const LONGEST = 1440;
 
 export const DEFAULT_LIMITS: Limits = { record: 60, voice: 60, render: 120 };
 
+/** How many finished runs of a script keep their heavy files. */
+export const DEFAULT_KEEP_RUNS = 5;
+
 const DOING: Record<LimitedPhase, string> = { record: "recording", voice: "voicing", render: "rendering" };
 
 export const limitMs = (limits: Limits, phase: Phase): number | undefined =>

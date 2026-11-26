@@ -4,6 +4,7 @@ import { runPhase } from "./compose.ts";
 import { ownRun } from "./owner.ts";
 import { isHeavy, takeTurn } from "./queue.ts";
 import { logFile, readRunIn } from "./run-folder.ts";
+import { trim } from "./retention.ts";
 import type { StartMessage, Tools } from "./start.ts";
 
 async function main([dir, tools]: string[]): Promise<void> {
@@ -14,6 +15,7 @@ async function main([dir, tools]: string[]): Promise<void> {
   await ownRun(run, { phase: (phase, hooks) => runPhase(phase, { run, engine, image }, hooks),
     turn: async (phase, behind, signal) => isHeavy(phase, run.request.settings) ? takeTurn(run.dir, behind, signal) : undefined,
     log: (line) => appendFileSync(log, `${line}\n`) }, () => { if (process.connected) process.send!({ type: "started" } satisfies StartMessage); });
+  await trim(run);
 }
 
 main(process.argv.slice(2)).then(() => process.exit(0), (error: Error) => {

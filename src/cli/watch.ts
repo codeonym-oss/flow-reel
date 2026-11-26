@@ -8,7 +8,7 @@ import { type Run, logFile } from "../host/run-folder.ts";
 import { type RunState, isEnded, next } from "../run/machine.ts";
 import { type Command, EXIT, parse } from "./command.ts";
 import { jsonView, liveView, plainView, silentView } from "./progress.ts";
-import { latestRun } from "./runs.ts";
+import { latestRun } from "./find.ts";
 
 const CODES: Record<"done" | "failed" | "stopped" | "cancelled", number> =
   { done: EXIT.ok, failed: EXIT.failed, stopped: EXIT.stopped, cancelled: EXIT.cancelled };
