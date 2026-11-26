@@ -1,3 +1,15 @@
 - 2026-11-25: drafted with the epic; its tickets come from its own pass.
 - 2026-11-25: issue GH-109 created; folder rename waits until every issue of the epic exists.
 - 2026-11-25: folder renamed to GH-109-studio-watch-and-replay.
+- 2026-11-26: story pass started; decision 001 (Preact and Vite).
+- 2026-11-26: decision 002 (a light second grab of the screen).
+- 2026-11-26: decision 003 (`flow-reel studio` in the foreground).
+- 2026-11-26: decision 004 (four screens approved as a mockup before the split).
+- 2026-11-26: decision 005 (the Orbit logo, in the Dusk colors; replaces the colors of epic decision 024).
+- 2026-11-26: decision 006 (the studio theme: meanings of the colors, tokens, type, components).
+- 2026-11-26: decision 007 (step pictures in the score, on by default).
+- 2026-11-26: decision 008 (HTTP for lists, a WebSocket per watched run, one shared file of types).
+- 2026-11-26: decision 009 (a watcher that falls behind gets only the newest picture).
+- 2026-11-26: decision 010 (three locks on the studio server).
+- 2026-11-26: decision 011 (seven tickets); draft.md rewritten; seven tickets drafted.
+- 2026-11-26: tickets created as issues #134–#140.

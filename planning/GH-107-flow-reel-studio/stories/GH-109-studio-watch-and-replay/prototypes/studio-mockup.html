@@ -1,0 +1,1076 @@
+<meta charset="utf-8">
+<title>flow-reel Studio Mockup</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* PROTOTYPE v2 (GH-109 decision 004): throwaway mockup of the studio's four screens. Sample data: the saved-views example.
+   Idea: an engraved score. A step is a measure (bar lines across every lane), comments are lyrics, sounds are note heads,
+   zooms are hairpins, a polish frame is a fermata, cards are rehearsal marks. The app's picture is the brightest thing. */
+:root, :root[data-theme="dark"] {
+  /* Theme: decisions 005 and 006. Dark is the default. */
+  --paper: #0a0a0a; --sheet: #121212; --raised: #1a1a1a; --ink: #f5f5f0; --ink-2: #a3a39e; --ink-3: #8a8a84;
+  --rule: #2e2e2e; --rule-2: #1f1f1f; --glass: #ffffff0c; --veil: #000000a0;
+  --now: #ffd400; --now-soft: rgba(255, 212, 0, .13); --you: #ffd400; --on-you: #0a0a0a;
+  --run: #10b981; --run-ink: #34d399; --run-soft: rgba(16, 185, 129, .16);
+  --fail: #ff6b5c; --fail-soft: rgba(255, 107, 92, .14);
+  --grad: linear-gradient(135deg, #ffd400, #10b981);
+  --app-shadow: 0 0 0 1px #ffffff12, 0 28px 70px -24px #000000d0; color-scheme: dark;
+  --ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --mark: "IBM Plex Sans", system-ui, sans-serif;
+}
+:root[data-theme="light"] {
+  --paper: #fafaf7; --sheet: #ffffff; --raised: #f2f2ec; --ink: #0a0a0a; --ink-2: #52524d; --ink-3: #6b6b64;
+  --rule: #dcdcd2; --rule-2: #ecece4; --glass: #0a0a0a0a; --veil: #0a0a0a66;
+  --now: #8a6d00; --now-soft: rgba(255, 212, 0, .24); --you: #ffd400; --on-you: #0a0a0a;
+  --run: #047857; --run-ink: #047857; --run-soft: rgba(5, 150, 105, .1);
+  --fail: #c62828; --fail-soft: rgba(198, 40, 40, .08);
+  --grad: linear-gradient(135deg, #e8b500, #059669);
+  --app-shadow: 0 1px 0 #0000000a, 0 22px 50px -22px #1a1d2455; color-scheme: light;
+}
+
+* { box-sizing: border-box }
+html, body { height: 100% }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 14px/1.5 var(--ui); font-feature-settings: "ss02", "zero"; -webkit-font-smoothing: antialiased }
+button { font: inherit; color: inherit; cursor: pointer }
+:focus-visible { outline: 2px solid var(--now); outline-offset: 2px; border-radius: 4px }
+.mono { font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums }
+.mark { font-family: var(--ui); font-weight: 600 }
+[hidden] { display: none !important }
+.muted { color: var(--ink-2) } .faint { color: var(--ink-3) }
+.label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); font-weight: 500 }
+
+.shell { height: 100%; display: grid; grid-template-columns: 76px minmax(0, 1fr); grid-template-rows: 54px minmax(0, 1fr) }
+.rail { grid-row: 1 / 3; border-right: 1px solid var(--rule); display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 0 16px max(0px, env(safe-area-inset-left, 0px)) }
+.logo { width: 34px; height: 34px; margin-bottom: 14px; display: grid; place-items: center }
+.rail a { width: 60px; display: grid; justify-items: center; gap: 3px; padding: 8px 0 7px; border-radius: 10px; color: var(--ink-2); text-decoration: none; font-size: 11px; position: relative }
+.rail a:hover { background: var(--glass); color: var(--ink) }
+.rail a[aria-current="page"] { color: var(--ink) }
+.rail a[aria-current="page"]::before { content: ""; position: absolute; left: -8px; top: 12px; bottom: 12px; width: 2px; background: var(--now); border-radius: 2px }
+.rail a .badge { position: absolute; top: 4px; right: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--you); box-shadow: 0 0 0 2px var(--paper) }
+.rail a.off { opacity: .4; pointer-events: none }
+.rail svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.4 }
+.rail .spacer { flex: 1 }
+
+.top { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--rule); min-width: 0; position: relative;
+  padding-left: 20px; padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+.crumbs { display: flex; gap: 8px; align-items: center; min-width: 0; overflow: hidden; white-space: nowrap }
+.crumbs b { font-weight: 500 } .crumbs i { color: var(--ink-3); font-style: normal }
+.top .sp { flex: 1 }
+.slot { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); white-space: nowrap }
+.slot svg { width: 22px; height: 12px }
+.live { display: flex; align-items: center; gap: 8px; padding: 5px 10px 5px 9px; border: 1px solid var(--rule); border-radius: 99px; background: var(--sheet); font-size: 12.5px; white-space: nowrap }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--run); flex: none }
+.pulse { animation: pulse 1.6s ease-in-out infinite }
+@keyframes pulse { 50% { opacity: .35 } }
+.kbd { font: 11px var(--mono); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; color: var(--ink-2); background: var(--sheet); white-space: nowrap }
+.iconbtn { border: 1px solid var(--rule); background: var(--sheet); border-radius: 8px; height: 32px; min-width: 32px; padding: 0 9px; display: flex; gap: 8px; align-items: center; justify-content: center; color: var(--ink-2) }
+.iconbtn:hover { color: var(--ink) }
+.iconbtn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5 }
+.pop { position: absolute; top: 48px; right: 120px; width: 330px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; box-shadow: 0 24px 60px -20px #0006; z-index: 40; padding: 8px; display: grid; gap: 2px }
+.pop a { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 9px 10px; border-radius: 8px; color: inherit; text-decoration: none }
+.pop a:hover { background: var(--glass) }
+.pop .pbar { grid-column: 1 / 3; height: 3px; background: var(--rule-2); border-radius: 2px; overflow: hidden } .pop .pbar i { display: block; height: 100%; background: var(--grad) }
+
+main { overflow: auto; min-width: 0 }
+.screen { padding-block: 24px 64px; padding-left: 28px; padding-right: max(20px, env(safe-area-inset-right, 0px)); display: grid; gap: 20px; max-width: 1680px }
+.screen[hidden] { display: none }
+.hd { display: flex; align-items: flex-end; gap: 12px 16px; flex-wrap: wrap }
+.hd h1 { margin: 0; font: 600 28px/1.15 var(--ui); letter-spacing: -.02em }
+.hd h2 { margin: 0; font: 600 18px/1.2 var(--ui); letter-spacing: -.01em }
+.hd .sub { color: var(--ink-2); padding-bottom: 4px }
+.hd .sp { flex: 1 }
+.meta { display: flex; gap: 8px 18px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2) }
+.meta b { color: var(--ink); font-weight: 500 }
+
+.btn { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--rule); background: var(--sheet); display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; text-decoration: none; color: var(--ink) }
+.btn:hover { border-color: var(--ink-3) }
+.btn.sm { height: 26px; padding: 0 9px; font-size: 12.5px }
+.btn.primary { background: var(--you); color: var(--on-you); border-color: var(--you); font-weight: 600 } .btn.primary:hover { filter: brightness(1.06); border-color: var(--you) }
+.btn.danger { color: var(--fail); border-color: color-mix(in srgb, var(--fail) 40%, var(--rule)) }
+.btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6 }
+.field { height: 32px; border: 1px solid var(--rule); background: var(--sheet); border-radius: 8px; padding: 0 10px; font: 12.5px var(--mono); color: var(--ink); min-width: 0 }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: var(--sheet) }
+.seg button { border: 0; background: none; height: 28px; padding: 0 10px; font-size: 12.5px; color: var(--ink-2); white-space: nowrap }
+.seg button + button { border-left: 1px solid var(--rule) }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper) }
+
+/* State marks: by form as well as color */
+.st { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap }
+.st::before { content: ""; width: 9px; height: 9px; border-radius: 50%; flex: none; box-sizing: border-box }
+.st.done::before { background: var(--run) }
+.st.running { color: var(--run-ink) } .st.running::before { background: var(--run); box-shadow: 0 0 0 3px var(--run-soft) }
+.st.stopped::before { border: 1.5px solid var(--ink-2) }
+.st.queued::before, .st.waiting::before { border: 1.5px dashed var(--ink-2) }
+.st.failed { color: var(--fail) } .st.failed::before { content: "✕"; width: auto; height: auto; font-size: 11px; line-height: 1; border-radius: 0 }
+.st.cancelled { color: var(--ink-3) } .st.cancelled::before { border: 1.5px solid var(--ink-3); background: linear-gradient(135deg, transparent 42%, var(--ink-3) 42% 58%, transparent 58%) }
+.origin { font: 11.5px var(--mono); color: var(--ink-2); border: 1px solid var(--rule); border-radius: 5px; padding: 1px 6px; white-space: nowrap }
+
+.card { background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; min-width: 0 }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px }
+.tbl th { text-align: left; font-weight: 500; color: var(--ink-3); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 0 12px 8px 0; border-bottom: 1px solid var(--rule) }
+.tbl td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--rule-2); white-space: nowrap; vertical-align: middle }
+.tbl tr.click { cursor: pointer } .tbl tr.click:hover td { background: var(--glass) }
+.scrollx { overflow-x: auto; min-width: 0 }
+.phases { display: inline-flex; gap: 2px } .phases i { width: 14px; height: 4px; border-radius: 2px; background: var(--rule) }
+.phases i.d { background: var(--ink) } .phases i.n { background: var(--run) } .phases i.x { background: var(--fail); opacity: .6 }
+.why { color: var(--fail); font: 11.5px var(--mono) }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center }
+.fchip { height: 26px; padding: 0 10px; border-radius: 99px; border: 1px solid var(--rule); background: none; font-size: 12.5px; color: var(--ink-2) }
+.fchip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink) }
+
+/* Workspaces */
+.ws-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, .8fr); gap: 14px }
+.ws { padding: 16px; display: grid; gap: 12px; color: inherit; text-decoration: none }
+.ws:hover { border-color: var(--ink-3) }
+.ws h3 { margin: 0; font-size: 16px; font-weight: 600 } .ws .path { font: 12px var(--mono); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.ws .row { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap }
+.strip { display: flex; gap: 3px; align-items: flex-end; height: 28px }
+.strip i { flex: 1; background: var(--ink); opacity: .82; border-radius: 1px; min-width: 3px }
+.strip i.f { background: var(--fail); opacity: 1 } .strip i.c { background: var(--ink-3); opacity: .45 } .strip i.r { background: var(--run); opacity: 1; animation: pulse 1.6s infinite }
+.disk { height: 4px; border-radius: 3px; background: var(--rule-2); overflow: hidden } .disk i { display: block; height: 100%; background: var(--ink-2) }
+.add { border: 1px dashed var(--rule); border-radius: 14px; padding: 16px; display: grid; gap: 10px; align-content: start }
+.add .line { display: flex; gap: 8px } .add .field { flex: 1 }
+.today { padding: 14px 16px 10px; display: grid; gap: 8px }
+
+/* Scripts */
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 18px; align-items: start }
+.list { display: grid; gap: 10px }
+.srow { padding: 14px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px; cursor: pointer; text-align: left; width: 100% }
+.srow[aria-current="true"] { border-color: var(--ink) }
+.srow h3 { margin: 0; font: 500 15px var(--mono) }
+.counts { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2) } .counts b { color: var(--ink); font: 500 13px var(--mono) }
+.toggle { display: flex; align-items: flex-start; gap: 10px; font-size: 13px }
+.sw { width: 32px; height: 18px; border-radius: 99px; background: var(--rule); position: relative; flex: none; border: 0; margin-top: 1px; padding: 0 }
+.sw::after { content: ""; position: absolute; width: 14px; height: 14px; top: 2px; left: 2px; border-radius: 50%; background: var(--sheet); transition: left .15s }
+.sw[aria-checked="true"] { background: var(--run) } .sw[aria-checked="true"]::after { left: 16px }
+.src { overflow: hidden }
+.src-hd { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--rule-2); flex-wrap: wrap }
+.code { margin: 0; padding: 10px 0; font: 12.5px/1.75 var(--mono); overflow-x: auto }
+.code div { display: grid; grid-template-columns: 22px 38px minmax(0, 1fr); white-space: pre; padding-right: 14px }
+.code div:hover { background: var(--glass) }
+.code .g { display: grid; place-items: center } .code .g svg { width: 12px; height: 12px }
+.code .ln { color: var(--ink-3); text-align: right; padding-right: 14px; user-select: none }
+.code .chg { box-shadow: inset 3px 0 0 var(--ink-2) }
+.code .on { background: var(--now-soft) }
+.tk-c { color: var(--ink-3); font-style: italic } .tk-s { color: var(--ink) ; font-weight: 500 } .tk-k { color: var(--ink-2) }
+
+/* Run and Reel: the stage */
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; align-items: stretch }
+.stage > .panel { display: flex; flex-direction: column } #s-run .stage > .panel > section:first-child { flex: 1 } #s-reel .panel > section:nth-child(2) { flex: 1 }
+.frame { position: relative; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: var(--app-shadow); aspect-ratio: 16 / 9; max-width: 100%; container-type: inline-size; isolation: isolate }
+.frame-bar { position: absolute; left: 10px; top: 10px; right: 10px; z-index: 6; display: flex; gap: 6px; pointer-events: none }
+.frame-bar .r { margin-left: auto; pointer-events: auto; display: flex; gap: 6px }
+.chip { font: 11px var(--mono); padding: 3px 8px; border-radius: 99px; background: #15171ccc; color: #fff; display: inline-flex; align-items: center; gap: 6px; backdrop-filter: blur(6px); border: 0; white-space: nowrap }
+button.chip[aria-pressed="true"] { background: #fff; color: #15171c; box-shadow: 0 0 0 1px #15171c33 }
+.caption { position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%); max-width: 78%; text-align: center; z-index: 5; background: #000000b8; color: #fff; padding: .35em .8em; border-radius: .35em; font-size: 1.6cqw }
+.target { position: absolute; z-index: 4; border: 2px dashed #e0a800; border-radius: 4px; pointer-events: none; transition: all .15s }
+.target span { position: absolute; left: -1.5px; bottom: 100%; margin-bottom: 3px; font: 10px var(--mono); background: #ffd400; color: #0a0a0a; font-weight: 500; padding: 1px 5px; border-radius: 3px; white-space: nowrap }
+.veil { position: absolute; inset: 0; z-index: 7; display: grid; place-items: center; text-align: center; color: #fff; background: rgba(10, 10, 10, .62); padding: 6%; backdrop-filter: blur(6px) saturate(.6); -webkit-backdrop-filter: blur(6px) saturate(.6) }
+.veil h3 { margin: 0 0 .4em; font: 600 2.6cqw/1.2 var(--ui); letter-spacing: -.01em } .veil p { margin: 0; font-size: 1.5cqw; color: #c7ccd6; max-width: 46ch }
+.failbar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 7; background: #c62828; color: #fff; padding: .7em 1.1em; font-size: 1.4cqw; display: flex; gap: 1em; align-items: center }
+.under { display: grid; gap: 8px }
+.trans { display: grid; gap: 6px }
+.tline { display: flex; height: 10px; gap: 3px }
+.tline div { position: relative; border-radius: 2px; background: var(--rule-2); overflow: hidden }
+.tline div i { position: absolute; inset: 0 auto 0 0; background: var(--ink) } .tline div.now i { background: var(--run) } .tline div.bad { background: var(--fail-soft) }
+.tlab { display: flex; gap: 3px; font-size: 11.5px; color: var(--ink-2) } .tlab span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis }
+.tlab span.now { color: var(--run-ink); font-weight: 500 }
+.panel { display: grid; min-width: 0 }
+.panel > section { padding: 14px 16px; display: grid; gap: 10px; align-content: start; border-top: 1px solid var(--rule-2) }
+.panel > section:first-child { border-top: 0 }
+.steps { display: grid; gap: 2px; max-height: 440px; overflow: auto; margin: 0 -6px }
+.stp { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 6px; border-radius: 7px; font-size: 13px; border: 0; background: none; text-align: left; width: 100% }
+.stp:hover { background: var(--glass) }
+.stp .n { font: 500 12px/1.6 var(--mono); color: var(--ink-3) }
+.stp code { font: 11.5px var(--mono); color: var(--ink-3); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.stp.cur { background: var(--now-soft) } .stp.cur .n { color: var(--now) }
+.stp.todo { opacity: .42 } .stp.bad { background: var(--fail-soft) } .stp.bad .n, .stp.bad .d { color: var(--fail) }
+.stp .d { font: 11.5px var(--mono); color: var(--ink-3); text-align: right } .stp .d em { font-style: normal; display: block; font-size: 10.5px }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--rule); margin: -14px -16px 0; padding: 0 10px; overflow-x: auto; scrollbar-width: none }
+.tabs button { border: 0; background: none; padding: 10px 8px 9px; color: var(--ink-3); border-bottom: 2px solid transparent; margin-bottom: -1px; font-size: 13px; white-space: nowrap }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink) }
+.tabs button .cnt { font: 10.5px var(--mono); color: var(--ink-3); margin-left: 4px } .tabs button .cnt.bad { color: var(--fail) }
+.logbar { display: flex; gap: 6px; flex-wrap: wrap }
+.log { font: 11.5px/1.7 var(--mono); color: var(--ink-2); max-height: 420px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; margin: 0 }
+.log b { color: var(--ink); font-weight: 500 } .log em { color: var(--fail); font-style: normal } .log .src { color: var(--ink-3) }
+.note { font-size: 12.5px; color: var(--ink-2); display: flex; gap: 8px; align-items: flex-start }
+.note svg { width: 14px; height: 14px; flex: none; margin-top: 2px; fill: none; stroke: currentColor; stroke-width: 1.5 }
+.confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+.film { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px } .film div { aspect-ratio: 16/9; border-radius: 5px; background: #fff; border: 1px solid var(--rule); position: relative; overflow: hidden }
+.film div::after { content: attr(data-t); position: absolute; left: 4px; bottom: 3px; font: 9.5px var(--mono); color: #556 }
+.film i { position: absolute; background: #e6e9f2; border-radius: 1px }
+.err { font: 12px/1.55 var(--mono); background: var(--fail-soft); overflow-wrap: anywhere; color: var(--ink); border-radius: 8px; padding: 10px 12px; white-space: pre-wrap; margin: 0 }
+
+/* The score */
+.score { overflow: hidden }
+.score-bar { display: flex; align-items: center; gap: 8px 10px; padding: 10px 14px; border-bottom: 1px solid var(--rule-2); flex-wrap: wrap }
+.score-bar .title { font: 600 15px var(--ui) }
+.score-bar .tempo { font: 12px var(--mono); color: var(--ink-2) }
+.score-bar .sp { flex: 1 }
+.mini { height: 30px; border-bottom: 1px solid var(--rule-2); position: relative; cursor: pointer; margin-left: 116px }
+.mini svg { position: absolute; inset: 0; width: 100%; height: 100% }
+.mini .view { position: absolute; top: 3px; bottom: 3px; border: 1.5px solid var(--ink-2); border-radius: 4px; background: var(--glass) }
+.score-body { display: grid; grid-template-columns: 116px minmax(0, 1fr) }
+.lanes-h { border-right: 1px solid var(--rule-2) }
+.lanes-h > div { display: flex; align-items: center; gap: 6px; padding-left: 14px; padding-right: 6px; font: 500 12.5px var(--ui); color: var(--ink-2); border-top: 1px solid var(--rule-2) }
+.lanes-h > div:first-child { border-top: 0 }
+.lanes-h svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.4; flex: none }
+.lanes-h .m { margin-left: auto; font: 500 10px var(--mono); width: 20px; height: 18px; border-radius: 4px; border: 1px solid var(--rule); background: none; color: var(--ink-3); padding: 0 }
+.lanes-h .m[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink) }
+.lanes-h > div.muted-lane { opacity: .4 }
+.score-scroll { overflow-x: auto; overflow-y: hidden; min-width: 0; cursor: crosshair }
+.score svg text { font-family: var(--ui) }
+.tip { position: fixed; z-index: 60; pointer-events: none; max-width: 300px; background: var(--ink); color: var(--paper); border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.45; box-shadow: 0 10px 30px -10px #0006 }
+.tip b { font-weight: 600 } .tip .q { font: 13px/1.45 var(--ui); display: block; margin: 3px 0 } .tip .loc { font: 11px var(--mono); opacity: .7 }
+
+/* Reel */
+.transport { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
+.play { width: 42px; height: 42px; border-radius: 50%; background: var(--ink); color: var(--paper); border: 0; display: grid; place-items: center; flex: none }
+.play svg { width: 16px; height: 16px; fill: currentColor }
+.track { position: relative; height: 26px; flex: 1 1 260px; cursor: pointer; touch-action: none }
+.track .rail2 { position: absolute; left: 0; right: 0; top: 11px; height: 4px; border-radius: 2px; background: var(--rule) }
+.track .fill { position: absolute; left: 0; top: 11px; height: 4px; border-radius: 2px; background: var(--now) }
+.track .knob { position: absolute; top: 6px; width: 14px; height: 14px; border-radius: 50%; background: var(--now); transform: translateX(-50%); box-shadow: 0 0 0 3px var(--sheet) }
+.track .tk { position: absolute; top: 8px; width: 1px; height: 10px; background: var(--ink-3) }
+.track .tk.card { background: var(--ink-3); top: 11px; height: 4px; border-radius: 2px; opacity: .55 }
+.hov { position: absolute; bottom: 30px; transform: translateX(-50%); width: 200px; display: grid; gap: 4px; justify-items: center; pointer-events: none; z-index: 10 }
+.hov .frame { width: 200px; border-radius: 7px; box-shadow: 0 10px 30px -10px #0008, 0 0 0 1px var(--rule) }
+.hov span { font: 11px var(--mono); background: var(--ink); color: var(--paper); padding: 2px 7px; border-radius: 4px; white-space: nowrap }
+.transcript { display: grid; gap: 2px; max-height: 250px; overflow: auto; margin: 0 -6px }
+.transcript button { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 8px; text-align: left; border: 0; background: none; padding: 7px 6px; border-radius: 7px; font: 14px/1.45 var(--ui); color: var(--ink-2) }
+.transcript button span:first-child { font: 11px var(--mono); color: var(--ink-3); padding-top: 3px; font-style: normal }
+.transcript button.on { color: var(--ink); background: var(--glass) } .transcript button.on span:first-child { color: var(--now) }
+.transcript button:hover { background: var(--glass) }
+.files { display: grid; gap: 6px; font: 12px var(--mono) } .files div { display: flex; justify-content: space-between; gap: 10px; color: var(--ink-2) }
+.facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px } .facts div { display: grid; gap: 2px } .facts b { font: 500 15px var(--mono) } .facts span { font-size: 11px; color: var(--ink-3) }
+.loud { display: flex; align-items: flex-end; gap: 2px; height: 34px } .loud i { flex: 1; background: var(--ink-2); border-radius: 1px; opacity: .7 }
+
+/* Mock app (Orbit): the app being shown, always light */
+.app { position: absolute; inset: 0; transform-origin: 62% 62%; display: grid; grid-template-columns: 21% 1fr; grid-template-rows: minmax(0, 1fr); overflow: hidden; font: 1.15cqw/1.4 "IBM Plex Sans", system-ui, sans-serif; color: #1c2230; background: #fff }
+.a-side { background: #f4f6fa; border-right: 1px solid #e6e9f0; padding: 4% 7%; display: grid; align-content: start; gap: .7em }
+.a-logo { font-weight: 600; font-size: 1.5em; display: flex; gap: .4em; align-items: center } .a-logo i { width: 1em; height: 1em; border-radius: 50%; border: .22em solid #4f6bed }
+.a-nav { display: grid; gap: .2em; margin-top: .8em } .a-nav span { padding: .35em .5em; border-radius: .4em; color: #5a6275 } .a-nav span.on { background: #e5e9fb; color: #2b3fb0 }
+.a-h { margin-top: 1em; font-size: .78em; letter-spacing: .08em; text-transform: uppercase; color: #8b92a3 }
+.a-saved { display: grid; gap: .2em } .a-saved span { padding: .35em .5em; border-radius: .4em; color: #5a6275; opacity: 0; transform: translateY(-.3em); transition: all .3s }
+.a-saved span.in { opacity: 1; transform: none } .a-saved span.on { background: #e5e9fb; color: #2b3fb0 }
+.a-saved em { font-style: normal; color: #a2a8b6; font-size: .9em; padding: .35em .5em }
+.a-main { padding: 3.2% 4%; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 1.1em; min-width: 0; min-height: 0 }
+.a-top { display: flex; align-items: center; gap: .6em } .a-top h2 { margin: 0; font-size: 1.7em; font-weight: 600; flex: 1 }
+.a-btn { border: 1px solid #d9dde7; border-radius: .45em; padding: .35em .8em; background: #fff; font-size: 1em; color: #1c2230 }
+.a-btn.on { background: #1c2230; color: #fff; border-color: #1c2230 } .a-btn.pri { background: #4f6bed; color: #fff; border-color: #4f6bed }
+.a-body { display: grid; grid-template-columns: 1.1fr 1fr; grid-template-rows: minmax(0, 1fr); gap: 1.4em; min-height: 0 }
+.a-rows { display: grid; gap: .35em; align-content: start; min-height: 0; overflow: hidden } .a-row { display: grid; grid-template-columns: 1fr auto; gap: .5em; padding: .55em .7em; border: 1px solid #eceef3; border-radius: .45em; transition: opacity .3s }
+.a-row small { color: #8b92a3 } .a-row.hide { opacity: .12 }
+.a-tag { font-size: .85em; padding: .1em .5em; border-radius: 99px; background: #e9f6ee; color: #23774a; align-self: center } .a-tag.d { background: #eef0f4; color: #6b7280 }
+.a-chart { border: 1px solid #eceef3; border-radius: .6em; padding: 1em; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: .6em; min-height: 0; overflow: hidden }
+.a-chart b { font-weight: 600 } .a-bars { display: flex; align-items: flex-end; gap: .6em; height: 100% }
+.a-bars i { flex: 1; background: #4f6bed; border-radius: .25em .25em 0 0; transition: height .5s }
+.a-chart small { color: #8b92a3; display: flex; justify-content: space-between }
+.a-dlg { position: absolute; inset: 0; background: #1c223040; display: grid; place-items: center; opacity: 0; pointer-events: none; transition: opacity .2s }
+.a-dlg.in { opacity: 1 } .a-dlg > div { background: #fff; border-radius: .7em; padding: 1.4em; width: 34%; display: grid; gap: .7em; box-shadow: 0 1em 3em #0003 }
+.a-input { border: 1px solid #c9cfdc; border-radius: .4em; padding: .45em .6em; min-height: 2.2em } .a-input.f { border-color: #4f6bed; box-shadow: 0 0 0 .2em #4f6bed33 }
+.a-toast { position: absolute; right: 3%; bottom: 5%; background: #1c2230; color: #fff; padding: .6em 1em; border-radius: .5em; opacity: 0; transition: opacity .3s } .a-toast.in { opacity: 1 }
+.a-card { position: absolute; inset: 0; background: #11141b; color: #fff; display: grid; place-items: center; text-align: center; opacity: 0; transition: opacity .4s; pointer-events: none }
+.a-card.in { opacity: 1 } .a-card h3 { margin: 0; font-size: 3.4em; font-weight: 600; letter-spacing: -.02em } .a-card p { margin: .3em 0 0; color: #9aa3b8; font-size: 1.4em }
+.cursor { position: absolute; width: 2.1cqw; height: 2.1cqw; z-index: 4; pointer-events: none; transform: translate(-20%, -10%); filter: drop-shadow(0 1px 2px #0005) }
+.ripple { position: absolute; width: 4cqw; height: 4cqw; border-radius: 50%; border: 2px solid #4f6bed; transform: translate(-50%, -50%) scale(.2); opacity: 0; z-index: 3; pointer-events: none }
+.ripple.go { animation: rip .5s ease-out }
+@keyframes rip { 0% { opacity: .9; transform: translate(-50%, -50%) scale(.2) } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3) } }
+
+/* Overlays */
+.ovl { position: fixed; inset: 0; background: var(--veil); display: grid; justify-items: center; align-items: start; padding: 11vh 16px 0; z-index: 50 }
+.pal { width: min(580px, 100%); background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; box-shadow: 0 30px 80px -20px #0008; overflow: hidden }
+.pal input { width: 100%; border: 0; border-bottom: 1px solid var(--rule); background: none; padding: 16px 18px; font: 15px var(--ui); color: var(--ink); outline: none }
+.pal ul { list-style: none; margin: 0; padding: 6px; max-height: 340px; overflow: auto }
+.pal li.h { padding: 8px 12px 4px }
+.pal li button { width: 100%; text-align: left; border: 0; background: none; padding: 9px 12px; border-radius: 8px; display: flex; justify-content: space-between; gap: 10px }
+.pal li button[aria-selected="true"], .pal li button:hover { background: var(--glass) }
+.pal li span:last-child { color: var(--ink-3); font: 12px var(--mono) }
+.keys { width: min(640px, 100%); background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; padding: 22px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 28px }
+.keys h3 { grid-column: 1 / -1; margin: 0 0 6px; font: 600 18px var(--ui) }
+.keys div { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; border-bottom: 1px solid var(--rule-2); padding: 6px 0 }
+.toasts { position: fixed; left: max(92px, calc(16px + env(safe-area-inset-left, 0px))); bottom: max(18px, env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; z-index: 45 }
+.toast { background: var(--ink); color: var(--paper); border-radius: 10px; padding: 10px 12px 10px 14px; display: flex; gap: 12px; align-items: center; box-shadow: 0 18px 40px -16px #0008; font-size: 13px; animation: tin .3s ease-out; max-width: min(460px, calc(100vw - 32px)) }
+.toast .btn { background: transparent; color: var(--paper); border-color: #ffffff40 }
+@keyframes tin { from { transform: translateY(8px); opacity: 0 } }
+.mock { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); z-index: 44; display: flex; gap: 8px; align-items: center; background: var(--sheet); border: 1px dashed var(--ink-3); border-radius: 12px; padding: 6px 6px 6px 12px; box-shadow: 0 12px 30px -16px #0006; flex-wrap: wrap; max-width: calc(100vw - 32px) }
+
+body.stage-mode .rail, body.stage-mode .top, body.stage-mode .stage > .panel, body.stage-mode .hd { display: none }
+body.stage-mode .shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) }
+body.stage-mode .stage { grid-template-columns: minmax(0, 1fr) }
+body.stage-mode .screen { max-width: none }
+
+@media (max-width: 1200px) { .stage, .split { grid-template-columns: minmax(0, 1fr) } .ws-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) } .slot { display: none } }
+@media (max-width: 700px) {
+  .shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: 54px minmax(0, 1fr) 62px }
+  .rail { grid-row: 3; flex-direction: row; justify-content: space-around; border-right: 0; border-top: 1px solid var(--rule); padding: 4px max(8px, env(safe-area-inset-right, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)) }
+  .rail .logo, .rail .spacer { display: none } .rail a[aria-current="page"]::before { left: 18px; right: 18px; top: -5px; bottom: auto; width: auto; height: 2px }
+  .top { padding-left: max(16px, env(safe-area-inset-left, 0px)) } .top .hide-s { display: none } .pop { right: 16px; left: 16px; width: auto }
+  .screen { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-bottom: 110px }
+  .ws-grid { grid-template-columns: minmax(0, 1fr) } .hd h1 { font-size: 30px }
+  .score-body { grid-template-columns: 84px minmax(0, 1fr) } .mini { margin-left: 84px } .lanes-h > div { font-size: 13px; padding-left: 8px } .lanes-h .m { display: none }
+  .keys { grid-template-columns: minmax(0, 1fr) } .toasts { left: 16px; bottom: 140px } .mock { bottom: calc(72px + env(safe-area-inset-bottom, 0px)) }
+}
+@media (prefers-reduced-motion: reduce) { .pulse, .strip i.r { animation: none } .ripple.go, .toast { animation: none } .a-bars i, .a-row, .a-saved span, .target { transition: none } }
+</style>
+
+<div class="shell">
+  <nav class="rail" aria-label="Screens">
+    <div class="logo" aria-hidden="true"><svg id="logo" viewBox="0 0 100 100" width="34" height="34"></svg></div>
+    <a href="#workspaces" data-s="workspaces"><svg viewBox="0 0 20 20"><rect x="2.5" y="3" width="15" height="5" rx="1.5"/><rect x="2.5" y="11" width="15" height="6" rx="1.5"/></svg>Workspaces</a>
+    <a href="#scripts" data-s="scripts"><svg viewBox="0 0 20 20"><path d="M5 2.5h7l3.5 3.5v11.5H5z"/><path d="M8 10h5M8 13h5M8 7h2"/></svg>Scripts</a>
+    <a href="#run" data-s="run"><span class="badge" id="run-badge"></span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="2.5" fill="currentColor"/></svg>Run</a>
+    <a href="#reel" data-s="reel"><svg viewBox="0 0 20 20"><rect x="2.5" y="4" width="15" height="12" rx="2"/><path d="M8.5 7.5v5l4-2.5z" fill="currentColor"/></svg>Reel</a>
+    <span class="spacer"></span>
+    <a class="off" title="Comes with story 4"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="2.8"/><path d="M10 2v2.5M10 15.5V18M2 10h2.5M15.5 10H18M4.3 4.3l1.8 1.8M13.9 13.9l1.8 1.8M4.3 15.7l1.8-1.8M13.9 6.1l1.8-1.8"/></svg>Settings</a>
+  </nav>
+
+  <header class="top">
+    <div class="crumbs" id="crumbs"></div>
+    <span class="sp"></span>
+    <span class="slot hide-s" title="Heavy work: one recording at a time on this computer"><svg viewBox="0 0 12 12" style="width:12px;height:12px"><circle cx="6" cy="6" r="5" fill="none" stroke="currentColor"/><circle cx="6" cy="6" r="2.6" fill="var(--now)"/></svg><span id="slot-txt">Recording slot: saved-views/7 · 1 waiting</span></span>
+    <button class="live" id="live-btn" aria-expanded="false"><span class="dot pulse" id="live-dot"></span><span id="live-txt">2 runs</span></button>
+    <button class="iconbtn hide-s" id="pal-open" aria-label="Open the command palette"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><span class="kbd">⌘K</span></button>
+    <button class="iconbtn hide-s" id="keys-open" aria-label="Keyboard shortcuts"><span class="kbd" style="border:0;background:none">?</span></button>
+    <button class="iconbtn" id="theme" aria-label="Switch light and dark"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5a5.5 5.5 0 0 0 0 11z" fill="currentColor"/></svg></button>
+    <div class="pop" id="live-pop" hidden></div>
+  </header>
+
+  <main id="main">
+    <!-- WORKSPACES -->
+    <section class="screen" id="s-workspaces" hidden>
+      <div class="hd"><h1>Workspaces</h1><span class="sub">3 projects on this computer</span><span class="sp"></span>
+        <span class="faint" style="font-size:12.5px;max-width:48ch">Runs started in a terminal or by an agent show up here as they start.</span></div>
+      <div class="ws-grid" id="ws-grid"></div>
+      <div class="card today">
+        <div class="hd"><h2>Today</h2><span class="sub">who had the recording slot, and when</span><span class="sp"></span><span class="faint mono" id="today-now"></span></div>
+        <div class="scrollx" id="today"></div>
+      </div>
+      <div class="hd"><h2>Every run</h2><span class="sp"></span>
+        <div class="chips" id="hist-filter"><button class="fchip" aria-pressed="true" data-f="all">All</button><button class="fchip" aria-pressed="false" data-f="running">Going on</button><button class="fchip" aria-pressed="false" data-f="failed">Failed</button><button class="fchip" aria-pressed="false" data-f="stopped">Resumable</button>
+          <span class="faint" style="margin:0 2px">·</span><button class="fchip" aria-pressed="false" data-o="agent">By an agent</button></div>
+        <input class="field" id="hist-q" placeholder="Find a run or script" style="width:200px" aria-label="Find a run or script"></div>
+      <div class="scrollx"><table class="tbl" id="history"></table></div>
+    </section>
+
+    <!-- SCRIPTS -->
+    <section class="screen" id="s-scripts" hidden>
+      <div class="hd"><h1>Saved views</h1><span class="sub mono">~/code/orbit/reels</span><span class="sp"></span>
+        <input class="field" style="width:260px" placeholder="Open a script by path…" aria-label="Open a script by path"><button class="btn">Open</button></div>
+      <div class="split">
+        <div class="list">
+          <button class="card srow" aria-current="true">
+            <div><h3>saved-views.reel.ts</h3><div class="faint" style="font-size:12.5px;margin-top:2px">Filter, read the chart, save the view, find it again.</div></div>
+            <span class="st running">recording · step 3</span>
+            <div class="counts" style="grid-column:1/-1"><span><b>7</b> steps</span><span><b>4</b> comments</span><span><b>3</b> sounds</span><span><b>2</b> effects</span><span><b>2</b> cards</span><span><b>0:40.0</b> reel</span></div>
+          </button>
+          <button class="card srow" data-go="reel">
+            <div><h3>quick.reel.ts</h3><div class="faint" style="font-size:12.5px;margin-top:2px">One click on "Done", with a sound.</div></div>
+            <span class="st done">done · 1 h ago</span>
+            <div class="counts" style="grid-column:1/-1"><span><b>1</b> step</span><span><b>1</b> comment</span><span><b>1</b> sound</span><span><b>0:11.2</b> reel</span></div>
+          </button>
+          <div class="card" style="padding:16px;display:grid;gap:14px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-go="run"><svg viewBox="0 0 14 14"><path d="M4 2.5v9l7-4.5z" fill="currentColor" stroke="none"/></svg>Run saved-views.reel.ts</button><button class="btn" data-go="reel">Last reel</button><button class="btn">Show in editor</button></div>
+            <div class="toggle"><button class="sw" role="switch" aria-checked="false" id="onsave" aria-label="Run again on save"></button>
+              <div><b style="font-weight:500">Run again on save</b><div class="muted" id="onsave-txt">Off. When on, every save of this file repeats the script's real actions in your app.</div></div></div>
+            <div class="label">Last runs of this script</div>
+            <div style="display:grid;gap:8px;font-size:13px" id="script-runs"></div>
+          </div>
+        </div>
+        <div class="card src">
+          <div class="src-hd"><span class="mono" style="font-weight:500">saved-views.reel.ts</span><span class="origin">read only</span><span class="sp" style="flex:1"></span>
+            <span class="faint" style="font-size:12px;display:flex;gap:6px;align-items:center"><span style="width:3px;height:12px;background:var(--ink-2);display:inline-block"></span>2 lines changed since the last reel</span></div>
+          <pre class="code" id="code"></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- RUN -->
+    <section class="screen" id="s-run" hidden>
+      <div class="hd"><h1>saved-views/7</h1><span class="sub" id="run-sub"></span><span class="sp"></span>
+        <span class="confirm" id="run-actions"></span></div>
+      <div class="meta" id="run-meta"></div>
+      <div class="stage">
+        <div class="under">
+          <div class="frame" id="run-frame"></div>
+          <div class="trans"><div class="tline" id="tline"></div><div class="tlab" id="tlab"></div></div>
+        </div>
+        <div class="card panel">
+          <section style="gap:12px">
+            <div class="tabs" role="tablist" id="run-tabs"></div>
+            <div id="tab-body"></div>
+          </section>
+          <section><div class="note"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 7v4M8 5v.01"/></svg><span>You are watching. Closing this tab or the studio doesn't stop the run.</span></div></section>
+        </div>
+      </div>
+      <div id="run-score"></div>
+    </section>
+
+    <!-- REEL -->
+    <section class="screen" id="s-reel" hidden>
+      <div class="hd"><h1>saved-views.reel</h1><span class="sub">composed by saved-views/6 · today 14:03</span><span class="sp"></span><button class="btn">Show folder</button><button class="btn" id="copy-time">Copy time</button></div>
+      <div class="stage">
+        <div class="under">
+          <div class="frame" id="reel-frame"></div>
+          <div class="transport">
+            <button class="play" id="play" aria-label="Play"><svg viewBox="0 0 16 16" id="play-ic"><path d="M4 2.5v11l9-5.5z"/></svg></button>
+            <span class="mono" id="tc" style="min-width:118px">0:00.0 / 0:40.0</span>
+            <div class="track" id="track"><div class="rail2"></div><div class="fill"></div><div id="ticks"></div><div class="knob"></div><div class="hov" id="hov" hidden><div class="frame" id="hov-frame"></div><span id="hov-t"></span></div></div>
+            <div class="seg" role="group" aria-label="Speed" id="speed"><button aria-pressed="false" data-v=".5">½×</button><button aria-pressed="true" data-v="1">1×</button><button aria-pressed="false" data-v="2">2×</button></div>
+            <div class="seg" role="group" aria-label="Options"><button aria-pressed="true" id="cc" title="Captions (C)">CC</button><button aria-pressed="false" id="loop" title="Loop this step (L)">Loop step</button></div>
+          </div>
+        </div>
+        <div class="card panel">
+          <section><div class="facts"><div><b>0:40.0</b><span>length</span></div><div><b>1440p</b><span>60 fps</span></div><div><b>−16</b><span>LUFS</span></div></div>
+            <div class="loud" title="Loudness over the reel">${""}</div></section>
+          <section><span class="label">Transcript · click a line to go there</span><div class="transcript" id="transcript"></div></section>
+          <section><span class="label">Files</span>
+            <div class="files"><div><span>video.mp4</span><span>8.1 MB</span></div><div><span>captions.vtt</span><span>4 lines</span></div><div><span>transcript.md</span><span>412 B</span></div><div><span>cues.json</span><span>7 steps</span></div><div><span>poster.png</span><span>at 0:12.0</span></div><div><span>manifest.json</span><span>6 files</span></div></div>
+            <span class="st done">Reel matches its manifest</span></section>
+        </div>
+      </div>
+      <div id="reel-score"></div>
+    </section>
+  </main>
+</div>
+
+<div class="ovl" id="pal" hidden><div class="pal" role="dialog" aria-label="Command palette"><input id="pal-q" placeholder="Run a script, open a run, go to a screen…" autocomplete="off"><ul id="pal-list"></ul></div></div>
+<div class="ovl" id="keys" hidden><div class="keys" role="dialog" aria-label="Keyboard shortcuts">
+  <h3>Keys</h3>
+  <div><span>Command palette</span><span class="kbd">⌘K</span></div><div><span>Go to a screen</span><span class="kbd">1 – 4</span></div>
+  <div><span>Play or pause the reel</span><span class="kbd">Space</span></div><div><span>Previous or next step</span><span><span class="kbd">←</span> <span class="kbd">→</span></span></div>
+  <div><span>Zoom the score</span><span><span class="kbd">[</span> <span class="kbd">]</span></span></div><div><span>Fold or unfold steps 4–6</span><span class="kbd">F</span></div>
+  <div><span>Stage mode: the picture only</span><span class="kbd">S</span></div><div><span>Captions on or off</span><span class="kbd">C</span></div>
+  <div><span>Loop the current step</span><span class="kbd">L</span></div><div><span>Show the targets on the live picture</span><span class="kbd">T</span></div>
+  <div><span>These keys</span><span class="kbd">?</span></div><div><span>Close</span><span class="kbd">Esc</span></div>
+</div></div>
+<div class="tip" id="tip" hidden></div>
+<div class="toasts" id="toasts"></div>
+<div class="mock" id="mock"><span class="label" style="letter-spacing:.08em">Mockup · show the run</span>
+  <div class="seg" role="group" aria-label="Run state to show"><button aria-pressed="true" data-sc="live">Live</button><button aria-pressed="false" data-sc="waiting">Waiting</button><button aria-pressed="false" data-sc="failed">Failed</button><button aria-pressed="false" data-sc="stopped">Stopped</button></div></div>
+
+<script>
+// ---------- The Orbit logo (decision 005); it spins while a run is live ----------
+function logoTri(v, r) {
+  const f = (q) => `${q[0].toFixed(3)} ${q[1].toFixed(3)}`, seg = [];
+  v.forEach((V, i) => { const P = v[(i + 2) % 3], N = v[(i + 1) % 3], u = (A) => { const dx = A[0] - V[0], dy = A[1] - V[1], l = Math.hypot(dx, dy); return [dx / l, dy / l]; };
+    const u1 = u(P), u2 = u(N), th = Math.acos(u1[0] * u2[0] + u1[1] * u2[1]), t = r / Math.tan(th / 2);
+    seg.push([[V[0] + u1[0] * t, V[1] + u1[1] * t], [V[0] + u2[0] * t, V[1] + u2[1] * t]]); });
+  return `M${f(seg[0][1])}` + [1, 2, 0].map((i) => `L${f(seg[i][0])}A${r} ${r} 0 0 1 ${f(seg[i][1])}`).join("") + "Z";
+}
+function logoOrbit(phase, small) {
+  const cx = 50, cy = 50, rot = -24 * Math.PI / 180, cr = Math.cos(rot), sr = Math.sin(rot);
+  const turns = small ? 0 : 1, a0 = (-150 + phase) * Math.PI / 180, a1 = a0 + turns * 2 * Math.PI + 290 * Math.PI / 180, N = small ? 300 : 900;
+  const pt = (t, u) => { const k = small ? 0.95 : 0.68 + 0.32 * u, x = 47 * k * Math.cos(t), y = 18 * k * Math.sin(t); return [cx + x * cr - y * sr, cy + x * sr + y * cr]; };
+  const wid = (u) => small ? 2 + 5 * u : 0.5 + 4.2 * Math.pow(u, 1.2);
+  const clip = (u) => !small && u < 0.9 && (u * 9) % 1 > 0.92;
+  const S = []; for (let i = 0; i <= N; i++) { const u = i / N, t = a0 + (a1 - a0) * u; S.push({ u, p: pt(t, u), front: Math.sin(t) >= 0, gap: clip(u) }); }
+  const f = (q) => `${q[0].toFixed(2)} ${q[1].toFixed(2)}`;
+  const band = (run) => { const L = [], R = []; run.forEach((s, i) => { const a = run[Math.max(0, i - 1)].p, b = run[Math.min(run.length - 1, i + 1)].p, dx = b[0] - a[0], dy = b[1] - a[1], m = Math.hypot(dx, dy) || 1, h = wid(s.u) / 2;
+      L.push([s.p[0] - dy / m * h, s.p[1] + dx / m * h]); R.push([s.p[0] + dy / m * h, s.p[1] - dx / m * h]); });
+    return "M" + L.map(f).join("L") + "L" + R.reverse().map(f).join("L") + "Z"; };
+  const runs = { back: [], front: [] }; let cur = [];
+  const flush = () => { if (cur.length > 1) runs[cur[0].front ? "front" : "back"].push(band(cur)); };
+  for (const x of S) { if (x.gap) { flush(); cur = []; continue; } if (cur.length && x.front !== cur[0].front) { cur.push(x); flush(); cur = [cur[cur.length - 2], x]; } else cur.push(x); }
+  flush();
+  const h = S[S.length - 1];
+  return { back: runs.back.join(""), front: runs.front.join(""), head: [h.p[0], h.p[1], small ? 8 : 5.6], headFront: h.front };
+}
+const LOGO_ON = { black: ["#ffd400", "#10b981", "#10b981"], white: ["#e8b500", "#059669", "#059669"], yellow: ["#0a0a0a", "#0a0a0a", "#0a0a0a"], deep: ["#ffd400", "#10b981", "#34d399"] };
+let logoUid = 0, logoPhase = 0;
+function logoSVG(colors, small, ph) {
+  const [pa, pb, oc] = colors, id = `m${logoUid++}`, o = logoOrbit(ph, small), paint = pa === pb ? pa : `url(#g${id})`;
+  const head = `<circle cx="${o.head[0].toFixed(2)}" cy="${o.head[1].toFixed(2)}" r="${o.head[2]}" fill="${oc}"/>`;
+  return `<defs><linearGradient id="g${id}" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="${pb}"/><stop offset="1" stop-color="${pa}"/></linearGradient>
+    <mask id="k${id}" maskUnits="userSpaceOnUse" x="-50" y="-50" width="200" height="200"><rect x="-50" y="-50" width="200" height="200" fill="#fff"/>
+    <path d="${o.front}" fill="#000" stroke="#000" stroke-width="${small ? 5 : 4.4}" stroke-linejoin="round"/>${o.headFront ? `<circle cx="${o.head[0]}" cy="${o.head[1]}" r="${o.head[2] + 2.4}" fill="#000"/>` : ""}
+    <path d="${logoTri([[42, 37], [65, 50], [42, 63]], 3.4)}" fill="#000"/>${small ? "" : `<path d="${logoTri([[46.4, 44.4], [56.6, 50], [46.4, 55.6]], 1.2)}" fill="#fff"/>`}</mask></defs>
+    <g transform="rotate(-10 50 50)"><path d="${o.back}" fill="${oc}"/>${o.headFront ? "" : head}<circle cx="50" cy="50" r="${small ? 25 : 23}" fill="${paint}" mask="url(#k${id})"/><path d="${o.front}" fill="${oc}"/>${o.headFront ? head : ""}</g>`;
+}
+function paintLogo() { const el = document.getElementById("logo"); if (el) el.innerHTML = logoSVG(document.documentElement.dataset.theme === "light" ? LOGO_ON.white : LOGO_ON.black, false, logoPhase); }
+(function spinLogo() { let last = 0; requestAnimationFrame(function tick(ts) { if (document.querySelector('[data-sc="live"][aria-pressed="true"]') && last && !matchMedia("(prefers-reduced-motion: reduce)").matches) { logoPhase = (logoPhase + (ts - last) * 0.12) % 360; paintLogo(); } last = ts; requestAnimationFrame(tick); }); })();
+(() => {
+// ---------- Sample data: the saved-views example, timed as a 40 s reel ----------
+const DUR = 40;
+const STEPS = [
+  { n: 1, t: 3, d: 6, label: 'Click "Active"', code: "getByRole('button', { name: 'Active' })", target: "f-active", line: 7, last: 5.6 },
+  { n: 2, t: 9, d: 8, label: "Hover the chart", code: "getByRole('region', { name: 'Tasks closed per week' })", target: "chart", line: 10, last: 8.1 },
+  { n: 3, t: 17, d: 6, label: 'Click "Save view"', code: "getByRole('button', { name: 'Save view' })", target: "save-view", line: 17, last: 5.2 },
+  { n: 4, t: 23, d: 3, label: 'Fill "View name"', code: "getByLabel('View name')", target: "input", line: 22, last: 3 },
+  { n: 5, t: 26, d: 1.5, label: 'Click "Save"', code: "getByRole('button', { name: 'Save', exact: true })", target: "save", line: 23, last: 1.4 },
+  { n: 6, t: 27.5, d: 2.3, label: 'Wait for "saved"', code: "getByRole('status').filter({ hasText: 'saved' })", target: "toast", line: 26, last: 2.9, speed: "speed-up ×3" },
+  { n: 7, t: 30, d: 6, label: 'Click "Active work"', code: "getByRole('link', { name: 'Active work' })", target: "link", line: 30, last: 6 },
+];
+const COMMENTS = [
+  { t: 3.2, d: 4.6, text: "Here are this quarter's projects. Let's look at the active ones.", line: 6 },
+  { t: 9.4, d: 6.2, text: "The chart follows the filter: active work is picking up every week.", line: 11 },
+  { t: 17.2, d: 3.6, text: "To come back to this view later, save it.", line: 18 },
+  { t: 30.3, d: 2.9, text: "It's in the sidebar now, one click away.", line: 31 },
+];
+const SOUNDS = [{ t: 8.1, name: "TOGGLE", fam: "controls", line: 7 }, { t: 21.4, name: "OPEN", fam: "navigation", line: 19 }, { t: 29.6, name: "SUCCESS", fam: "feedback", line: 27 }];
+const EFFECTS = [{ t: 9.2, d: 13.3, up: 1.2, down: 1, kind: "zoom", label: "zoomIn · the chart", line: 12 }, { t: 30.4, d: 2, up: .4, down: .4, kind: "frame", label: "polish frame", line: 30 }];
+const CARDS = [{ t: 0, d: 3, mark: "T", label: "Title card" }, { t: 36, d: 4, mark: "E", label: "End card" }];
+const FOLD = [23, 29.8];
+const SRC = [
+  "// A reel of Orbit's saved views: filter, read the chart, save the view, find it again.",
+  'import { script, Sounds } from "flow-reel";', "",
+  'export default script({ url: "http://localhost:4173/" }, async ({ page, comment, sound }) => {',
+  "  // Opening: the starting state, then the change.",
+  '  comment("Here are this quarter\'s projects. Let\'s look at the active ones.");',
+  '  await page.getByRole("button", { name: "Active" }).sound(Sounds.controls.TOGGLE).click();', "",
+  "  // The payoff of the filter: hold the camera on the chart while the comment explains it.",
+  '  await page.getByRole("region", { name: "Tasks closed per week" })',
+  '    .comment("The chart follows the filter: active work is picking up every week.")',
+  "    .zoomIn()", "    .hover();", "",
+  "  // A new scene. The chart stays framed until this click.", "",
+  '  await page.getByRole("button", { name: "Save view" })',
+  '    .comment("To come back to this view later, save it.")',
+  "    .sound(Sounds.navigation.OPEN)", "    .zoomOut()", "    .click();",
+  '  await page.getByLabel("View name").fill("Active work");',
+  '  await page.getByRole("button", { name: "Save", exact: true }).click();', "",
+  "  // Saving takes a moment: wait for the visible result before marking it.",
+  '  await page.getByRole("status").filter({ hasText: "saved" }).waitFor();',
+  "  sound(Sounds.feedback.SUCCESS);", "",
+  "  // Closing: the result.",
+  '  await page.getByRole("navigation", { name: "Saved views" }).getByRole("link", { name: "Active work" })',
+  '    .comment("It\'s in the sidebar now, one click away.")', "    .click();", "});",
+];
+const CHANGED = [18, 31];
+const fmt = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const stepAt = (t) => [...STEPS].reverse().find((s) => t >= s.t);
+const GLYPH = {
+  step: '<path d="M3 1v10M9 1v10" stroke="currentColor" stroke-width="1.3"/>',
+  comment: '<path d="M2 4h8M2 7h8M2 10h5" stroke="currentColor" stroke-width="1.2"/>',
+  sound: '<ellipse cx="5" cy="8.5" rx="3" ry="2.1" transform="rotate(-20 5 8.5)" fill="currentColor"/><path d="M7.7 8V1.5" stroke="currentColor" stroke-width="1.2"/>',
+  effect: '<path d="M1 6l10-4M1 6l10 4" stroke="currentColor" stroke-width="1.2" fill="none"/>',
+  card: '<rect x="1.5" y="2" width="9" height="8" rx="1" stroke="currentColor" fill="none" stroke-width="1.2"/>',
+  pic: '<rect x="1.5" y="2.5" width="10" height="7.5" rx="1" stroke="currentColor" fill="none"/>',
+};
+const g = (k, sz = 12) => `<svg viewBox="0 0 12 12" width="${sz}" height="${sz}">${GLYPH[k]}</svg>`;
+
+// ---------- The mock app (Orbit) ----------
+const BARS_ALL = [34, 40, 31, 45, 38, 50, 44, 52], BARS_ACT = [22, 28, 33, 41, 47, 58, 66, 78];
+function makeApp(frame, { mini = false } = {}) {
+  frame.innerHTML = `
+  <div class="frame-bar"></div>
+  <div class="app">
+    <aside class="a-side"><div class="a-logo"><i></i>Orbit</div>
+      <div class="a-nav"><span class="on">Projects</span><span>Reports</span><span>Team</span></div>
+      <div class="a-h">Saved views</div><nav class="a-saved"><em>No saved views yet</em><span data-k="link">Active work</span></nav></aside>
+    <div class="a-main">
+      <div class="a-top"><h2>Projects · Q4</h2><button class="a-btn on" data-k="f-all" tabindex="-1">All</button><button class="a-btn" data-k="f-active" tabindex="-1">Active</button><button class="a-btn" data-k="f-done" tabindex="-1">Done</button><button class="a-btn pri" data-k="save-view" tabindex="-1">Save view</button></div>
+      <div class="a-body">
+        <div class="a-rows">${[["Checkout redesign","Active"],["Mobile offline mode","Active"],["Billing export","Done"],["Search ranking","Active"],["Onboarding emails","Done"],["Audit log","Active"]]
+          .map(([n, s]) => `<div class="a-row" data-s="${s}"><span>${n}<br><small>${s === "Done" ? "closed in week 3" : "due in 2 weeks"}</small></span><span class="a-tag ${s === "Done" ? "d" : ""}">${s}</span></div>`).join("")}</div>
+        <div class="a-chart" data-k="chart"><b>Tasks closed per week</b><div class="a-bars">${BARS_ALL.map(() => "<i></i>").join("")}</div><small><span>W1</span><span>W8</span></small></div>
+      </div>
+    </div>
+    <div class="a-dlg"><div><b>Save view</b><span style="color:#5a6275">View name</span><div class="a-input" data-k="input"></div><div style="display:flex;justify-content:flex-end;gap:.5em"><button class="a-btn" tabindex="-1">Cancel</button><button class="a-btn pri" data-k="save" tabindex="-1">Save</button></div></div></div>
+    <div class="a-toast" role="status" data-k="toast">View saved</div>
+    <div class="a-card" data-c="title"><div><h3>Saved views</h3><p>Orbit · a 40-second tour</p></div></div>
+    <div class="a-card" data-c="end"><div><h3>Orbit</h3><p>Saved views are in every plan.</p></div></div>
+  </div>
+  <div class="target" hidden><span></span></div>
+  <div class="ripple"></div>
+  <svg class="cursor" viewBox="0 0 20 20"><path d="M3 2l13 7.5-6 1.5-3 6z" fill="#fff" stroke="#111" stroke-width="1.3" stroke-linejoin="round"/></svg>
+  <div class="caption" hidden></div><div class="veil" hidden></div><div class="failbar" hidden></div>`;
+  const $ = (s) => frame.querySelector(s), k = (key) => frame.querySelector(`[data-k="${key}"]`);
+  const app = $(".app"), cur = $(".cursor"), rip = $(".ripple"), cap = $(".caption"), tgt = $(".target");
+  let lastClick = -1;
+  function box(el) { const f = frame.getBoundingClientRect(), r = el.getBoundingClientRect(); return { x: (r.left - f.left) / f.width * 100, y: (r.top - f.top) / f.height * 100, w: r.width / f.width * 100, h: r.height / f.height * 100 }; }
+  const center = (el) => { const b = box(el); return [b.x + b.w / 2, b.y + b.h / 2]; };
+  function render(t, { captions = false, bar = "", targets = false, veil = "", fail = "", camera = true } = {}) {
+    $(".frame-bar").innerHTML = bar;
+    const active = t >= 8.2;
+    k("f-all").classList.toggle("on", !active); k("f-active").classList.toggle("on", active);
+    frame.querySelectorAll(".a-row").forEach((r) => r.classList.toggle("hide", active && r.dataset.s === "Done"));
+    frame.querySelectorAll(".a-bars i").forEach((b, i) => (b.style.height = `${(active ? BARS_ACT : BARS_ALL)[i]}%`));
+    const e = EFFECTS[0], p = EFFECTS[1]; let z = 1, zp = 1;
+    if (camera && t >= e.t && t < e.t + e.d) z = 1 + .28 * Math.min(1, (t - e.t) / e.up, (e.t + e.d - t) / e.down);
+    if (camera && t >= p.t && t < p.t + p.d) zp = 1 + .16 * Math.min(1, (t - p.t) / p.up, (p.t + p.d - t) / p.down);
+    app.style.transformOrigin = zp > 1 ? "12% 40%" : "78% 58%";
+    app.style.transform = `scale(${Math.max(z, zp)})`;
+    $(".a-dlg").classList.toggle("in", t >= 21.5 && t < 27.5);
+    $(".a-input").textContent = t >= 23 ? "Active work".slice(0, Math.max(0, Math.floor((t - 23.2) / 0.22))) : "";
+    $(".a-input").classList.toggle("f", t >= 23 && t < 26);
+    $(".a-toast").classList.toggle("in", t >= 27.5 && t < 31);
+    const saved = t >= 29.6; k("link").classList.toggle("in", saved); $(".a-saved em").hidden = saved; k("link").classList.toggle("on", t >= 30.4);
+    frame.querySelector('[data-c="title"]').classList.toggle("in", t < 3);
+    frame.querySelector('[data-c="end"]').classList.toggle("in", t >= 36);
+    const s = stepAt(t);
+    if (s && t < 36 && !mini) {
+      const prev = STEPS[s.n - 2], to = center(k(s.target)), from = prev ? center(k(prev.target)) : [55, 85];
+      const a = Math.min(1, (t - s.t) / 0.8), ease = a * a * (3 - 2 * a);
+      const x = from[0] + (to[0] - from[0]) * ease, y = from[1] + (to[1] - from[1]) * ease;
+      cur.style.left = `${x}%`; cur.style.top = `${y}%`; cur.hidden = false;
+      const clickT = s.t + 0.9;
+      if ([1, 3, 5, 7].includes(s.n) && t >= clickT && t < clickT + .5 && lastClick !== s.n) {
+        lastClick = s.n; rip.style.left = `${x}%`; rip.style.top = `${y}%`; rip.classList.remove("go"); void rip.offsetWidth; rip.classList.add("go");
+      }
+      if (targets) { const b = box(k(s.target)); Object.assign(tgt.style, { left: `${b.x - .6}%`, top: `${b.y - .9}%`, width: `${b.w + 1.2}%`, height: `${b.h + 1.8}%` }); tgt.firstChild.textContent = `${s.n} · ${s.code}`; }
+      tgt.hidden = !targets;
+    } else { cur.hidden = true; tgt.hidden = true; }
+    const c = COMMENTS.find((c) => t >= c.t && t < c.t + c.d);
+    cap.hidden = !(captions && c); if (c) cap.textContent = c.text;
+    $(".veil").hidden = !veil; if (veil) $(".veil").innerHTML = veil;
+    $(".failbar").hidden = !fail; if (fail) $(".failbar").innerHTML = fail;
+  }
+  return { render, reset() { lastClick = -1; } };
+}
+
+// ---------- The score: engraved notation for flow-reel's words ----------
+const tip = document.getElementById("tip");
+function makeScore(host, opts) {
+  const st = { zoom: 26, fit: true, fold: false, pictures: true, muted: new Set(), ...opts };
+  host.innerHTML = `<div class="card score">
+    <div class="score-bar"><span class="title">Score</span><span class="tempo">♩ = 1 s · 7 measures</span><span class="faint" style="font-size:12.5px">${opts.live ? "· writes itself as the run plays" : "· click to go there · hover a mark for its line"}</span><span class="sp"></span>
+      <div class="seg" role="group" aria-label="Step pictures"><button aria-pressed="true" data-p="1">Pictures</button><button aria-pressed="false" data-p="0">Lines only</button></div>
+      <button class="btn sm" data-fold>Fold 4–6</button>
+      <div class="seg" role="group" aria-label="Zoom"><button data-z="-1" aria-label="Zoom out">−</button><button data-z="0" aria-label="Fit">Fit</button><button data-z="1" aria-label="Zoom in">+</button></div></div>
+    <div class="mini"><svg preserveAspectRatio="none"></svg><div class="view"></div></div>
+    <div class="score-body"><div class="lanes-h"></div><div class="score-scroll"></div></div></div>`;
+  const head = host.querySelector(".lanes-h"), scroll = host.querySelector(".score-scroll"), mini = host.querySelector(".mini"), view = mini.querySelector(".view");
+  const LANES = [["Pictures", 58, "pic"], ["Steps", 44, "step"], ["Comments", 62, "comment"], ["Sounds", 36, "sound"], ["Effects", 40, "effect"], ["Cards", 32, "card"]];
+  const lanes = () => LANES.filter(([n]) => st.pictures || n !== "Pictures");
+  const RULER = 26;
+  function x(t) {
+    const z = st.zoom, [a, b] = FOLD, W = 58;
+    if (!st.fold || t <= a) return 14 + t * z;
+    if (t >= b) return 14 + a * z + W + (t - b) * z;
+    return 14 + a * z + (t - a) / (b - a) * W;
+  }
+  function tAt(px) { for (let t = 0; t <= DUR; t += .05) if (x(t) >= px) return t; return DUR; }
+  const hide = (n) => st.fold && n >= 4 && n <= 6;
+  let lastKey = "";
+  function render(now, { phase = "done", written = DUR, failAt = 0 } = {}) {
+    if (st.fit && scroll.clientWidth) st.zoom = Math.max(10, st.fold ? (scroll.clientWidth - 40 - 58) / (DUR - (FOLD[1] - FOLD[0])) : (scroll.clientWidth - 40) / DUR);
+    const L = lanes(), H = RULER + L.reduce((s, l) => s + l[1], 0) + 4, W = x(DUR) + 26;
+    const key = L.map((l) => l[0]).join() + [...st.muted].join();
+    if (key !== lastKey) { lastKey = key;
+      head.innerHTML = `<div style="height:${RULER}px;border-top:0"></div>` + L.map(([n, h, gk]) => `<div style="height:${h}px" class="${st.muted.has(n) ? "muted-lane" : ""}">${g(gk, 13)}${n}${opts.mutable && (n === "Comments" || n === "Sounds") ? `<button class="m" data-mute="${n}" aria-pressed="${st.muted.has(n)}" title="Mute ${n.toLowerCase()} in this preview">M</button>` : ""}</div>`).join(""); }
+    const voiced = !opts.live || ["plan", "render", "publish", "done"].includes(phase);
+    const ink = "var(--ink)", ink2 = "var(--ink-2)", ink3 = "var(--ink-3)", rule = "var(--rule)", rule2 = "var(--rule-2)", red = "var(--now)", fail = "var(--fail)", paper = "var(--paper)";
+    const out = [], tipAttr = (h) => `data-tip="${esc(h)}"`;
+    for (let s = 0; s <= DUR; s += 1) { const big = s % 5 === 0; out.push(`<line x1="${x(s)}" x2="${x(s)}" y1="${big ? 12 : 18}" y2="${RULER}" stroke="${rule}"/>`); if (big && !(st.fold && s > FOLD[0] && s < FOLD[1])) out.push(`<text x="${x(s) + 3}" y="15" font-size="10" fill="${ink3}" font-family="JetBrains Mono">${fmt(s).replace(".0", "")}</text>`); }
+    let y = RULER; const top0 = RULER + (st.pictures ? 58 : 0);
+    // bar lines: every step is a measure, its line runs through every lane below the pictures
+    STEPS.forEach((s) => { if (hide(s.n) || s.t > written) return; const cur = now >= s.t && now < s.t + s.d; out.push(`<line x1="${x(s.t)}" x2="${x(s.t)}" y1="${top0 + 4}" y2="${H - 4}" stroke="${cur ? ink : rule}" stroke-width="${cur ? 1.4 : 1}"/>`); });
+    if (written >= DUR) out.push(`<line x1="${x(DUR) - 5}" x2="${x(DUR) - 5}" y1="${top0 + 4}" y2="${H - 4}" stroke="${ink}"/><line x1="${x(DUR)}" x2="${x(DUR)}" y1="${top0 + 4}" y2="${H - 4}" stroke="${ink}" stroke-width="3.5"/>`);
+    for (const [name, h] of L) {
+      const muted = st.muted.has(name), mid = y + h / 2; out.push(`<g opacity="${muted ? .3 : 1}">`);
+      out.push(`<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="${rule2}"/>`);
+      if (name === "Pictures") STEPS.filter((s) => s.t <= written && !hide(s.n)).forEach((s) => {
+        const w = 66, hh = 37, X = x(s.t) + 3, bad = failAt === s.n;
+        out.push(`<g ${tipAttr(`<b>Step ${s.n}</b> · picture at ${fmt(s.t)}<span class="loc">saved-views.reel.ts:${s.line}</span>`)} transform="translate(${X},${y + 10})"><rect width="${w}" height="${hh}" rx="3" fill="#fff" stroke="${bad ? fail : rule}" stroke-width="${bad ? 1.5 : 1}"/><rect x="1" y="1" width="13" height="${hh - 2}" fill="#f1f3f8"/><rect x="18" y="5" width="${16 + (s.n * 7) % 18}" height="3.5" rx="1" fill="#c9cfdc"/>
+          <rect x="18" y="13" width="20" height="19" rx="1" fill="#eef0f4"/><rect x="41" y="13" width="21" height="19" rx="1" fill="#f3f5fb"/>${[0, 1, 2, 3, 4].map((i) => `<rect x="${43 + i * 4}" y="${31 - (s.n >= 1 ? BARS_ACT : BARS_ALL)[i + 3] / 6}" width="2.6" height="${(s.n >= 1 ? BARS_ACT : BARS_ALL)[i + 3] / 6}" fill="#4f6bed"/>`).join("")}
+          ${s.n === 4 || s.n === 5 ? `<rect x="0" y="0" width="${w}" height="${hh}" fill="#1c223030"/><rect x="20" y="9" width="26" height="19" rx="2" fill="#fff"/><rect x="23" y="16" width="20" height="4" rx="1" fill="#dfe4f5"/>` : ""}
+          ${s.n >= 6 ? `<rect x="3" y="13" width="9" height="3" rx="1" fill="#c9d2fb"/>` : ""}${bad ? `<text x="${w / 2}" y="${hh / 2 + 5}" text-anchor="middle" font-size="14" fill="${fail}">✕</text>` : ""}<rect width="${w}" height="${hh}" fill="transparent"/></g>`);
+      });
+      if (name === "Steps") {
+        STEPS.forEach((s) => {
+          if (hide(s.n) || s.t > written) return;
+          const cur = now >= s.t && now < s.t + s.d, bad = failAt === s.n, w = x(s.t + s.d) - x(s.t);
+          out.push(`<g ${tipAttr(`<b>Measure ${s.n}</b> · ${esc(s.label)}<br>${fmt(s.t)}, ${s.d.toFixed(1)} s (last run ${s.last.toFixed(1)} s)<span class="loc">${esc(s.code)} · line ${s.line}</span>`)}"><rect x="${x(s.t)}" y="${y}" width="${w}" height="${h}" fill="transparent"/>
+            <text x="${x(s.t) + 5}" y="${y + 18}" font-size="12" font-weight="600" font-family="JetBrains Mono" fill="${bad ? fail : cur ? red : ink}">${s.n}</text>
+            <text x="${x(s.t) + 18}" y="${y + 18}" font-size="11" fill="${ink2}">${s.label.length * 5.7 < w - 24 ? esc(s.label) : ""}</text>
+            ${s.speed && w > 60 ? `<text x="${x(s.t) + 5}" y="${y + 36}" font-size="11.5" font-family="IBM Plex Sans" font-style="italic" fill="${ink2}">${s.speed}</text>` : ""}
+            ${bad ? `<text x="${x(s.t) + 5}" y="${y + 36}" font-size="11" fill="${fail}">not found after 10 s</text>` : ""}</g>`);
+        });
+        if (st.fold) { const a = x(FOLD[0]), b = x(FOLD[1]); out.push(`<g ${tipAttr("<b>Measures 4–6, folded</b><br>Fill the name, save, wait. Press F to unfold.")}><rect x="${a}" y="${y}" width="${b - a}" height="${h}" fill="var(--glass)"/><path d="M${a + 3} ${y + 12} v-5 h${b - a - 6} v5" fill="none" stroke="${ink2}"/><text x="${(a + b) / 2}" y="${y + 29}" text-anchor="middle" font-size="15" font-weight="500" font-family="IBM Plex Sans" fill="${ink}">4–6</text></g>`); }
+      }
+      if (name === "Comments") COMMENTS.filter((c) => c.t <= written).forEach((c, i) => {
+        const a = x(c.t), b = x(Math.min(c.t + c.d, written)), w = Math.max(2, b - a), wy = y + 20;
+        let body = "";
+        if (voiced) { for (let px = 0; px < w; px += 2.6) { const amp = 2 + Math.abs(Math.sin((px + i * 17) * .21) * Math.cos(px * .063 + i)) * 15; body += `<rect x="${a + px}" y="${wy - amp / 2}" width="1.4" height="${amp}" fill="${ink}" opacity=".8"/>`; } }
+        else body = `<rect x="${a}" y="${wy - 9}" width="${w}" height="18" rx="3" fill="none" stroke="${ink2}" stroke-dasharray="3 2"/><text x="${a + 5}" y="${wy + 3.5}" font-size="9.5" fill="${ink3}" font-family="JetBrains Mono">${w > 70 ? "not voiced yet" : ""}</text>`;
+        out.push(`<g ${tipAttr(`<b>Comment</b> · ${fmt(c.t)}–${fmt(c.t + c.d)}, ${c.d.toFixed(1)} s<span class="q">“${esc(c.text)}”</span><span class="loc">saved-views.reel.ts:${c.line}${voiced ? " · voice: Qwen3 local, Ryan" : ""}</span>`)}"><rect x="${a}" y="${y}" width="${w}" height="${h}" fill="transparent"/>${body}
+          <clipPath id="cl${opts.id}${i}"><rect x="${a}" y="${y}" width="${Math.max(0, w - 6)}" height="${h}"/></clipPath>
+          <text clip-path="url(#cl${opts.id}${i})" x="${a}" y="${y + h - 9}" font-size="12.5" font-family="IBM Plex Sans" fill="${ink2}">${esc(c.text)}</text></g>`);
+      });
+      if (name === "Sounds") SOUNDS.filter((s) => s.t <= written).forEach((s) => {
+        const X = x(s.t);
+        out.push(`<g ${tipAttr(`<b>Sound</b> · ${s.fam}.${s.name} at ${fmt(s.t)}<span class="loc">saved-views.reel.ts:${s.line}</span>`)}"><rect x="${X - 8}" y="${y}" width="70" height="${h}" fill="transparent"/><ellipse cx="${X}" cy="${mid + 5}" rx="5.2" ry="3.7" transform="rotate(-20 ${X} ${mid + 5})" fill="${ink}"/><line x1="${X + 4.7}" x2="${X + 4.7}" y1="${mid + 4}" y2="${mid - 12}" stroke="${ink}" stroke-width="1.3"/><text x="${X + 10}" y="${mid + 8}" font-size="10" font-family="JetBrains Mono" fill="${ink2}">${s.name}</text></g>`);
+      });
+      if (name === "Effects") EFFECTS.filter((e) => e.t <= written).forEach((e) => {
+        const end = Math.min(e.t + e.d, written), X0 = x(e.t);
+        if (e.kind === "zoom") {
+          const X1 = x(Math.min(e.t + e.up, end)), X2 = x(Math.min(e.t + e.d - e.down, end)), X3 = x(end), o = 8;
+          let d = `M${X0} ${mid} L${X1} ${mid - o} M${X0} ${mid} L${X1} ${mid + o}`;
+          if (end > e.t + e.up) d += ` M${X1 + 3} ${mid} L${X2 - 3} ${mid}`;
+          if (end > e.t + e.d - e.down) d += ` M${X2} ${mid - o} L${X3} ${mid} M${X2} ${mid + o} L${X3} ${mid}`;
+          out.push(`<g ${tipAttr(`<b>Effect</b> · zoomIn at ${fmt(e.t)}, held ${(e.d - e.up - e.down).toFixed(1)} s, zoomOut at ${fmt(e.t + e.d - e.down)}<span class="loc">saved-views.reel.ts:12 and :20</span>`)}"><rect x="${X0}" y="${y}" width="${X3 - X0}" height="${h}" fill="transparent"/><path d="${d}" stroke="${ink}" stroke-width="1.3" fill="none" ${end > e.t + e.up ? "" : ""}/><path d="M${X1 + 3} ${mid} L${X2 - 3} ${mid}" stroke="${ink}" stroke-dasharray="1 4" stroke-width="1.3" opacity="${end > e.t + e.up ? 1 : 0}"/>
+            <text x="${X1 + 6}" y="${mid - 6}" font-size="11.5" font-family="IBM Plex Sans" font-style="italic" fill="${ink2}">${X2 - X1 > 110 ? "zoom in · hold on the chart" : ""}</text>${end >= e.t + e.d ? `<text x="${X2 - 4}" y="${mid + 18}" text-anchor="end" font-size="11.5" font-family="IBM Plex Sans" font-style="italic" fill="${ink2}">zoom out</text>` : ""}</g>`);
+        } else {
+          const cx = x(e.t + e.d / 2);
+          out.push(`<g ${tipAttr(`<b>Effect</b> · polish frames the click for ${e.d} s<span class="loc">saved-views.reel.ts:${e.line} (added by polish)</span>`)}"><rect x="${X0}" y="${y}" width="${x(e.t + e.d) - X0 + 60}" height="${h}" fill="transparent"/><path d="M${cx - 9} ${mid + 6} A9 9 0 0 1 ${cx + 9} ${mid + 6}" stroke="${ink}" stroke-width="1.8" fill="none"/><circle cx="${cx}" cy="${mid + 3}" r="1.8" fill="${ink}"/><text x="${cx + 13}" y="${mid + 7}" font-size="11.5" font-family="IBM Plex Sans" font-style="italic" fill="${ink2}">frame</text></g>`);
+        }
+      });
+      if (name === "Cards") CARDS.filter((c) => c.t <= written).forEach((c) => {
+        const a = x(c.t), b = x(Math.min(c.t + c.d, written));
+        out.push(`<g ${tipAttr(`<b>${c.label}</b> · ${fmt(c.t)}–${fmt(c.t + c.d)}<span class="loc">from the brand in flow-reel.json</span>`)}"><rect x="${a}" y="${y}" width="${Math.max(24, b - a)}" height="${h}" fill="transparent"/><rect x="${a + 2}" y="${mid - 9}" width="18" height="18" fill="none" stroke="${ink}" stroke-width="1.4"/><text x="${a + 11}" y="${mid + 5}" text-anchor="middle" font-size="12" font-weight="600" fill="${ink}">${c.mark}</text>${b - a > 26 ? `<line x1="${a + 22}" x2="${b - 2}" y1="${mid}" y2="${mid}" stroke="${ink2}"/><line x1="${b - 2}" x2="${b - 2}" y1="${mid - 4}" y2="${mid + 4}" stroke="${ink2}"/>` : ""}</g>`);
+      });
+      out.push("</g>"); y += h;
+    }
+    if (opts.live && written < DUR && !failAt) out.push(`<rect x="${x(written)}" y="${top0}" width="${W - x(written)}" height="${H - top0}" fill="url(#hatch${opts.id})" opacity=".5"/>`);
+    const nx = x(now); const col = failAt ? red : red;
+    out.push(`<line x1="${nx}" x2="${nx}" y1="${RULER - 2}" y2="${H}" stroke="${col}" stroke-width="1.5"/><rect x="${nx - 23}" y="1" width="46" height="15" rx="3" fill="${col}"/><text x="${nx}" y="12" text-anchor="middle" font-size="10" font-family="JetBrains Mono" fill="#fff">${fmt(now)}</text>`);
+    scroll.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Score of saved-views.reel.ts at ${fmt(now)}"><defs><pattern id="hatch${opts.id}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${rule}" stroke-width="1"/></pattern></defs>${out.join("")}</svg>`;
+    if (opts.live) { const vw = scroll.clientWidth; if (nx > scroll.scrollLeft + vw - 80 || nx < scroll.scrollLeft) scroll.scrollLeft = Math.max(0, nx - vw * .35); }
+    if (opts.follow && !dragging) { const vw = scroll.clientWidth; if (nx > scroll.scrollLeft + vw - 40 || nx < scroll.scrollLeft) scroll.scrollLeft = Math.max(0, nx - vw * .2); }
+    // overview
+    const mw = mini.clientWidth || 600, sx = (t) => t / DUR * mw;
+    mini.querySelector("svg").setAttribute("viewBox", `0 0 ${mw} 30`);
+    mini.querySelector("svg").innerHTML = STEPS.filter((s) => s.t <= written).map((s) => `<line x1="${sx(s.t)}" x2="${sx(s.t)}" y1="6" y2="24" stroke="${rule}"/>`).join("") +
+      COMMENTS.filter((c) => c.t <= written).map((c) => `<rect x="${sx(c.t)}" y="11" width="${sx(Math.min(c.d, written - c.t))}" height="8" rx="2" fill="${ink2}" opacity=".55"/>`).join("") +
+      SOUNDS.filter((s) => s.t <= written).map((s) => `<circle cx="${sx(s.t)}" cy="15" r="2.6" fill="${ink}"/>`).join("") +
+      `<line x1="${sx(now)}" x2="${sx(now)}" y1="2" y2="28" stroke="${red}" stroke-width="1.5"/>`;
+    syncView();
+  }
+  function syncView() { const sw = scroll.scrollWidth || 1, mw = mini.clientWidth; view.style.left = `${scroll.scrollLeft / sw * mw}px`; view.style.width = `${Math.min(1, scroll.clientWidth / sw) * mw}px`; }
+  let dragging = false;
+  scroll.addEventListener("scroll", syncView);
+  const miniSeek = (ev) => { const r = mini.getBoundingClientRect(); const f = (ev.clientX - r.left) / r.width; scroll.scrollLeft = f * scroll.scrollWidth - scroll.clientWidth / 2; };
+  mini.addEventListener("pointerdown", (ev) => { dragging = true; mini.setPointerCapture(ev.pointerId); miniSeek(ev); });
+  mini.addEventListener("pointermove", (ev) => dragging && miniSeek(ev));
+  mini.addEventListener("pointerup", () => (dragging = false));
+  host.addEventListener("click", (ev) => {
+    const z = ev.target.closest("[data-z]"), p = ev.target.closest("[data-p]"), f = ev.target.closest("[data-fold]"), m = ev.target.closest("[data-mute]");
+    if (z) { st.fit = +z.dataset.z === 0; if (!st.fit) st.zoom = Math.max(10, Math.min(80, st.zoom + (+z.dataset.z) * 8)); }
+    if (p) { st.pictures = p.dataset.p === "1"; host.querySelectorAll("[data-p]").forEach((b) => b.setAttribute("aria-pressed", String(b === p))); }
+    if (f) { st.fold = !st.fold; f.textContent = st.fold ? "Unfold 4–6" : "Fold 4–6"; }
+    if (m) { st.muted.has(m.dataset.mute) ? st.muted.delete(m.dataset.mute) : st.muted.add(m.dataset.mute); }
+    if (z || p || f || m) opts.onChange?.();
+  });
+  scroll.addEventListener("click", (ev) => { if (!opts.onSeek) return; const r = scroll.getBoundingClientRect(); opts.onSeek(tAt(ev.clientX - r.left + scroll.scrollLeft)); });
+  scroll.addEventListener("mousemove", (ev) => {
+    const el = ev.target.closest("[data-tip]"); if (!el) { tip.hidden = true; return; }
+    tip.innerHTML = el.getAttribute("data-tip"); tip.hidden = false;
+    const w = tip.offsetWidth, hgt = tip.offsetHeight; tip.style.left = `${Math.min(innerWidth - w - 12, ev.clientX + 14)}px`; tip.style.top = `${Math.max(8, ev.clientY - hgt - 12)}px`;
+  });
+  scroll.addEventListener("mouseleave", () => (tip.hidden = true));
+  return { render, zoom(d) { st.fit = false; st.zoom = Math.max(10, Math.min(80, st.zoom + d * 8)); opts.onChange?.(); }, fold() { host.querySelector("[data-fold]").click(); }, muted: st.muted };
+}
+
+// ---------- Run screen ----------
+const PHASES = [["record", "Recording", 40], ["voice", "Voicing", 14], ["plan", "Planning", 3], ["render", "Rendering", 24], ["publish", "Publishing", 3]];
+const runApp = makeApp(document.getElementById("run-frame"));
+let sc = "live", runT = 12, phase = "record", phaseP = 0, cancelled = false, targets = true, tab = "steps", logSrc = "all";
+const runScore = makeScore(document.getElementById("run-score"), { live: true, id: "r", onChange: () => drawRun() });
+const LOG = [
+  [0.2, "flow", "<b>record</b> container flow-reel-record-7 started in 0.6 s"], [1.1, "browser", "GET http://localhost:4173/ 200 (38 ms)"], [3, "script", "step 1 · click getByRole('button', { name: 'Active' })"],
+  [8.2, "browser", "console.log [orbit] filter=active"], [9, "script", "step 2 · hover getByRole('region', …)"], [17, "script", "step 3 · click getByRole('button', { name: 'Save view' })"],
+  [23, "script", "step 4 · fill getByLabel('View name')"], [26, "script", "step 5 · click Save"], [27.6, "browser", "POST /api/views 201 (184 ms)"], [29.6, "script", "step 6 · 'saved' visible after 2.1 s, sped up ×3"],
+  [30, "script", "step 7 · click getByRole('link', { name: 'Active work' })"], [40, "flow", "<b>record</b> done: 40.0 s, 7 steps"],
+  [41, "flow", "<b>voice</b> 4 comments with Qwen3 local (CPU)"], [55, "flow", "<b>plan</b> 2 effects, 2 cards, 1 speed-up"], [58, "renderer", "ffmpeg 1440p60 · 2400 frames"], [82, "flow", "<b>publish</b> reels/out/saved-views.reel"],
+];
+const runEl = (id) => document.getElementById(id);
+function runState() {
+  if (cancelled) return "cancelled";
+  if (sc === "waiting") return "waiting"; if (sc === "failed") return "failed"; if (sc === "stopped") return "stopped";
+  return phase === "done" ? "done" : "running";
+}
+function drawRun() {
+  const state = runState();
+  const t = sc === "failed" ? 18.6 : sc === "waiting" ? 0 : sc === "stopped" ? DUR : Math.min(runT, DUR);
+  const ph = sc === "stopped" ? "render" : sc === "failed" ? "record" : sc === "waiting" ? "record" : phase;
+  const pp = sc === "stopped" ? .38 : phaseP;
+  // header
+  runEl("run-sub").innerHTML = `saved-views.reel.ts · started in a terminal at 15:10 · <span class="st ${state === "waiting" ? "waiting" : state}">${{ running: PHASES.find(([k]) => k === ph)[1].toLowerCase(), waiting: "waiting for the recording slot", failed: "failed in step 3", stopped: "stopped during rendering", done: "done", cancelled: "cancelled" }[state]}</span>`;
+  const elapsed = sc === "live" ? (phase === "record" ? t : 40 + PHASES.slice(1, PHASES.findIndex(([k]) => k === phase)).reduce((s, p) => s + p[2], 0) + pp * (PHASES.find(([k]) => k === phase) || [0, 0, 0])[2]) : sc === "failed" ? 28.6 : sc === "stopped" ? 49 : 0;
+  const total = PHASES.reduce((s, p) => s + p[2], 0);
+  runEl("run-meta").innerHTML = `<span>Elapsed <b class="mono">${fmt(elapsed)}</b></span>${state === "running" ? `<span>About <b class="mono">${Math.max(1, Math.round((total - elapsed) / 6) * 6)} s</b> left, from the last 3 runs</span>` : ""}<span>Voice <b>Qwen3 local</b></span><span>Image <b class="mono">flow-reel:0.8.0</b></span><span>Started by <span class="origin">terminal</span></span>${state === "running" && ph === "record" ? `<span>Has the <b>recording slot</b> · billing-portal/7 waits</span>` : ""}`;
+  const A = runEl("run-actions");
+  if (!A.dataset.confirm) A.innerHTML = { running: `<button class="btn" id="stage-btn">Stage mode <span class="kbd">S</span></button><button class="btn danger" data-a="cancel">Cancel run</button>`, waiting: `<button class="btn danger" data-a="cancel">Cancel run</button>`,
+    failed: `<button class="btn">Open saved-views.reel.ts:17</button><button class="btn primary" data-a="again">Run again</button>`, stopped: `<button class="btn primary" data-a="resume">Resume from rendering</button><button class="btn danger" data-a="cancel">Cancel run</button>`,
+    done: `<a class="btn primary" href="#reel">Open the reel</a>`, cancelled: `<button class="btn" data-a="again">Run again</button>` }[state];
+  // picture
+  const live = state === "running" && ph === "record";
+  const bar = live ? `<span class="chip"><span class="dot pulse"></span>live · 8 fps</span><span class="chip">${fmt(t)}</span><span class="r"><button class="chip" id="tg" aria-pressed="${targets}">Targets <span style="opacity:.6">T</span></button></span>`
+    : state === "running" || state === "done" ? `<span class="chip">recording finished · last picture</span>` : state === "failed" ? `<span class="chip">picture when it failed · ${fmt(t)}</span>` : state === "stopped" ? `<span class="chip">recorded · 40.0 s kept</span>` : state === "cancelled" ? `<span class="chip">cancelled</span>` : "";
+  runApp.render(state === "waiting" ? 0 : t, { bar, camera: false, targets: live && targets,
+    veil: state === "waiting" ? `<div><h3>Waiting for billing-portal/7</h3><p>One recording at a time on this computer. This run starts recording as soon as billing-portal/7 finishes its recording, in about 40 s.</p></div>`
+      : state === "stopped" ? `<div><h3>The run's process stopped</h3><p>Recording, voicing and planning are done and kept. Resume goes on from rendering; it never records again.</p></div>` : "",
+    fail: state === "failed" ? `<b>Step 3 failed</b><span>getByRole('button', { name: 'Save view' }) not found after 10 s</span>` : "" });
+  // phase transport
+  const idx = PHASES.findIndex(([k]) => k === ph);
+  runEl("tline").innerHTML = PHASES.map(([k, , w], i) => {
+    const done = state === "done" || i < idx, nowp = i === idx && ["running", "stopped", "failed"].includes(state);
+    const p = done ? 1 : nowp ? (k === "record" ? t / DUR : pp) : 0;
+    return `<div style="flex:1" class="${nowp && state === "running" ? "now" : ""} ${nowp && state === "failed" ? "bad" : ""}"><i style="width:${p * 100}%"></i></div>`;
+  }).join("");
+  runEl("tlab").innerHTML = PHASES.map(([k, name, w], i) => `<span style="flex:1" class="${i === idx && state === "running" ? "now" : ""}">${name}${i === idx && state === "failed" ? " · failed" : i === idx && state === "stopped" ? " · stopped" : ""}</span>`).join("");
+  // tabs
+  const fails = state === "failed" ? 1 : 0;
+  runEl("run-tabs").innerHTML = [["steps", "Steps", 7], ["log", "Log", LOG.filter(([lt]) => lt <= elapsed + .01).length], ["events", "Journal", ""], ["fail", "Failures", fails]].map(([k, n, c]) => `<button role="tab" aria-selected="${tab === k}" data-tab="${k}">${n}<span class="cnt ${k === "fail" && c ? "bad" : ""}">${c}</span></button>`).join("");
+  const cur = stepAt(t), B = runEl("tab-body");
+  if (tab === "steps") B.innerHTML = `<div class="steps">${STEPS.map((s) => {
+    const bad = state === "failed" && s.n === 3, fin = !bad && (ph !== "record" || t >= s.t + s.d) && !(state === "failed" && s.n > 3) && state !== "waiting";
+    const cls = bad ? "bad" : fin ? "" : cur === s && state === "running" ? "cur" : "todo";
+    const delta = s.d - s.last;
+    return `<div class="stp ${cls}"><span class="n">${s.n}</span><span>${esc(s.label)}<code>${esc(s.code)}</code></span><span class="d">${bad ? "10.0 s" : fin ? `${s.d.toFixed(1)} s<em>${Math.abs(delta) < .05 ? "same as last" : (delta > 0 ? "+" : "−") + Math.abs(delta).toFixed(1) + " s"}</em>` : cls === "cur" ? "now" : ""}</span></div>`; }).join("")}</div>`;
+  if (tab === "log") B.innerHTML = `<div class="logbar">${["all", "script", "browser", "renderer", "flow"].map((s) => `<button class="fchip" aria-pressed="${logSrc === s}" data-log="${s}">${s === "flow" ? "flow-reel" : s}</button>`).join("")}</div><pre class="log">${LOG.filter(([lt, s]) => lt <= elapsed + .01 && (logSrc === "all" || s === logSrc)).map(([lt, s, l]) => `<span class="faint">${fmt(lt)}</span> <span class="src">${s.padEnd(8)}</span> ${l}`).join("\n")}${state === "failed" ? `\n<span class="faint">0:28.6</span> <span class="src">script  </span> <em>step 3 failed: locator not found after 10 s</em>` : ""}</pre>`;
+  if (tab === "events") B.innerHTML = `<pre class="log">${[`{"seq":1,"event":"queued","run":"saved-views/7","by":"terminal"}`, state === "waiting" ? `{"seq":2,"event":"waiting","for":"billing-portal/7","work":"record"}` : `{"seq":2,"event":"started","phase":"record","lease":"30s"}`,
+    ...(state === "waiting" ? [] : STEPS.filter((s) => s.t <= t).map((s, i) => `{"seq":${3 + i},"event":"step","step":${s.n},"at":${s.t}}`)),
+    ...(ph !== "record" ? PHASES.slice(1, idx + 1).map(([k], i) => `{"seq":${11 + i},"event":"phase","phase":"${k}"}`) : []),
+    ...(state === "failed" ? [`<em>{"seq":6,"event":"failed","step":3,"reason":"locator-timeout"}</em>`] : []), ...(state === "stopped" ? [`<em>{"seq":13,"event":"lease-expired","state":"stopped","resume":"render"}</em>`] : [])].join("\n")}</pre>`;
+  if (tab === "fail") B.innerHTML = state === "failed" ? `<pre class="err">getByRole('button', { name: 'Save view' })
+not found after 10 s.
+
+The page had a button named "Save" and a
+button named "Save as view" (renamed?).</pre>
+    <span class="label">The last 3 seconds</span><div class="film">${[15.6, 16.6, 17.6].map((tt) => `<div data-t="${fmt(tt)}"><i style="left:0;top:0;width:21%;height:100%;background:#f1f3f8"></i><i style="left:26%;top:12%;width:30%;height:8%"></i><i style="left:62%;top:28%;width:33%;height:56%;background:#dfe4f5"></i></div>`).join("")}</div>
+    <div class="chips"><button class="btn sm">Open saved-views.reel.ts:17</button><button class="btn sm">Copy the error</button></div>` : `<div class="faint" style="font-size:13px;padding:6px 0">No failures in this run.</div>`;
+  runScore.render(t, { phase: ph, written: state === "waiting" ? 0 : state === "failed" ? 18.6 : ph === "record" ? t : DUR, failAt: state === "failed" ? 3 : 0 });
+  // top bar
+  runEl("live-txt").textContent = state === "running" || state === "waiting" ? "2 runs" : "1 run";
+  runEl("slot-txt").textContent = state === "waiting" ? "Recording slot: billing-portal/7 · 1 waiting" : state === "running" && ph === "record" ? "Recording slot: saved-views/7 · 1 waiting" : "Recording slot: billing-portal/7";
+}
+let lastTick = performance.now(), acc = 0, drawAcc = 0;
+function tick(now) {
+  const dt = Math.min(.1, (now - lastTick) / 1000); lastTick = now; drawAcc += dt;
+  if (current === "run" && sc === "live" && !cancelled) {
+    if (phase === "record") { runT += dt; if (runT >= DUR) { runT = DUR; phase = "voice"; phaseP = 0; } }
+    else if (phase !== "done") { phaseP += dt / ({ voice: 4, plan: 1.2, render: 5, publish: 1 })[phase]; if (phaseP >= 1) { const i = PHASES.findIndex(([k]) => k === phase); phase = i < 4 ? PHASES[i + 1][0] : "done"; phaseP = 0; } }
+    else { acc += dt; if (acc > 7) { acc = 0; phase = "record"; runT = 0; runApp.reset(); } }
+    if (drawAcc > 1 / 20) { drawAcc = 0; drawRun(); }
+  }
+  if (current === "reel" && playing) {
+    reelT += dt * speed;
+    const s = stepAt(reelT);
+    if (looping && loopStep && reelT >= loopStep.t + loopStep.d) { reelT = loopStep.t; reelApp.reset(); }
+    if (reelT >= DUR) { reelT = DUR; setPlaying(false); }
+    drawReel(); void s;
+  }
+  requestAnimationFrame(tick);
+}
+document.getElementById("s-run").addEventListener("click", (ev) => {
+  const tb = ev.target.closest("[data-tab]"); if (tb) { tab = tb.dataset.tab; drawRun(); return; }
+  const lg = ev.target.closest("[data-log]"); if (lg) { logSrc = lg.dataset.log; drawRun(); return; }
+  if (ev.target.closest("#tg")) { targets = !targets; drawRun(); return; }
+  if (ev.target.closest("#stage-btn")) { document.body.classList.toggle("stage-mode"); return; }
+  const a = ev.target.closest("[data-a]"); if (!a) return; const A = runEl("run-actions");
+  if (a.dataset.a === "cancel") { A.dataset.confirm = "1"; A.innerHTML = `<span class="muted" style="font-size:13px">Cancel saved-views/7? Its finished phases are kept.</span><button class="btn danger" data-a="yes">Cancel run</button><button class="btn" data-a="no">Keep it</button>`; }
+  else if (a.dataset.a === "yes") { delete A.dataset.confirm; cancelled = true; toast("saved-views/7 is cancelled. No container is left running."); drawRun(); }
+  else if (a.dataset.a === "no") { delete A.dataset.confirm; drawRun(); }
+  else if (a.dataset.a === "again" || a.dataset.a === "resume") {
+    cancelled = false; if (a.dataset.a === "resume") { setScenario("live"); phase = "render"; phaseP = .38; runT = DUR; } else { setScenario("live"); phase = "record"; runT = 0; runApp.reset(); }
+    toast(a.dataset.a === "resume" ? "Resumed: recording, voicing, planning already done." : "saved-views/8 started."); drawRun();
+  }
+});
+function setScenario(s) {
+  sc = s; cancelled = false; delete runEl("run-actions").dataset.confirm; if (s === "failed") tab = "fail"; else if (tab === "fail") tab = "steps";
+  if (s === "live" && phase === "done") { phase = "record"; runT = 0; }
+  document.querySelectorAll("[data-sc]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.sc === s)));
+  const rb = document.getElementById("run-badge"); rb.hidden = !(s === "live" || s === "failed" || s === "waiting"); rb.style.background = s === "live" ? "var(--run)" : s === "waiting" ? "var(--ink-3)" : "var(--you)";
+}
+document.getElementById("mock").addEventListener("click", (ev) => { const b = ev.target.closest("[data-sc]"); if (!b) return; setScenario(b.dataset.sc); if (current !== "run") location.hash = "run"; else drawRun(); });
+
+// ---------- Reel screen ----------
+const reelApp = makeApp(document.getElementById("reel-frame"));
+const hovApp = makeApp(document.getElementById("hov-frame"), { mini: true });
+let reelT = 12.4, playing = false, speed = 1, captions = true, looping = false, loopStep = null;
+const reelScore = makeScore(document.getElementById("reel-score"), { id: "p", follow: true, mutable: true, onSeek: (t) => seek(t), onChange: () => drawReel() });
+const track = document.getElementById("track");
+document.getElementById("ticks").innerHTML = STEPS.map((s) => `<span class="tk" style="left:${s.t / DUR * 100}%"></span>`).join("") + CARDS.map((c) => `<span class="tk card" style="left:${c.t / DUR * 100}%;width:${c.d / DUR * 100}%"></span>`).join("");
+document.querySelector("#s-reel .loud").innerHTML = Array.from({ length: 60 }, (_, i) => { const t = i / 60 * DUR; const v = COMMENTS.some((c) => t >= c.t && t < c.t + c.d) ? 55 + Math.abs(Math.sin(i * 1.7)) * 40 : SOUNDS.some((s) => Math.abs(s.t - t) < .7) ? 70 : 12 + Math.abs(Math.sin(i)) * 8; return `<i style="height:${v}%"></i>`; }).join("");
+function drawReel() {
+  reelApp.render(reelT, { captions: captions && !reelScore.muted.has("Comments"), bar: `<span class="chip">${fmt(reelT)}</span>${looping && loopStep ? `<span class="chip">looping step ${loopStep.n}</span>` : ""}${speed !== 1 ? `<span class="chip">${speed}×</span>` : ""}` });
+  const f = reelT / DUR * 100; track.querySelector(".fill").style.width = `${f}%`; track.querySelector(".knob").style.left = `${f}%`;
+  document.getElementById("tc").textContent = `${fmt(reelT)} / ${fmt(DUR)}`;
+  const c = COMMENTS.findIndex((c) => reelT >= c.t && reelT < c.t + c.d + 1.5);
+  document.getElementById("transcript").innerHTML = COMMENTS.map((cm, i) => `<button data-t="${cm.t}" class="${i === c ? "on" : ""}"><span>${fmt(cm.t)}</span><span>${esc(cm.text)}</span></button>`).join("");
+  reelScore.render(reelT);
+}
+function seek(t) { reelT = Math.max(0, Math.min(DUR, t)); reelApp.reset(); if (looping) loopStep = stepAt(reelT) || STEPS[0]; drawReel(); }
+function setPlaying(on) { playing = on; if (on && reelT >= DUR) reelT = 0; document.getElementById("play-ic").innerHTML = on ? '<path d="M4 2.5h3v11H4zM9 2.5h3v11H9z"/>' : '<path d="M4 2.5v11l9-5.5z"/>'; document.getElementById("play").setAttribute("aria-label", on ? "Pause" : "Play"); }
+document.getElementById("play").addEventListener("click", () => setPlaying(!playing));
+const tAtTrack = (ev) => { const r = track.getBoundingClientRect(); return Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)) * DUR; };
+let scrubbing = false; const hov = document.getElementById("hov");
+track.addEventListener("pointerdown", (ev) => { scrubbing = true; track.setPointerCapture(ev.pointerId); seek(tAtTrack(ev)); });
+track.addEventListener("pointermove", (ev) => {
+  const t = tAtTrack(ev); if (scrubbing) seek(t);
+  if (ev.pointerType === "mouse") { hov.hidden = false; hov.style.left = `${Math.max(100, Math.min(track.clientWidth - 100, t / DUR * track.clientWidth))}px`; hovApp.render(t); const s = stepAt(t); document.getElementById("hov-t").textContent = `${fmt(t)} · ${t < 3 ? "title card" : t >= 36 ? "end card" : "step " + s.n}`; }
+});
+track.addEventListener("pointerup", () => (scrubbing = false));
+track.addEventListener("pointerleave", () => (hov.hidden = true));
+document.getElementById("transcript").addEventListener("click", (ev) => { const b = ev.target.closest("[data-t]"); if (b) seek(+b.dataset.t); });
+document.getElementById("speed").addEventListener("click", (ev) => { const b = ev.target.closest("[data-v]"); if (!b) return; speed = +b.dataset.v; document.querySelectorAll("#speed button").forEach((o) => o.setAttribute("aria-pressed", String(o === b))); drawReel(); });
+const ccBtn = document.getElementById("cc"), loopBtn = document.getElementById("loop");
+const toggleCC = () => { captions = !captions; ccBtn.setAttribute("aria-pressed", String(captions)); drawReel(); };
+const toggleLoop = () => { looping = !looping; loopStep = looping ? stepAt(reelT) || STEPS[0] : null; loopBtn.setAttribute("aria-pressed", String(looping)); drawReel(); };
+ccBtn.addEventListener("click", toggleCC); loopBtn.addEventListener("click", toggleLoop);
+document.getElementById("copy-time").addEventListener("click", async (ev) => { const b = ev.currentTarget, txt = `saved-views.reel at ${fmt(reelT)}`; try { await navigator.clipboard.writeText(txt); b.textContent = "Copied"; } catch { b.textContent = fmt(reelT); } setTimeout(() => (b.textContent = "Copy time"), 1400); });
+
+// ---------- Workspaces ----------
+const WS = [
+  { name: "Saved views", slug: "saved-views", path: "~/code/orbit", st: "running", stTxt: "recording", scripts: 2, runs: 7, size: 2.1, strip: ["", "", "c", "", "", "f", "", "", "", "", "", "r"], h: [60, 62, 30, 64, 66, 40, 70, 22, 24, 72, 70, 45] },
+  { name: "Billing portal", slug: "billing-portal", path: "~/work/ledger-web", st: "waiting", stTxt: "waiting to record", scripts: 4, runs: 7, size: .94, strip: ["", "", "", "f", "", "", "r"], h: [80, 82, 81, 35, 84, 85, 50] },
+  { name: "Docs site", slug: "docs-site", path: "~/code/field-docs", st: "stopped", stTxt: "stopped · resumable", scripts: 1, runs: 3, size: .31, strip: ["", "", "c"], h: [50, 52, 20] },
+];
+function drawWs() {
+  document.getElementById("ws-grid").innerHTML = WS.map((w, i) => `<div class="card ws" data-go="scripts" style="cursor:pointer">
+    <div class="row"><h3>${w.name}</h3><span class="st ${w.st}">${w.stTxt}</span></div><div class="path">${w.path} · ${w.slug}</div>
+    <div class="strip" title="The last runs, oldest first; height is the reel's length">${w.strip.map((c, j) => `<i class="${c}" style="height:${w.h[j]}%"></i>`).join("")}</div>
+    <div class="row muted" style="font-size:12.5px"><span>${w.scripts} scripts · ${w.runs} runs</span><span class="mono">${w.size >= 1 ? w.size.toFixed(1) + " GB" : Math.round(w.size * 1000) + " MB"} of run files</span></div>
+    <div class="disk"><i style="width:${w.size / 2.5 * 100}%"></i></div>
+    <div class="row" data-clean="${i}"><span class="faint" style="font-size:12px">History stays; reels stay.</span><button class="btn sm" data-c="ask">Clean</button></div></div>`).join("") +
+    `<form class="add" id="add-ws"><span class="label">Add a workspace</span><div class="line"><input class="field" id="ws-path" placeholder="~/code/my-app" aria-label="Project folder"><button class="btn primary">Add</button></div>
+     <span class="faint" style="font-size:12.5px" id="add-msg">A folder with a flow-reel.json. Without one, the studio offers to make it, as <span class="mono">flow-reel init</span> does.</span></form>`;
+}
+drawWs();
+document.getElementById("ws-grid").addEventListener("click", (ev) => {
+  const c = ev.target.closest("[data-c]"); if (!c) return; ev.stopPropagation(); const row = c.closest("[data-clean]"), w = WS[+row.dataset.clean];
+  if (c.dataset.c === "ask") row.innerHTML = `<span style="font-size:12.5px">Remove the files of ${w.runs - 1} finished runs?</span><span style="display:flex;gap:6px"><button class="btn sm danger" data-c="yes">Remove ${w.size >= 1 ? w.size.toFixed(1) + " GB" : Math.round(w.size * 1000) + " MB"}</button><button class="btn sm" data-c="no">Keep</button></span>`;
+  else if (c.dataset.c === "yes") { toast(`Removed ${w.size >= 1 ? w.size.toFixed(1) + " GB" : Math.round(w.size * 1000) + " MB"} from ${w.name}. Its runs stay listed.`); w.size = .05; drawWs(); }
+  else drawWs();
+}, true);
+document.getElementById("s-workspaces").addEventListener("submit", (ev) => {
+  ev.preventDefault(); const v = document.getElementById("ws-path").value.trim();
+  document.getElementById("add-msg").innerHTML = v ? `<span class="mono">${esc(v)}</span> has no flow-reel.json yet. <button class="btn sm" type="button" style="margin-left:6px">Make it a workspace</button>` : "Type the project's folder first.";
+});
+// Today: a timeline of who held the recording slot
+function drawToday() {
+  const H0 = 9, H1 = 16, NOW = 15 + 12 / 60, W = Math.max(720, document.getElementById("today").clientWidth || 980), L = 150, px = (h) => L + (h - H0) / (H1 - H0) * (W - L - 20);
+  const rows = [["Recording slot", null], ["Saved views", "saved-views"], ["Billing portal", "billing-portal"], ["Docs site", "docs-site"]];
+  const RUNS = [["saved-views", 10 + 5 / 60, 10 + 7 / 60, "done", "5"], ["docs-site", 11 + 20 / 60, 11 + 24 / 60, "stopped", "3"], ["billing-portal", 12 + 10 / 60, 12 + 13 / 60, "done", "6"], ["saved-views", 14, 14 + 3 / 60, "done", "6"], ["saved-views", 13 + 2 / 60, 13 + 3 / 60, "failed", "4"], ["saved-views", 15 + 10 / 60, NOW, "running", "7"], ["billing-portal", 15 + 11 / 60, NOW, "waiting", "7"]];
+  const rh = 30, top = 22, out = [];
+  for (let h = H0; h <= H1; h++) out.push(`<line x1="${px(h)}" x2="${px(h)}" y1="${top - 4}" y2="${top + rows.length * rh}" stroke="var(--rule-2)"/>${Math.abs(px(h) - px(NOW)) < 70 || h === H1 ? "" : `<text x="${px(h) + 3}" y="12" font-size="10" fill="var(--ink-3)" font-family="JetBrains Mono">${String(h).padStart(2, "0")}:00</text>`}`);
+  rows.forEach(([n], i) => out.push(`<text x="0" y="${top + i * rh + 19}" font-size="${i === 0 ? 15 : 13}" ${i === 0 ? 'font-weight="500" font-family="IBM Plex Sans"' : ""} fill="var(--ink${i === 0 ? "" : "-2"})">${n}</text><line x1="${L}" x2="${W - 20}" y1="${top + i * rh + rh}" y2="${top + i * rh + rh}" stroke="var(--rule-2)"/>`));
+  RUNS.forEach(([ws, a, b, s, id]) => {
+    const r = rows.findIndex((x) => x[1] === ws), y = top + r * rh + 8, X = px(a), w = Math.max(8, px(b) - X);
+    const fill = s === "running" ? "var(--run)" : s === "failed" ? "var(--fail)" : s === "waiting" || s === "stopped" ? "none" : "var(--ink)";
+    out.push(`<g data-tip="${esc(`<b>${ws}/${id}</b> · ${s}<br>${String(Math.floor(a)).padStart(2, "0")}:${String(Math.round(a % 1 * 60)).padStart(2, "0")}`)}"><rect x="${X}" y="${y}" width="${w}" height="14" rx="3" fill="${fill}" stroke="${s === "waiting" || s === "stopped" ? "var(--ink-2)" : "none"}" ${s === "waiting" ? 'stroke-dasharray="3 2"' : ""}/><text x="${X + w + 5}" y="${y + 11}" font-size="10.5" font-family="JetBrains Mono" fill="var(--ink-2)">/${id}</text></g>`);
+    if (s !== "waiting" && s !== "stopped") out.push(`<rect x="${X}" y="${top + 9}" width="${Math.max(4, w * .55)}" height="12" rx="2" fill="${s === "running" ? "var(--run)" : "var(--ink-2)"}" opacity="${s === "running" ? 1 : .55}"/>`);
+  });
+  out.push(`<line x1="${px(NOW)}" x2="${px(NOW)}" y1="${top - 6}" y2="${top + rows.length * rh}" stroke="var(--now)" stroke-width="1.5"/><text x="${px(NOW) + 4}" y="12" text-anchor="start" font-size="10" fill="var(--now)" font-family="JetBrains Mono">now 15:12</text>`);
+  document.getElementById("today").innerHTML = `<svg width="${W}" height="${top + rows.length * rh + 6}" viewBox="0 0 ${W} ${top + rows.length * rh + 6}" role="img" aria-label="Today's runs and the recording slot">${out.join("")}</svg>`;
+  document.getElementById("today-now").textContent = "7 runs today · 1 failed";
+}
+drawToday();
+document.getElementById("today").addEventListener("mousemove", (ev) => { const el = ev.target.closest("[data-tip]"); if (!el) { tip.hidden = true; return; } tip.innerHTML = el.getAttribute("data-tip"); tip.hidden = false; tip.style.left = `${ev.clientX + 14}px`; tip.style.top = `${ev.clientY - tip.offsetHeight - 10}px`; });
+document.getElementById("today").addEventListener("mouseleave", () => (tip.hidden = true));
+const HIST = [
+  ["saved-views/7", "Saved views", "saved-views", "running", "recording", "terminal", "15:10", "—", "", 0],
+  ["billing-portal/7", "Billing portal", "invoices", "waiting", "for the recording slot", "terminal", "15:11", "—", "", 0],
+  ["saved-views/6", "Saved views", "saved-views", "done", "", "studio", "14:00", "3 min 12 s", "", 5],
+  ["saved-views/4", "Saved views", "saved-views", "failed", "record", "agent", "13:02", "48 s", "step 3: button \"Save view\" not found after 10 s", 0],
+  ["billing-portal/6", "Billing portal", "invoices", "done", "", "studio", "12:10", "2 min 51 s", "", 5],
+  ["docs-site/3", "Docs site", "search", "stopped", "render", "agent", "11:20", "—", "resume goes on from its render phase", 3],
+  ["saved-views/5", "Saved views", "quick", "done", "", "terminal", "10:05", "1 min 34 s", "", 5],
+  ["saved-views/3", "Saved views", "saved-views", "cancelled", "voice", "terminal", "yesterday", "21 s", "", 1],
+];
+let hf = "all", ho = "", hq = "";
+function drawHist() {
+  const dots = (n, state) => Array.from({ length: 5 }, (_, i) => `<i class="${i < n ? "d" : i === n && state === "running" ? "n" : i === n && state === "failed" ? "x" : ""}"></i>`).join("");
+  const rows = HIST.filter(([id, ws, sc2, state, , by]) => (hf === "all" || (hf === "running" ? ["running", "waiting"].includes(state) : state === hf)) && (!ho || by === ho) && (`${id} ${sc2} ${ws}`.toLowerCase().includes(hq)));
+  document.getElementById("history").innerHTML = `<thead><tr><th>Run</th><th>Script</th><th>Started by</th><th>State</th><th>Phases</th><th>Started</th><th>Took</th><th></th></tr></thead><tbody>${rows.map(([id, ws, sc2, state, ph, by, when, took, why, n]) =>
+    `<tr class="click" data-go="${state === "done" ? "reel" : "run"}" ${state === "failed" ? 'data-sc="failed"' : state === "stopped" ? 'data-sc="stopped"' : state === "waiting" ? 'data-sc="waiting"' : state === "running" ? 'data-sc="live"' : ""}><td class="mono">${id}</td><td>${sc2}<div class="faint" style="font-size:12px">${ws}</div></td><td><span class="origin">${by}</span></td><td><span class="st ${state}">${state}${ph ? " · " + ph : ""}</span>${why ? `<div class="${state === "failed" ? "why" : "faint mono"}" style="font-size:11.5px">${esc(why)}</div>` : ""}</td><td><span class="phases">${dots(n, state)}</span></td><td class="mono">${when}</td><td class="mono">${took}</td><td>${{ stopped: '<button class="btn sm">Resume</button>', done: '<button class="btn sm">Play</button>', running: '<button class="btn sm">Watch</button>', waiting: '<button class="btn sm">Watch</button>', failed: '<button class="btn sm">See failure</button>' }[state] || ""}</td></tr>`).join("") || `<tr><td colspan="8" class="faint">No run matches.</td></tr>`}</tbody>`;
+}
+drawHist();
+document.getElementById("hist-filter").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button"); if (!b) return;
+  if (b.dataset.f) { hf = b.dataset.f; document.querySelectorAll("[data-f]").forEach((o) => o.setAttribute("aria-pressed", String(o === b))); }
+  if (b.dataset.o) { ho = ho ? "" : b.dataset.o; b.setAttribute("aria-pressed", String(!!ho)); }
+  drawHist();
+});
+document.getElementById("hist-q").addEventListener("input", (ev) => { hq = ev.target.value.toLowerCase(); drawHist(); });
+document.getElementById("history").addEventListener("click", (ev) => { const tr = ev.target.closest("tr[data-sc]"); if (tr) setScenario(tr.dataset.sc); }, true);
+
+// ---------- Scripts: source with marks ----------
+function hl(line) {
+  const e = esc(line);
+  if (/^\s*\/\//.test(line)) return `<span class="tk-c">${e}</span>`;
+  return e.replace(/(&quot;[^&]*?(?:&#39;[^&]*?)*&quot;)/g, '<span class="tk-s">$1</span>').replace(/\b(await|export|default|import|from|async|const)\b/g, '<span class="tk-k">$1</span>');
+}
+function drawCode(active = 0) {
+  const mark = (n) => STEPS.some((s) => s.line === n) ? "step" : COMMENTS.some((c) => c.line === n) ? "comment" : SOUNDS.some((s) => s.line === n) ? "sound" : [12, 20].includes(n) ? "effect" : "";
+  document.getElementById("code").innerHTML = SRC.map((l, i) => { const n = i + 1, m = mark(n); return `<div class="${CHANGED.includes(n) ? "chg" : ""} ${active === n ? "on" : ""}" ${m ? `title="${m}"` : ""}><span class="g">${m ? g(m) : ""}</span><span class="ln">${n}</span><span>${hl(l)}</span></div>`; }).join("");
+}
+drawCode();
+document.getElementById("script-runs").innerHTML = [["running", "saved-views/7", "terminal", "now"], ["done", "saved-views/6", "studio", "14:00"], ["failed", "saved-views/4", "agent", "13:02"]].map(([s, id, by, w]) => `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><span class="st ${s}">${id}</span><span style="display:flex;gap:8px;align-items:center"><span class="faint mono">${w}</span><span class="origin">${by}</span></span></div>`).join("");
+const swEl = document.getElementById("onsave");
+swEl.addEventListener("click", () => { const on = swEl.getAttribute("aria-checked") !== "true"; swEl.setAttribute("aria-checked", String(on)); document.getElementById("onsave-txt").textContent = on ? "On. Saving saved-views.reel.ts starts a run; if one is going on, the new one waits for it." : "Off. When on, every save of this file repeats the script's real actions in your app."; if (on) toast("Run again on save is on for saved-views.reel.ts."); });
+
+// ---------- Top bar: live runs, toasts ----------
+const liveBtn = document.getElementById("live-btn"), livePop = document.getElementById("live-pop");
+liveBtn.addEventListener("click", () => { const open = livePop.hidden; livePop.hidden = !open; liveBtn.setAttribute("aria-expanded", String(open));
+  livePop.innerHTML = `<span class="label" style="padding:6px 10px 2px">Going on now</span>
+    <a href="#run" data-sc="live"><span class="st running">saved-views/7 · recording</span><span class="mono faint">${Math.round(Math.min(runT, DUR) / DUR * 100)}%</span><span class="pbar"><i style="width:${Math.min(runT, DUR) / DUR * 100}%"></i></span></a>
+    <a href="#run" data-sc="waiting"><span class="st waiting">billing-portal/7 · waiting to record</span><span class="origin">terminal</span></a>
+    <span class="faint" style="font-size:12px;padding:6px 10px">One recording at a time on this computer; voicing and rendering can overlap.</span>`; });
+livePop.addEventListener("click", (ev) => { const a = ev.target.closest("[data-sc]"); if (a) { setScenario(a.dataset.sc); livePop.hidden = true; } });
+function toast(msg, action) {
+  const el = document.createElement("div"); el.className = "toast"; el.innerHTML = `<span>${msg}</span>${action ? `<a class="btn sm" href="${action[1]}">${action[0]}</a>` : ""}`;
+  document.getElementById("toasts").append(el); setTimeout(() => el.remove(), 6000);
+}
+setTimeout(() => toast("billing-portal/7 started in a terminal. It waits for saved-views/7 before recording.", ["Watch", "#run"]), 6000);
+
+// ---------- Navigation, theme, palette, keys ----------
+const SCREENS = ["workspaces", "scripts", "run", "reel"];
+const CRUMBS = { workspaces: "<b>Workspaces</b>", scripts: "<i>Workspaces /</i> <b>Saved views</b>", run: "<i>Saved views /</i> <span class='mono'>saved-views.reel.ts</span> <i>/</i> <b>saved-views/7</b>", reel: "<i>Saved views /</i> <b>saved-views.reel</b>" };
+let current = "";
+function show() {
+  const h = location.hash.slice(1); current = SCREENS.includes(h) ? h : "run";
+  SCREENS.forEach((s) => (document.getElementById(`s-${s}`).hidden = s !== current));
+  document.querySelectorAll(".rail a[data-s]").forEach((a) => a.dataset.s === current ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
+  document.getElementById("crumbs").innerHTML = CRUMBS[current];
+  document.getElementById("mock").hidden = current !== "run" && current !== "workspaces";
+  if (current === "run") drawRun(); if (current === "reel") drawReel();
+  document.getElementById("main").scrollTop = 0; tip.hidden = true;
+}
+addEventListener("hashchange", show);
+document.addEventListener("click", (ev) => { const gEl = ev.target.closest("[data-go]"); if (gEl && !ev.target.closest("a") && !ev.target.closest("[data-c]")) location.hash = gEl.dataset.go; if (!ev.target.closest("#live-btn, #live-pop")) livePop.hidden = true; });
+const root = document.documentElement;
+document.getElementById("theme").addEventListener("click", () => { const dark = root.dataset.theme !== "light"; root.dataset.theme = dark ? "light" : "dark"; paintLogo(); if (current === "run") drawRun(); if (current === "reel") drawReel(); });
+const ACTIONS = [
+  ["Runs", "Watch saved-views/7", "run", "recording", "live"], ["Runs", "Watch billing-portal/7", "run", "waiting", "waiting"], ["Runs", "Resume docs-site/3", "run", "stopped", "stopped"], ["Runs", "See why saved-views/4 failed", "run", "failed", "failed"],
+  ["Scripts", "Run saved-views.reel.ts", "run", "Saved views", "live"], ["Scripts", "Run quick.reel.ts", "run", "Saved views", "live"], ["Scripts", "Run invoices.reel.ts", "run", "Billing portal", "live"],
+  ["Reels", "Play saved-views.reel", "reel", "0:40.0"], ["Reels", "Play quick.reel", "reel", "0:11.2"],
+  ["Go to", "Workspaces", "workspaces", "1"], ["Go to", "Scripts", "scripts", "2"], ["Go to", "Run", "run", "3"], ["Go to", "Reel", "reel", "4"], ["Go to", "Add a workspace…", "workspaces", ""],
+];
+const pal = document.getElementById("pal"), q = document.getElementById("pal-q"), list = document.getElementById("pal-list"), keys = document.getElementById("keys"); let sel = 0, matches = [];
+function drawPal() {
+  matches = ACTIONS.filter(([, n, , k]) => `${n} ${k}`.toLowerCase().includes(q.value.toLowerCase())); sel = Math.min(sel, Math.max(0, matches.length - 1));
+  let grp = "", i = 0; list.innerHTML = matches.map(([gr, n, go, k, s]) => `${gr !== grp ? ((grp = gr), `<li class="h label">${gr}</li>`) : ""}<li><button data-i="${i}" aria-selected="${i++ === sel}"><span>${n}</span><span>${k}</span></button></li>`).join("") || `<li class="faint" style="padding:10px 12px">Nothing matches.</li>`;
+}
+function runPal(i) { const m = matches[i]; if (!m) return; if (m[4]) setScenario(m[4]); location.hash = m[2]; if (m[2] === "run") drawRun(); pal.hidden = true; }
+function openPal() { pal.hidden = false; q.value = ""; sel = 0; drawPal(); q.focus(); }
+document.getElementById("pal-open").addEventListener("click", openPal);
+document.getElementById("keys-open").addEventListener("click", () => (keys.hidden = false));
+pal.addEventListener("click", (ev) => { const b = ev.target.closest("[data-i]"); if (b) runPal(+b.dataset.i); else if (ev.target === pal) pal.hidden = true; });
+keys.addEventListener("click", (ev) => { if (ev.target === keys) keys.hidden = true; });
+q.addEventListener("input", () => { sel = 0; drawPal(); });
+document.addEventListener("keydown", (ev) => {
+  if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === "k") { ev.preventDefault(); pal.hidden ? openPal() : (pal.hidden = true); return; }
+  if (ev.key === "Escape") { pal.hidden = true; keys.hidden = true; document.body.classList.remove("stage-mode"); return; }
+  if (!pal.hidden) {
+    if (ev.key === "ArrowDown" || ev.key === "ArrowUp") { ev.preventDefault(); sel = (sel + (ev.key === "ArrowDown" ? 1 : -1) + matches.length) % Math.max(1, matches.length); drawPal(); }
+    if (ev.key === "Enter") runPal(sel); return;
+  }
+  if (ev.target.closest("input, textarea") || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  if (ev.key === "?") { keys.hidden = !keys.hidden; return; }
+  if (ev.key >= "1" && ev.key <= "4") location.hash = SCREENS[+ev.key - 1];
+  const k = ev.key.toLowerCase();
+  if (k === "s" && (current === "run" || current === "reel")) document.body.classList.toggle("stage-mode");
+  if (current === "run" && k === "t") { targets = !targets; drawRun(); }
+  if (current === "reel") {
+    if (ev.key === " ") { ev.preventDefault(); setPlaying(!playing); }
+    if (ev.key === "ArrowRight") { const s = STEPS.find((s) => s.t > reelT + .05); seek(s ? s.t : 36); }
+    if (ev.key === "ArrowLeft") { const s = [...STEPS].reverse().find((s) => s.t < reelT - .3); seek(s ? s.t : 0); }
+    if (k === "c") toggleCC(); if (k === "l") toggleLoop();
+  }
+  const score = current === "run" ? runScore : current === "reel" ? reelScore : null;
+  if (score && (ev.key === "[" || ev.key === "]")) score.zoom(ev.key === "]" ? 1 : -1);
+  if (score && k === "f") score.fold();
+});
+addEventListener("resize", () => { drawToday(); if (current === "run") drawRun(); if (current === "reel") drawReel(); });
+setScenario("live");
+show();
+requestAnimationFrame(tick);
+})();
+paintLogo();
+</script>
