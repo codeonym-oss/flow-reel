@@ -1,7 +1,7 @@
 # Check reels in CI
 
 `flow-reel verify` and `flow-reel compare` read reels on the host, without Docker or FFmpeg, so they're cheap to run
-in any CI job. Commit the reels you publish (without `work/`, which ignores itself), and let CI catch a reel that
+in any CI job. Commit the reels you publish, and let CI catch a reel that
 was edited by hand or no longer matches its script.
 
 ## Verify every committed reel
@@ -11,7 +11,7 @@ was edited by hand or no longer matches its script.
 name: Reels
 on:
   pull_request:
-    paths: ["demos/**"]
+    paths: ["reels/**"]
 
 jobs:
   verify:
@@ -24,7 +24,7 @@ jobs:
       - run: npm ci
       - name: Every reel is whole and unaltered
         run: |
-          for reel in demos/*.reel; do
+          for reel in reels/out/*.reel; do
             npx flow-reel verify "$reel"
           done
 ```
@@ -38,7 +38,7 @@ same: the same steps, comments, voice and effects, with each step starting withi
 
 ```sh
 git worktree add /tmp/main main            # the reels as they are on main
-npx flow-reel compare /tmp/main/demos/onboarding.reel demos/onboarding.reel
+npx flow-reel compare /tmp/main/reels/out/onboarding.reel reels/out/onboarding.reel
 git worktree remove /tmp/main
 ```
 
@@ -54,4 +54,6 @@ a CI runner, but heavier than checking:
 - Use a [cloud voice](../guide/voices.md) and store its key as a CI secret, exposed to the job as the environment
   variable that `apiKeyEnv` names. The local voice needs more than 5 GiB of memory and minutes per comment.
 - Start your app in the job before composing, on the `url` the script uses.
+- In CI nothing asks a question: progress is plain lines, or JSON with `--json`, and the exit code says how the run
+  ended ([exit codes](../reference/cli.md#exit-codes)).
 - On an overloaded runner, the compose stops with an error rather than save a video whose timing is off.

@@ -6,12 +6,12 @@ on a phone, a before-and-after, and a call to action. This tutorial builds one w
 
 ## The folder
 
-The composer mounts only the script's folder, so everything a reel uses lives in it:
+The composer sees only the scripts folder, so everything a reel uses lives in it:
 
 ```text
-demos/launch/
-├── script.ts
-├── flow-reel.json
+flow-reel.json
+reels/
+├── launch.reel.ts
 ├── brand/
 │   ├── logo.svg
 │   └── Display.woff2
@@ -30,7 +30,7 @@ OS's screenshot tool or with Playwright's `page.screenshot()`.
 
 ```json
 {
-  "version": 1,
+  // ...
   "voice": { "adapter": "elevenlabs", "apiKeyEnv": "ELEVENLABS_API_KEY" },
   "brand": {
     "theme": "paper",
@@ -126,8 +126,8 @@ It's drawn frame by frame on a frozen clock, so the animation plays the same way
 
 ```sh
 export ELEVENLABS_API_KEY=...
-npx flow-reel compose demos/launch/script.ts
-npx flow-reel verify demos/launch/script.reel
+npx flow-reel compose reels/launch.reel.ts
+npx flow-reel verify reels/out/launch.reel
 ```
 
 `video.mp4` is ready for a release post, and `captions.vtt` goes with it on a web page (see

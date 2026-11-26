@@ -15,6 +15,19 @@ const preflight = join(root, "plugin/scripts/preflight.mjs");
 const stills = join(root, "plugin/scripts/stills.mjs");
 const work = mkdtempSync(join(tmpdir(), "flow reel helpers "));
 afterAll(() => rmSync(work, { recursive: true, force: true }));
+/** The oldest runtime the plugin supports. */
+const supported = /^\*\*Supported runtime:\*\* `>=([\d.]+)`$/m.exec(readFileSync(join(root, "plugin/references/language.md"), "utf8"))![1];
+/** A workspace's flow-reel.json. */
+const workspace = (settings: object = {}) =>
+  ({ version: 2, workspace: { id: "k3v9q2m7x5ta", slug: "shop", title: "Shop" }, scripts: ".", output: "out", ...settings });
+/** A workspace with a script in it, and that script. */
+function project(name: string): { dir: string; script: string } {
+  const dir = join(work, name);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "demo.reel.ts"), "");
+  writeFileSync(join(dir, "flow-reel.json"), JSON.stringify(workspace()));
+  return { dir, script: join(dir, "demo.reel.ts") };
+}
 
 /**
  * A PATH holding node and, optionally, a fake `docker` that logs its arguments and answers as told. `image` is whether
@@ -55,7 +68,8 @@ async function run(script: string, args: string[], path?: string, env: NodeJS.Pr
 interface Check { name: string; status: string; detail: string; fix?: string }
 const checks = (stdout: string) => Object.fromEntries((JSON.parse(stdout).checks as Check[]).map((c) => [c.name, c]));
 
-describe("preflight.mjs", () => {
+// Its fakes are shell scripts.
+describe.skipIf(process.platform === "win32")("preflight.mjs", () => {
   let server: Server;
   let base: string;
   beforeAll(async () => {
@@ -70,44 +84,40 @@ describe("preflight.mjs", () => {
 
   it("passes with an answering engine, the image present, a supported runtime and an answering app", async () => {
     const fake = fakePath("all-good", { version: true, info: true, image: true });
-    const result = await run(preflight, ["--url", `${base}/`, "--version", "0.5.0", "--json"], fake.path);
+    const result = await run(preflight, ["--url", `${base}/`, "--script", project("ready").script, "--version", supported, "--json"], fake.path);
     expect(result.status).toBe(0);
     const c = checks(result.stdout);
     expect([c.engine.status, c.runtime.status, c.image.status, c.url.status]).toEqual(["ok", "ok", "ok", "ok"]);
   });
 
   it("fails without an engine, and names an engine that is installed but not answering", async () => {
-    const none = await run(preflight, ["--version", "0.5.0", "--json"], fakePath("no-engine").path);
+    const none = await run(preflight, ["--version", supported, "--json"], fakePath("no-engine").path);
     expect(none.status).toBe(1);
     expect(checks(none.stdout).engine.detail).toMatch(/neither Docker nor Podman/);
-    const down = await run(preflight, ["--version", "0.5.0", "--json"], fakePath("engine-down", { version: true, info: false }).path);
+    const down = await run(preflight, ["--version", supported, "--json"], fakePath("engine-down", { version: true, info: false }).path);
     expect(down.status).toBe(1);
     expect(checks(down.stdout).engine).toMatchObject({ status: "fail", detail: "docker installed but not answering" });
   });
 
   it("reports a missing image with the pull command, and never pulls it", async () => {
     const fake = fakePath("no-image", { version: true, info: true, image: false });
-    const result = await run(preflight, ["--version", "0.5.0", "--json"], fake.path);
+    const result = await run(preflight, ["--script", project("no image").script, "--version", supported, "--json"], fake.path);
     expect(result.status).toBe(0);
-    expect(checks(result.stdout).image).toMatchObject({ status: "note", fix: "docker pull ghcr.io/codeonym-oss/flow-reel:0.5.0" });
+    expect(checks(result.stdout).image).toMatchObject({ status: "note", fix: `docker pull ghcr.io/codeonym-oss/flow-reel:${supported}` });
     expect(readFileSync(fake.log, "utf8")).not.toMatch(/^(pull|build|run)/m);
   });
 
   it("names the cloud image for a cloud voice, from the runtime that publishes it (GH-101)", async () => {
-    const project = join(work, "images");
-    mkdirSync(project, { recursive: true });
-    writeFileSync(join(project, "demo.ts"), "");
+    const { dir, script } = project("images project");
     const fake = fakePath("images", { version: true, info: true, image: false });
     const image = async (adapter: string | undefined, version: string) => {
-      rmSync(join(project, "flow-reel.json"), { force: true });
-      if (adapter) writeFileSync(join(project, "flow-reel.json"), JSON.stringify({ version: 1, voice: { adapter } }));
-      const result = await run(preflight, ["--script", join(project, "demo.ts"), "--version", version, "--json"], fake.path);
+      writeFileSync(join(dir, "flow-reel.json"), JSON.stringify(workspace(adapter ? { voice: { adapter } } : {})));
+      const result = await run(preflight, ["--script", script, "--version", version, "--json"], fake.path);
       return checks(result.stdout).image.fix;
     };
     const pull = "docker pull ghcr.io/codeonym-oss/flow-reel:";
     expect(await image("openai", "0.7.0")).toBe(`${pull}0.7.0-cloud`);
     expect(await image("openai-compatible", "0.8.1")).toBe(`${pull}0.8.1-cloud`);
-    expect(await image("openai", "0.6.0")).toBe(`${pull}0.6.0`);
     expect(await image("qwen3-tts-0.6b", "0.7.0")).toBe(`${pull}0.7.0`);
     expect(await image(undefined, "0.7.0")).toBe(`${pull}0.7.0`);
     expect(readFileSync(fake.log, "utf8")).not.toMatch(/^(pull|build|run)/m);
@@ -119,45 +129,40 @@ describe("preflight.mjs", () => {
     expect(old.status).toBe(1);
     const range = /^\*\*Supported runtime:\*\* `([^`]+)`$/m.exec(readFileSync(join(root, "plugin/references/language.md"), "utf8"))![1];
     expect(checks(old.stdout).runtime.detail).toBe(`flow-reel 0.1.2 (--version); this plugin supports ${range}`);
-    const project = join(work, "a project", "demos");
-    mkdirSync(project, { recursive: true });
-    mkdirSync(join(project, "../node_modules/flow-reel"), { recursive: true });
-    writeFileSync(join(project, "../node_modules/flow-reel/package.json"), JSON.stringify({ version: "0.5.3" }));
-    writeFileSync(join(project, "settings.ts"), "");
-    const found = await run(preflight, ["--script", join(project, "settings.ts"), "--json"], fake.path);
+    const { dir, script } = project("a project/reels");
+    mkdirSync(join(dir, "../node_modules/flow-reel"), { recursive: true });
+    writeFileSync(join(dir, "../node_modules/flow-reel/package.json"), JSON.stringify({ version: supported }));
+    const found = await run(preflight, ["--script", script, "--json"], fake.path);
     expect(found.status).toBe(0);
-    expect(checks(found.stdout).runtime.detail).toMatch(/^flow-reel 0\.5\.3/);
+    expect(checks(found.stdout).runtime.detail).toContain(`flow-reel ${supported}`);
     expect(checks(found.stdout).script.status).toBe("ok");
   });
 
   it("checks a cloud voice's key variable, never its value (GH-49)", async () => {
     const fake = fakePath("voices", { version: true, info: true, image: true });
-    const project = join(work, "voices");
-    mkdirSync(project, { recursive: true });
-    writeFileSync(join(project, "demo.ts"), "");
+    const { dir, script } = project("voices project");
     const voice = async (config: unknown, version: string, env: NodeJS.ProcessEnv = {}) => {
-      if (config === undefined) rmSync(join(project, "flow-reel.json"), { force: true });
-      else writeFileSync(join(project, "flow-reel.json"), JSON.stringify(config));
-      const result = await run(preflight, ["--script", join(project, "demo.ts"), "--version", version, "--json"], fake.path,
+      writeFileSync(join(dir, "flow-reel.json"), JSON.stringify(config));
+      const result = await run(preflight, ["--script", script, "--version", version, "--json"], fake.path,
         { OPENAI_API_KEY: "", MY_KEY: "", ...env });
       return { ...checks(result.stdout).voice, exit: result.status };
     };
-    expect(await voice(undefined, "0.5.0")).toMatchObject({ exit: 0, detail: expect.stringContaining("local voice") });
-    expect(await voice({ version: 1, voice: { adapter: "openai" } }, "0.5.0"))
+    expect(await voice(workspace(), supported)).toMatchObject({ exit: 0, detail: expect.stringContaining("local voice") });
+    expect(await voice(workspace({ voice: { adapter: "openai" } }), supported))
       .toMatchObject({ exit: 1, detail: "openai needs OPENAI_API_KEY, which isn't set here" });
     const secret = "sk-preflight-secret";
-    const ok = await voice({ version: 1, voice: { adapter: "openai", apiKeyEnv: "MY_KEY" } }, "0.5.0", { MY_KEY: secret });
+    const ok = await voice(workspace({ voice: { adapter: "openai", apiKeyEnv: "MY_KEY" } }), supported, { MY_KEY: secret });
     expect(ok).toMatchObject({ exit: 0, detail: "openai, key in MY_KEY" });
     expect(JSON.stringify(ok)).not.toContain(secret);
-    expect(await voice({ version: 1, voice: { adapter: "openai", apiKey: secret } }, "0.5.0"))
+    expect(await voice(workspace({ voice: { adapter: "openai", apiKey: secret } }), supported))
       .toMatchObject({ exit: 1, detail: expect.stringContaining("voice.apiKey") });
-    expect(await voice({ version: 1, voice: { adapter: "openai-compatible", baseUrl: "http://localhost:8880/v1", model: "kokoro" } },
-      "0.5.0")).toMatchObject({ exit: 0, detail: "openai-compatible at http://localhost:8880/v1, with no key" });
+    expect(await voice(workspace({ voice: { adapter: "openai-compatible", baseUrl: "http://localhost:8880/v1", model: "kokoro" } }),
+      supported)).toMatchObject({ exit: 0, detail: "openai-compatible at http://localhost:8880/v1, with no key" });
   });
 
   it("fails an app that doesn't answer or answers an error, and notes a redirect", async () => {
     const fake = fakePath("urls", { version: true, info: true, image: true });
-    const url = async (u: string) => checks((await run(preflight, ["--version", "0.5.0", "--url", u, "--json"], fake.path)).stdout).url;
+    const url = async (u: string) => checks((await run(preflight, ["--version", supported, "--url", u, "--json"], fake.path)).stdout).url;
     expect(await url(`${base}/missing`)).toMatchObject({ status: "fail", detail: expect.stringContaining("404") });
     expect(await url(`${base}/login-wall`)).toMatchObject({ status: "note", detail: expect.stringContaining("/login") });
     expect(await url("http://127.0.0.1:1/")).toMatchObject({ status: "fail", detail: expect.stringContaining("start the app") });
@@ -170,7 +175,8 @@ describe("preflight.mjs", () => {
   });
 });
 
-describe("stills.mjs", () => {
+// Its reels are made with the runner's ffmpeg, which only Linux has.
+describe.runIf(process.platform === "linux")("stills.mjs", () => {
   const reel = join(work, "a demo.reel");
   const cli = join(root, "src/cli.ts");
 

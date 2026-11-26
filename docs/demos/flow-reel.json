@@ -1,5 +1,8 @@
 {
-  "version": 1,
+  "version": 2,
+  "workspace": { "id": "k3v9q2m7x5ta", "slug": "flow-reel-demos", "title": "flow-reel demos" },
+  "scripts": "reels",
+  "output": "reels/out",
   "integration": "playwright",
   "voice": { "adapter": "qwen3-tts-0.6b", "speaker": "Ryan", "language": "english" },
   "brand": { "theme": "ink", "accent": "#6366F1" }

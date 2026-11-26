@@ -111,7 +111,7 @@ describe("what the plugin teaches", () => {
       const roots = files(plugin).filter(f => f.endsWith(".ts"));
       for (const { file, text } of docs) {
         [...text.matchAll(/```ts\n([\s\S]*?)```/g)].forEach((m, i) => {
-          const path = join(dir, `${file.replace(/[/.]/g, "_")}_${i}.ts`);
+          const path = join(dir, `${file.replace(/[\\/.]/g, "_")}_${i}.ts`);
           writeFileSync(path, m[1]);
           roots.push(path);
         });
@@ -127,8 +127,7 @@ describe("what the plugin teaches", () => {
   it("uses only the commands and flags the CLI has", () => {
     const wrong: string[] = [];
     for (const { file, text } of docs) {
-      for (const [line] of text.matchAll(/npx flow-reel (\S+)[^\n`]*/g)) {
-        const command = line.split(" ")[2];
+      for (const [line, command] of text.matchAll(/npx flow-reel ([a-z]+)[^\n`]*/g)) {
         if (!Object.hasOwn(COMMANDS, command)) { wrong.push(`${file}: ${line}`); continue; }
         const flags = new Set(COMMANDS[command].usage.match(/--[a-z-]+/g));
         for (const flag of line.match(/--[a-z-]+/g) ?? []) if (!flags.has(flag)) wrong.push(`${file}: ${flag}`);
@@ -146,8 +145,10 @@ describe("what the plugin teaches", () => {
 describe("the supported runtime (decision 010)", () => {
   const range = supportedRange(readFileSync(join(plugin, "references/language.md"), "utf8"));
 
-  it("includes this package's version", () => {
-    expect(satisfies(json(join(root, "package.json")).version, range)).toBe(true);
+  it("includes this package's version, or its next minor while that is being built (GH-121 decision 001)", () => {
+    const { version } = json(join(root, "package.json"));
+    const [major, minor] = version.split(".").map(Number);
+    expect(satisfies(version, range) || satisfies(`${major}.${minor + 1}.0`, range)).toBe(true);
   });
 
   it("is read as a half-open range", () => {

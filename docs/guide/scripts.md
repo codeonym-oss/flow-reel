@@ -1,11 +1,12 @@
 # Scripts
 
-A **script** is a TypeScript file whose default export is `script(options, body)`. The body is plain Playwright,
+A **script** is a file in the workspace's scripts folder, named `<name>.reel.ts` (or `.reel.js`), whose default export is
+`script(options, body)`. The body is plain Playwright,
 plus the flow-reel words. Every word can stand alone, called from the body's context, or be chained on the element it
 is about.
 
 ```ts
-// demos/settings.ts
+// reels/settings.reel.ts
 import { script, Sounds } from "flow-reel";
 
 export default script({ url: "http://localhost:4173" }, async ({ page, comment }) => {
@@ -99,6 +100,9 @@ data a previous run created before composing again.
 
 - **Erasable TypeScript only:** no `enum`, `namespace` or parameter properties. Scripts run with Node's type
   stripping.
-- **Imports:** only from `flow-reel` and from files in the script's own folder. The composer mounts only that
-  folder, and every image, card page, logo and font must live in it too.
+- **The name** ends in `.reel.ts` or `.reel.js`. Other files in the scripts folder are helpers. Two scripts that would
+  give the same reel are refused. Scripts can be in subfolders: `reels/admin/refund.reel.ts` gives
+  `reels/out/admin/refund.reel/`.
+- **Imports:** only from `flow-reel` and from files in the scripts folder. A run works on its own copy of that folder,
+  the only one the composer sees, so every image, card page, logo and font must live in it too.
 - A bad option throws where the word is written, naming it.

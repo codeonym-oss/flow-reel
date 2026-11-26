@@ -31,7 +31,7 @@ export default script({ url: "http://localhost:4173" }, async ({ page, sound }) 
 ## Mute
 
 ```sh
-npx flow-reel compose demos/settings.ts --no-sound
+npx flow-reel compose reels/settings.reel.ts --no-sound
 ```
 
 `--no-sound` mutes every sound and keeps them in the event log, with the comments, captions and visuals unchanged.

@@ -1,8 +1,8 @@
 # Troubleshooting
 
 Find the cause before composing again. A compose takes minutes, and replaying a script that changes data can make
-things worse. A failed compose leaves the previous reel untouched, and its attempt stays in `<name>.reel.partial/`,
-with the composer's output in the terminal.
+things worse. A failed run leaves the previous reel untouched. `npx flow-reel logs <script>` prints what its script,
+browser and renderer printed, and `npx flow-reel runs` says what can be done with it.
 
 ## Setup
 
@@ -24,6 +24,30 @@ with the composer's output in the terminal.
 **"The machine is too busy": the compose stops after capture**
 : Capture needs about 2.5 free CPU cores. On a busy machine it stops rather than save a video with wrong timing.
   Close heavy apps (builds, other containers) and compose again.
+
+**"isn't in a workspace: run `flow-reel init`"**
+: The project has no `flow-reel.json` at its root. See [Configure the composer](guide/configuration.md).
+
+**"is from before flow-reel 0.8"**
+: The folder has a 0.7 `flow-reel.json`. `flow-reel init` takes it over. See [Migration](migration.md).
+
+**`"shop" is already the name of …`**
+: Two workspaces on this computer have the same slug. Give this one another name here: `flow-reel init --alias shop-2`.
+
+## Runs
+
+**"waiting for shop/11 before recording"**
+: Another run is recording, rendering or using the local voice. They take turns. `flow-reel cancel shop/11` ends it.
+
+**"stopped: its process ended"**
+: The run's process was killed, or the computer went off. `flow-reel resume` goes on with what it had.
+
+**"can't go on (recording lost)"**
+: The recording wasn't finished, or a file of it changed. Nothing records again by itself: check what the script
+  changed in the app, then compose again.
+
+**"took longer than its limit"**
+: A phase hung, or the limit is too short for it. The log says where it was. Change `limits` in `flow-reel.json`.
 
 ## Voices
 
@@ -75,8 +99,8 @@ with the composer's output in the terminal.
 **"showFrame() was replaced by card.image()"**
 : A 0.4 script on 0.5. See [Migration](migration.md).
 
-**A card's image or a custom card's file "doesn't exist" or is "outside the script's folder"**
-: Paths are relative to the script, and only its folder is mounted. Move the file under the script's folder.
+**A card's image or a custom card's file "doesn't exist" or is "outside the scripts folder"**
+: Paths are relative to the script, and the composer sees only the scripts folder. Move the file into it.
 
 ## The picture
 

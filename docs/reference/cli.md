@@ -1,25 +1,63 @@
 # CLI
 
 ```text
-flow-reel compose <script.ts> [--no-sound] [--out <dir>] [--integration <name>] [--voice <name>]
-                              [--speaker <name>] [--language <name>] [--model <id>]
-                              [--api-key-env <variable>] [--base-url <url>] [--save-config]
+flow-reel init [folder] [--title <title>] [--description <text>] [--slug <name>] [--scripts <folder>] [--output <folder>]
+flow-reel init [folder] --alias <name>
+flow-reel compose <script.reel.ts> [--detach] [--out <dir>] [--no-sound] [--integration <name>] [--voice <name>]
+                                   [--speaker <name>] [--language <name>] [--model <id>]
+                                   [--api-key-env <variable>] [--base-url <url>] [--save-config]
+flow-reel runs [--all]
+flow-reel watch <run or script>
+flow-reel wait <run or script>
+flow-reel logs <run or script>
+flow-reel cancel <run or script>
+flow-reel resume <run or script> [--detach]
+flow-reel clean [--all] [--yes]
 flow-reel verify <reel>
 flow-reel compare <a.reel> <b.reel>
 ```
 
-Run it with `npx flow-reel …` from a project that has flow-reel installed.
+Run it with `npx flow-reel …` from a project that has flow-reel installed. Every command also takes `--json`, and then
+prints JSON lines on its output.
 
-## `compose`
+## Exit codes
 
-Composes a script into a reel, inside the composer image for the package's version and the voice (see
-[Installation](../getting-started/installation.md)). It pulls the image the first time, or builds it locally if it
-can't be pulled.
+| Exit | |
+|---|---|
+| 0 | done |
+| 1 | failed |
+| 2 | wrong arguments, or not a reel |
+| 3 | the run stopped: its process ended before it did |
+| 4 | the run was cancelled |
+
+`compose`, `resume`, `watch` and `wait` exit as their run ends. `--detach` exits 0 once the run has started.
+
+## `init`
+
+Makes a project a workspace: writes `flow-reel.json` and the scripts folder. In a terminal it asks for what the flags
+leave out; elsewhere `--title` is needed. It takes over the settings of a 0.7 `flow-reel.json`
+([Migration](../migration.md)).
 
 | Flag | Does |
 |---|---|
-| `--out <dir>` | Writes `<dir>/<name>.reel/` instead of next to the script. |
-| `--no-sound` | Mutes every sound. They stay in the event log. Also accepted before the script. |
+| `--title <title>` | The workspace's title. |
+| `--description <text>` | What it is. |
+| `--slug <name>` | Its name in commands, `shop` in `shop/12`. Made from the title by default. Unique on a computer. |
+| `--scripts <folder>` | The scripts folder, `reels` by default. |
+| `--output <folder>` | Where reels go, `<scripts>/out` by default. |
+| `--alias <name>` | Another name for an existing workspace on this computer, when its slug is taken. |
+
+## `compose`
+
+Composes a script into a reel, as a [run](../guide/runs.md), in the composer image for the package's version and the
+voice (see [Installation](../getting-started/installation.md)). It pulls the image the first time, or builds it locally
+if it can't be pulled.
+
+| Flag | Does |
+|---|---|
+| `--detach` | Starts the run and returns. |
+| `--out <dir>` | Writes `<dir>/<name>.reel/` instead of into the output folder. |
+| `--no-sound` | Mutes every sound. They stay in the event log. |
 | `--integration <name>` | The E2E tool that runs the script: `playwright`. |
 | `--voice <name>` | `qwen3-tts-0.6b`, `openai`, `gemini`, `openrouter`, `together`, `groq`, `elevenlabs`, `openai-compatible`. |
 | `--speaker <name>` | The voice's speaker. |
@@ -27,25 +65,37 @@ can't be pulled.
 | `--model <id>` | A cloud voice's model. |
 | `--api-key-env <variable>` | The environment variable holding a cloud voice's key. |
 | `--base-url <url>` | A cloud voice's server. |
-| `--save-config` | Rewrites `flow-reel.json` with this compose's settings, if it succeeds. It keeps the brand. |
+| `--save-config` | Writes this compose's integration and voice to `flow-reel.json`, if it succeeds. Not with `--detach`. |
 
 Each flag can be given once. Flags win over `flow-reel.json`, and the file wins over the defaults
 ([Configure the composer](../guide/configuration.md)).
 
 ```sh
-npx flow-reel compose demos/settings.ts
-npx flow-reel compose demos/settings.ts --out reels
-npx flow-reel compose demos/settings.ts --voice openai --speaker nova
-npx flow-reel compose demos/settings.ts --voice openai-compatible --base-url http://localhost:8880/v1 --model kokoro
-npx flow-reel compose demos/settings.ts --speaker Serena --language english --save-config
+npx flow-reel compose reels/settings.reel.ts
+npx flow-reel compose reels/settings.reel.ts --out /tmp/reels
+npx flow-reel compose reels/settings.reel.ts --voice openai --speaker nova --detach
+npx flow-reel compose reels/settings.reel.ts --voice openai-compatible --base-url http://localhost:8880/v1 --model kokoro
+npx flow-reel compose reels/settings.reel.ts --speaker Serena --language english --save-config
 ```
 
-The compose builds the reel in `<name>.reel.partial/` and replaces the old reel only on success.
+## `runs`, `watch`, `wait`, `logs`, `cancel`, `resume`, `clean`
+
+See [Runs](../guide/runs.md). A run is named by its script (`settings`), its number (`12`) or its id (`shop/12`).
+
+| Command | Does | JSON lines |
+|---|---|---|
+| `runs` | Lists the workspace's runs, newest first. `--all`: every workspace's. | one per run: `run`, `script`, `startedAt`, `state`, what can be done, `files` |
+| `watch` | Shows a run until it ends. | its journal's entries |
+| `wait` | Waits until a run ends. | `run`, `state`, `why` |
+| `logs` | Prints what its script, browser and renderer printed. | `run`, `line` |
+| `cancel` | Ends a run. | `run`, `state` |
+| `resume` | Lets a run that stopped or failed go on, without recording again. | its journal's entries |
+| `clean` | Removes finished runs' heavy files, after asking. `--yes` doesn't ask. | `run`, `bytes`, `removed` |
 
 ## `verify`
 
 ```sh
-npx flow-reel verify demos/settings.reel
+npx flow-reel verify reels/out/settings.reel
 ```
 
 Checks a reel against its manifest. Runs without Docker.
@@ -59,7 +109,7 @@ Checks a reel against its manifest. Runs without Docker.
 ## `compare`
 
 ```sh
-npx flow-reel compare demos/a.reel demos/b.reel
+npx flow-reel compare reels/out/a.reel /tmp/a.reel
 ```
 
 Verifies both reels, then compares their steps, comments, voice, audio hashes, step starts (±150 ms) and effects.
@@ -76,3 +126,4 @@ Runs without Docker or FFmpeg. See [Compare two reels](../guide/reels.md#compare
 | Variable | |
 |---|---|
 | `OPENAI_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `TOGETHER_API_KEY`, `GROQ_API_KEY`, `ELEVENLABS_API_KEY` | The cloud voices' default key variables. `apiKeyEnv` names another one. Passed into the container by name. |
+| `FLOW_REEL_DATA_DIR` | Where [runs are kept](../guide/runs.md#where-runs-are). |

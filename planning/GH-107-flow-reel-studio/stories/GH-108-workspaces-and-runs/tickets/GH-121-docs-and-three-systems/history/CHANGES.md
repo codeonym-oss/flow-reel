@@ -1,2 +1,3 @@
 - 2026-11-25: drafted in the story's global pass.
 - 2026-11-25: issue GH-121 created, folder renamed.
+- 2026-11-26: decision 003, which unit tests run on macOS and Windows.

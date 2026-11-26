@@ -1,5 +1,7 @@
 # 006: A brand block in flow-reel.json
 
+**Superseded by GH-108 002** in part (2026-11-25): paths are relative to the scripts folder.
+
 **Date:** 2026-11-17 (story; the person validated the design canvas and delegated the open questions: "for your open
 questions, pick whats more relevant, even if it has to add more work, rework something")
 

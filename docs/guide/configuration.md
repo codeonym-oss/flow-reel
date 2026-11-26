@@ -4,12 +4,15 @@ The composer's **settings** are the integration that runs the script, the voice 
 brand that cards and overlays follow. They come from three places, and the first one that sets a value wins:
 
 1. **flags** on `flow-reel compose`;
-2. **`flow-reel.json`** in the script's folder;
+2. **`flow-reel.json`** at the workspace's root;
 3. **the defaults.**
 
 ```json
 {
-  "version": 1,
+  "version": 2,
+  "workspace": { "id": "k3v9q2m7x5ta", "slug": "shop", "title": "Shop" },
+  "scripts": "reels",
+  "output": "reels/out",
   "integration": "playwright",
   "voice": { "adapter": "gemini", "speaker": "Kore", "apiKeyEnv": "GEMINI_API_KEY" },
   "brand": { "theme": "ocean", "logo": "brand/logo.svg" }
@@ -17,7 +20,7 @@ brand that cards and overlays follow. They come from three places, and the first
 ```
 
 ```sh
-npx flow-reel compose demos/settings.ts --speaker Puck     # overrides the file's speaker for this compose
+npx flow-reel compose reels/settings.reel.ts --speaker Puck     # overrides the file's speaker for this compose
 ```
 
 | Flag | File | Values | Default |
@@ -31,20 +34,23 @@ npx flow-reel compose demos/settings.ts --speaker Puck     # overrides the file'
 | `--base-url` | `voice.baseUrl` | cloud only: the provider's endpoint, a proxy, or an OpenAI-compatible server | the provider's |
 | | `brand` | see [Brand](brand.md) | none |
 
-- Every key is optional except `version`.
 - An unknown name fails before the composer starts, listing the known ones.
 - When `--voice` picks a different voice from the file's, the file's speaker and language are ignored.
 
-## The file writes itself
+## The workspace's file
 
-The first successful compose in a folder without `flow-reel.json` writes one with the settings it used. The next
-compose, and everyone sharing the scripts, then uses the same ones. **Commit it with the scripts.**
+`npx flow-reel init` writes `flow-reel.json` at the project's root, with the workspace's id, name, scripts folder and
+output folder. **Commit it with the scripts**: everyone sharing them then uses the same settings, and their checkouts
+are the same workspace.
 
-An existing file is rewritten only with `--save-config`, and only when the compose succeeds. That keeps its `brand`.
+A compose changes it only with `--save-config`, and only when it succeeds. That keeps everything but the integration and
+the voice.
 
 ```sh
-npx flow-reel compose demos/settings.ts --voice openai --save-config   # switch the folder to OpenAI for good
+npx flow-reel compose reels/settings.reel.ts --voice openai --save-config   # switch the workspace to OpenAI for good
 ```
+
+Every key is in [flow-reel.json](../reference/settings.md).
 
 ## Credentials
 

@@ -8,7 +8,7 @@ pixels.
 ```json
 {
   "version": 2,
-  "script": "settings.ts",
+  "script": "settings.reel.ts",
   "video": { "file": "video.mp4", "width": 1920, "height": 1080, "fps": 30, "durationMs": 14200 },
   "voice": { "adapter": "openai:gpt-4o-mini-tts", "voice": "coral", "seed": 0, "language": "auto" },
   "steps": [
@@ -63,7 +63,7 @@ The values above are illustrative.
 ```json
 {
   "version": 1,
-  "script": { "file": "settings.ts", "sha256": "…" },
+  "script": { "file": "settings.reel.ts", "sha256": "…" },
   "composer": { "version": "0.5.0", "platform": "linux/amd64" },
   "integration": "playwright",
   "voice": { "adapter": "openai:gpt-4o-mini-tts", "voice": "coral", "seed": 0, "language": "auto" },
@@ -71,7 +71,7 @@ The values above are illustrative.
 }
 ```
 
-Every file of the reel except `work/` is listed with its size and SHA-256. `flow-reel verify` checks them.
+Every file of the reel is listed with its size and SHA-256. `flow-reel verify` checks them.
 
 ## Media
 

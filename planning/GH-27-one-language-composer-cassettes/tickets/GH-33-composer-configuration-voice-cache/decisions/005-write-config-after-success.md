@@ -1,5 +1,7 @@
 # 005: `flow-reel.json` is written only after a successful compose
 
+**Superseded by GH-108 001** in part (2026-11-25): `init` writes the file. `--save-config` still waits for success.
+
 **Date:** 2026-11-14 (ticket pass, Q5; agreed: "ok")
 
 **Question:** when does `compose` write `flow-reel.json` (the first time, or with `--save-config`)?

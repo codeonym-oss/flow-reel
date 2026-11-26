@@ -28,14 +28,14 @@ Pick one with `voice.adapter` in `flow-reel.json` (or `--voice`), set its key in
 
 ```json
 {
-  "version": 1,
+  // ...
   "voice": { "adapter": "openai", "model": "gpt-4o-mini-tts", "speaker": "coral", "apiKeyEnv": "OPENAI_API_KEY" }
 }
 ```
 
 ```sh
 export OPENAI_API_KEY=...
-npx flow-reel compose demos/settings.ts
+npx flow-reel compose reels/settings.reel.ts
 ```
 
 | `voice.adapter` | Default model | Default speaker | Key variable |
@@ -51,8 +51,8 @@ npx flow-reel compose demos/settings.ts
 Every setting can also be a flag:
 
 ```sh
-npx flow-reel compose demos/settings.ts --voice gemini --speaker Puck
-npx flow-reel compose demos/settings.ts --voice openai --model gpt-4o-mini-tts --api-key-env MY_OPENAI_KEY
+npx flow-reel compose reels/settings.reel.ts --voice gemini --speaker Puck
+npx flow-reel compose reels/settings.reel.ts --voice openai --model gpt-4o-mini-tts --api-key-env MY_OPENAI_KEY
 ```
 
 **Model and speaker**
@@ -118,7 +118,7 @@ pinned and downloaded when the image is built, so it works offline without a key
 | `language` | `chinese`, `english`, `french`, `german`, `italian`, `japanese`, `korean`, `portuguese`, `russian`, `spanish` | `english` |
 
 ```sh
-npx flow-reel compose demos/settings.ts --speaker Serena --language english
+npx flow-reel compose reels/settings.reel.ts --speaker Serena --language english
 ```
 
 What to expect:

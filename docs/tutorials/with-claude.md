@@ -111,7 +111,7 @@ with an intro and outro card in our brand (logo in public/logo.svg, accent #D633
 ```
 
 ```text
-Make a French version of demos/onboarding/script.ts, with comments translated
+Make a French version of reels/onboarding.reel.ts, with comments translated
 and the voice set to French.
 ```
 
@@ -120,11 +120,11 @@ The deploy step in the reel takes two minutes of nothing. Skip it and show how l
 ```
 
 ```text
-Screen demos/billing.reel and tell me if it's ready to post. Don't change anything.
+Screen reels/out/billing.reel and tell me if it's ready to post. Don't change anything.
 ```
 
 ```text
-Compare demos/onboarding.reel with the one on main and tell me what changed.
+Compare reels/out/onboarding.reel with the one on main and tell me what changed.
 ```
 
 ## Logins and data

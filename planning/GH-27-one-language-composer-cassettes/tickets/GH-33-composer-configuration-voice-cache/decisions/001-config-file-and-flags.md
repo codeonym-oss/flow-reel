@@ -1,5 +1,7 @@
 # 001: The configuration is a `flow-reel.json` file in the script's folder, and flags override it
 
+**Superseded by GH-108 001** in part (2026-11-25): one file at the workspace's root, written by `flow-reel init`. Flags still win.
+
 **Superseded by 004** for credentials.
 
 **Date:** 2026-11-14 (ticket pass, Q1; agreed: "lets use both, CLI flags and config file .. when running CLI, it uses

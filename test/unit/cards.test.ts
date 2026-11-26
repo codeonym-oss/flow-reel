@@ -149,7 +149,7 @@ describe("card pages (GH-76 decision 003)", () => {
 
   it("serves only the backdrop, the bundled fonts and the script's folder", () => {
     expect(fileFor("/fr/backdrop.png", "/w/before.png", dir)).toBe("/w/before.png");
-    expect(fileFor("/fr/fonts/Inter.woff2", "", dir)).toMatch(/docker\/fonts\/Inter\.woff2$/);
+    expect(fileFor("/fr/fonts/Inter.woff2", "", dir)).toMatch(/docker[\\/]fonts[\\/]Inter\.woff2$/);
     expect(fileFor("/fr/fonts/../x.woff2", "", dir)).toBeUndefined();
     expect(fileFor("/script/cards/pricing.html", "", dir)).toBe(join(dir, "cards/pricing.html"));
     expect(fileFor("/script/..%2F..%2Fetc%2Fpasswd", "", dir)).toBeUndefined();

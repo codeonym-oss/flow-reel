@@ -67,7 +67,7 @@ it("verifies a reel: 0 when whole, 1 naming a changed file, 2 for a folder that 
     expect(verify()).toMatchObject({ status: 1, stdout: `${dir}: video.mp4 changed\n` });
     json(1, [], [`${dir}: video.mp4 changed`]);
     // Comparing it with itself stops at the same difference.
-    expect(cli("compare", dir, dir, "--json")).toMatchObject({ status: 2, stdout: expect.stringContaining(`"matches":false,"errors":["${dir}: video.mp4 changed"`) as string });
+    expect(cli("compare", dir, dir, "--json")).toMatchObject({ status: 2, stdout: expect.stringContaining(`"matches":false,"errors":[${JSON.stringify(`${dir}: video.mp4 changed`)}`) as string });
     rmSync(join(dir, "manifest.json"));
     expect(verify()).toMatchObject({ status: 2, stderr: expect.stringContaining(`${dir}: manifest.json:`) });
   } finally { rmSync(dir, { recursive: true, force: true }); }

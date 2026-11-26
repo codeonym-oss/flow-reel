@@ -1,5 +1,7 @@
 # 005: A compose builds `<name>.reel.partial/` and replaces the old reel only on success
 
+**Superseded by GH-108 015** (2026-11-25): the reel is built in the run and swapped in; there is no `.partial` folder.
+
 **Date:** 2026-11-14 (ticket pass, Q6; agreed: "ok")
 
 **Question:** what happens to an existing reel when its script is composed again?
