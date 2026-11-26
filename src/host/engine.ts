@@ -1,5 +1,5 @@
 // The container engine on this computer, and the composer image matching this package's version (GH-2 decision 004).
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -63,16 +63,25 @@ export function sourceCheckoutWarning(root: string, image: string, target: Image
     `To compose with local changes: npm run build && docker build --target ${target} -t ${image} -f docker/Dockerfile .`;
 }
 
+/** An engine command's exit status, without holding up the process: the studio's server shares it (GH-147). */
+function runAside(cmd: string, args: string[], inherit = false): Promise<number | null> {
+  return new Promise((done) => {
+    const child = spawn(cmd, args, { stdio: inherit ? ["ignore", 2, 2] : "ignore" });
+    child.on("error", () => done(null));
+    child.on("close", (status) => done(status));
+  });
+}
+
 /** Makes sure the image is on this computer: pulled, or built when it can't be. Returns its name. */
-export function ensureImage(engine: Engine, version: string, target: ImageTarget, say: (message: string) => void): string {
+export async function ensureImage(engine: Engine, version: string, target: ImageTarget, say: (message: string) => void): Promise<string> {
   const image = imageFor(version, target);
   const warning = sourceCheckoutWarning(packageRoot, image, target);
   if (warning) say(warning);
-  if (run(engine.command, ["image", "inspect", image]).status === 0) return image;
-  if (run(engine.command, ["pull", image], true).status === 0) return image;
+  if (await runAside(engine.command, ["image", "inspect", image]) === 0) return image;
+  if (await runAside(engine.command, ["pull", image], true) === 0) return image;
   say(`${image} can't be pulled; building it locally (once).`);
-  const built = run(engine.command, ["build", "--target", target, "-t", image,
+  const built = await runAside(engine.command, ["build", "--target", target, "-t", image,
     "-f", resolve(packageRoot, "docker/Dockerfile"), packageRoot], true);
-  if (built.status !== 0) throw new Error(`building ${image} failed`);
+  if (built !== 0) throw new Error(`building ${image} failed`);
   return image;
 }

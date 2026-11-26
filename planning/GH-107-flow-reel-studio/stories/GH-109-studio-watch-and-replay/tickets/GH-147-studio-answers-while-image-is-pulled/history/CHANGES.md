@@ -1,0 +1,2 @@
+- 2026-11-26: created from a bug found while building GH-140; draft, impl.md; building.
+- 2026-11-26: in review: https://github.com/codeonym-oss/flow-reel/pull/148

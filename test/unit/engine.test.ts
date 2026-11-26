@@ -1,8 +1,8 @@
-import { mkdtempSync } from "node:fs";
+import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { detectEngine, imageFor, sourceCheckoutWarning, targetFor } from "../../src/host/engine.ts";
+import { type Engine, detectEngine, ensureImage, imageFor, sourceCheckoutWarning, targetFor } from "../../src/host/engine.ts";
 import { type SettingsFlags, resolveSettings } from "../../src/settings.ts";
 import type { ConfiguredSettings } from "../../src/workspace/config.ts";
 
@@ -60,5 +60,23 @@ describe("sourceCheckoutWarning", () => {
     expect(sourceCheckoutWarning(resolve("."), image, "full")).toMatch(/source checkout.*0\.1\.1.*docker build --target full/s);
     expect(sourceCheckoutWarning(resolve("."), `${image}-cloud`, "cloud")).toContain(`docker build --target cloud -t ${image}-cloud -f docker/Dockerfile .`);
     expect(sourceCheckoutWarning(mkdtempSync(join(tmpdir(), "flow-reel-installed-")), image, "full")).toBeUndefined();
+  });
+});
+
+describe("ensureImage", () => {
+  // The studio's server runs in the same process: a pull or a build mustn't stop it answering (GH-147).
+  it.skipIf(process.platform === "win32")("lets the process go on while the image is pulled", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "fr-engine-"));
+    const engine = join(dir, "engine");
+    writeFileSync(engine, '#!/bin/sh\nsleep 0.6\n[ "$1" = pull ]\n');
+    chmodSync(engine, 0o755);
+    let ticks = 0;
+    const timer = setInterval(() => ticks++, 50);
+    try {
+      const said: string[] = [];
+      expect(await ensureImage({ command: engine, kind: "docker", desktop: false } as unknown as Engine, "9.9.9", "cloud", (m) => said.push(m)))
+        .toBe("ghcr.io/codeonym-oss/flow-reel:9.9.9-cloud");
+      expect(ticks).toBeGreaterThan(10);
+    } finally { clearInterval(timer); }
   });
 });
