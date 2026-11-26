@@ -6,6 +6,7 @@ import { type ContainerMessage, type ContainerRequest, MOUNTS, READS, lineReader
 import type { PhaseProgress } from "../composer/progress.ts";
 import { KNOWN } from "../settings.ts";
 import type { Engine } from "./engine.ts";
+import type { Screen } from "./screen.ts";
 
 export interface PhaseContainer {
   engine: Engine;
@@ -41,6 +42,8 @@ export function containerArgs({ engine, image, name, runDir, out, request, crede
 
 export interface PhaseHooks {
   report(progress: PhaseProgress): void;
+  /** Who watches the recording's screen, for the live picture. */
+  screen?: Screen;
   /** A line the container printed that isn't a message: diagnostics, a script's own output. */
   log(line: string): void;
   /** Ends the container early. */
@@ -50,7 +53,7 @@ export interface PhaseHooks {
 const GRACE_MS = 5000;
 
 /** Runs the phase; resolves when it finished, and rejects with what it said went wrong. */
-export function runContainer(phase: PhaseContainer, { report, log, signal }: PhaseHooks): Promise<void> {
+export function runContainer(phase: PhaseContainer, { report, log, signal, screen }: PhaseHooks): Promise<void> {
   const { engine, name } = phase;
   return new Promise((resolve, reject) => {
     signal?.throwIfAborted();
@@ -58,6 +61,7 @@ export function runContainer(phase: PhaseContainer, { report, log, signal }: Pha
     let failure: string | undefined;
     const messages = messageReader((message: ContainerMessage) => {
       if (message.type === "failed") failure = message.message;
+      else if (message.type === "picture") screen?.picture(message.jpeg);
       else report(message);
     }, log);
     const diagnostics = lineReader(log);
@@ -72,10 +76,12 @@ export function runContainer(phase: PhaseContainer, { report, log, signal }: Pha
       setTimeout(() => child.kill("SIGKILL"), 2 * GRACE_MS).unref();
     };
     signal?.addEventListener("abort", stop, { once: true });
+    const detach = phase.request.phase === "record" ? screen?.attach((input) => { if (child.stdin.writable) child.stdin.write(`${input}\n`); }) : undefined;
     child.stdin.on("error", () => {}); // the container is gone; its exit says so
     child.once("error", (error) => reject(new Error(`${engine.command} could not start: ${error.message}`, { cause: error })));
     child.once("close", (code, killed) => {
       signal?.removeEventListener("abort", stop);
+      detach?.();
       messages.end();
       diagnostics.end();
       if (signal?.aborted) reject(signal.reason as Error);

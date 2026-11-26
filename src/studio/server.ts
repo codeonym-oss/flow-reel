@@ -14,7 +14,8 @@ import { trackedRuns } from "../host/tracker.ts";
 import type { Entry } from "../run/journal.ts";
 import { type RunState, isEnded } from "../run/machine.ts";
 import { findScript } from "../workspace/workspace.ts";
-import { sendCommand } from "../host/control.ts";
+import { sendCommand, watchPictures } from "../host/control.ts";
+import { newestOnly } from "../host/screen.ts";
 import { resumeRun } from "../host/new-run.ts";
 import { runState } from "../host/owner.ts";
 import { type FoundRun, findRun, followRun, liveRun, logTail } from "./live.ts";
@@ -100,8 +101,21 @@ function watchRun(found: FoundRun, connection: Connection, say: (message: Server
   const stop = new AbortController();
   connection.onClose(() => stop.abort());
   const all: Entry[] = [];
+  // While the run records, its live picture: binary messages, the newest only while the tab is busy (GH-138).
+  let pictures: AbortController | undefined;
+  const send = newestOnly<Buffer>((jpeg, sent) => connection.sendBinary(jpeg, sent));
+  const picture = (state: RunState) => {
+    const recording = state.state === "running" && state.phase === "record" && !state.waiting;
+    if (recording && !pictures && !stop.signal.aborted) {
+      const watching = pictures = new AbortController();
+      // A run's process that isn't listening yet, or no more, ends this watch; the next state starts another one.
+      watchPictures(found.run.dir, send, AbortSignal.any([watching.signal, stop.signal]))
+        .catch(() => {}).finally(() => { if (pictures === watching) pictures = undefined; });
+    } else if (!recording && pictures) { pictures.abort(); pictures = undefined; }
+  };
   followRun(found.run.dir, async (entries, state) => {
     all.push(...entries);
+    if (state) picture(state);
     say({ v: STUDIO_API_VERSION, type: "entries", entries });
     say({ v: STUDIO_API_VERSION, type: "run", run: await liveRun(found, state, all) });
   }, stop.signal).catch((error: Error) => { say({ v: STUDIO_API_VERSION, type: "problem", error: error.message }); connection.close(1011); });

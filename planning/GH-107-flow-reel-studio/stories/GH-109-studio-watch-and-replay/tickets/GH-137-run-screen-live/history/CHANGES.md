@@ -2,3 +2,4 @@
 - 2026-11-26: issue #137 created.
 - 2026-11-26: ticket pass: decisions 001–005, impl.md.
 - 2026-11-26: built; PR #145; status in-review.
+- 2026-11-26: merged as #145; status done.

@@ -10,12 +10,29 @@ const PHASES = [["record", "Recording"], ["voice", "Voicing"], ["plan", "Plannin
 const DOING: Record<string, string> = Object.fromEntries(PHASES.map(([phase, name]) => [phase, name.toLowerCase()]));
 const AGAIN_MS = 2000;
 
-interface Watched { run?: LiveRun; entries: RunEntry[]; problem?: string; gone?: boolean; cancel: () => void }
+/** The live picture's newest JPEG, as an object URL, and who shows it: a picture doesn't re-render the screen. */
+interface Pictures { latest(): string | undefined; subscribe(show: (url: string) => void): () => void }
+
+interface Watched { run?: LiveRun; entries: RunEntry[]; problem?: string; gone?: boolean; live?: boolean; pictures: Pictures; cancel: () => void }
 
 /** A run's socket: its entries and state as they come; it opens again when the studio comes back. */
 function useRunSocket(id: string): Watched {
-  const [state, setState] = useState<Omit<Watched, "cancel">>({ entries: [] });
+  const [state, setState] = useState<Omit<Watched, "cancel" | "pictures">>({ entries: [] });
   const socket = useRef<WebSocket | undefined>(undefined);
+  const [pictures] = useState(() => {
+    let latest: string | undefined;
+    const shows = new Set<(url: string) => void>();
+    return {
+      latest: () => latest,
+      subscribe: (show: (url: string) => void) => { shows.add(show); return () => { shows.delete(show); }; },
+      put(url: string | undefined) {
+        const before = latest;
+        latest = url;
+        if (url) for (const show of shows) show(url);
+        if (before) URL.revokeObjectURL(before);
+      },
+    };
+  });
   useEffect(() => {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -25,6 +42,12 @@ function useRunSocket(id: string): Watched {
       // Every opening sends the whole journal again.
       let entries: RunEntry[] = [];
       ws.onmessage = (event) => {
+        // A binary message is a picture of the app while it is recorded (GH-138).
+        if (event.data instanceof Blob) {
+          pictures.put(URL.createObjectURL(event.data));
+          setState((before) => before.live ? before : { ...before, live: true });
+          return;
+        }
         const message = JSON.parse(String(event.data)) as ServerMessage;
         if (message.type === "entries") { entries = [...entries, ...message.entries]; setState((before) => ({ ...before, entries, gone: false })); }
         else if (message.type === "run") setState((before) => ({ ...before, run: message.run, problem: undefined, gone: false }));
@@ -38,10 +61,13 @@ function useRunSocket(id: string): Watched {
     };
     setState({ entries: [] });
     open();
-    return () => { stopped = true; clearTimeout(timer); socket.current?.close(); };
+    return () => {
+      stopped = true; clearTimeout(timer); socket.current?.close();
+      pictures.put(undefined);
+    };
   }, [id]);
   const cancel = () => socket.current?.send(JSON.stringify({ v: 1, type: "cancel" } satisfies ClientMessage));
-  return { ...state, cancel };
+  return { ...state, pictures, cancel };
 }
 
 export function Run({ rest, toast }: { rest: string[]; toast: (text: string) => void }) {
@@ -72,7 +98,7 @@ function Choose() {
 }
 
 function Watch({ id, toast }: { id: string; toast: (text: string) => void }) {
-  const { run, entries, problem, gone, cancel } = useRunSocket(id);
+  const { run, entries, problem, gone, live, pictures, cancel } = useRunSocket(id);
   const [tab, setTab] = useState<"steps" | "log" | "journal" | "failures">("steps");
   useEffect(() => { if (problem) toast(problem); }, [problem]);
   useEffect(() => { if (run?.state === "failed") setTab("failures"); }, [run?.state === "failed"]);
@@ -94,7 +120,7 @@ function Watch({ id, toast }: { id: string; toast: (text: string) => void }) {
       {gone && <div class="banner" role="status">The studio doesn't answer; it opens the run again when it does.</div>}
       <div class="stage">
         <div class="under">
-          <Stage run={run} steps={steps.length} />
+          <Stage run={run} steps={steps.length} pictures={live ? pictures : undefined} target={targetOf(entries)} />
           <Phases run={run} />
         </div>
         <div class="card panel">
@@ -185,8 +211,51 @@ function Meta({ run }: { run: LiveRun }) {
   );
 }
 
-/** Until the live picture (GH-138), the stage says what the run is doing (decision 005). */
-function Stage({ run, steps }: { run: LiveRun; steps: number }) {
+interface Target { target: string; box: [number, number, number, number] }
+
+/** The latest target the recording clicked or typed into, while it records (GH-138 decision 004). */
+function targetOf(entries: RunEntry[]): Target | undefined {
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i]!;
+    if (entry.phase === "record" && entry.type !== "progress") return undefined;
+    const what = entry.what as { type?: string } & Partial<Target> | undefined;
+    if (entry.type === "progress" && what?.type === "target" && what.target && what.box) return { target: what.target, box: what.box };
+  }
+  return undefined;
+}
+
+const TARGETS_KEY = "flow-reel.targets";
+const remembered = () => { try { return localStorage.getItem(TARGETS_KEY) !== "off"; } catch { return true; } };
+
+/** The app while it is recorded, with its target; otherwise what the run is doing (decision 005). */
+function LivePicture({ pictures, alt }: { pictures: Pictures; alt: string }) {
+  const img = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    const show = (url: string) => { if (img.current) img.current.src = url; };
+    const latest = pictures.latest();
+    if (latest) show(latest);
+    return pictures.subscribe(show);
+  }, [pictures]);
+  return <img ref={img} alt={alt} />;
+}
+
+function Stage({ run, steps, pictures, target }: { run: LiveRun; steps: number; pictures?: Pictures; target?: Target }) {
+  const [targets, setTargets] = useState(remembered);
+  const recording = run.state === "running" && run.phase === "record" && !run.waiting;
+  if (recording && pictures) {
+    const flip = () => { setTargets(!targets); try { localStorage.setItem(TARGETS_KEY, targets ? "off" : "on"); } catch { /* not kept */ } };
+    const [x, y, w, h] = target?.box ?? [0, 0, 0, 0];
+    return (
+      <div class="frame live">
+        <LivePicture pictures={pictures} alt={`The app as ${run.id} records it, step ${Math.max(1, steps)}`} />
+        {targets && target && <div class="target" style={{ left: `${x * 100}%`, top: `${y * 100}%`, width: `${w * 100}%`, height: `${h * 100}%` }}><span>{target.target}</span></div>}
+        <div class="frame-bar">
+          <span class="chip"><i class="pulse" />Live · step {Math.max(1, steps)}</span>
+          <button class={`chip ${targets ? "on" : ""}`} aria-pressed={targets ? "true" : "false"} onClick={flip}>Targets</button>
+        </div>
+      </div>
+    );
+  }
   let title: string, text: string;
   if (run.waiting) {
     title = run.waiting.behind ? `Waiting for ${run.waiting.behind}` : "Waiting for its turn";
@@ -195,7 +264,7 @@ function Stage({ run, steps }: { run: LiveRun; steps: number }) {
     title = "Starting"; text = "The run's process is starting.";
   } else if (run.state === "running" || run.state === "held") {
     title = run.cancelling ? "Cancelling" : `${PHASES.find(([phase]) => phase === run.phase)?.[1] ?? "Working"}`;
-    text = run.phase === "record" ? `Step ${Math.max(1, steps)} of the script. The live picture comes with the next version of the studio.`
+    text = run.phase === "record" ? `Step ${Math.max(1, steps)} of the script. The app shows here as soon as its first picture arrives.`
       : `${run.finished.length} of ${PHASES.length} phases done.`;
   } else if (run.state === "failed") {
     title = `It failed during ${DOING[run.phase ?? ""] ?? "the run"}`; text = run.why ?? "";

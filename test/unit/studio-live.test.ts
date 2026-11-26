@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { listen } from "../../src/host/control.ts";
+import { Screen } from "../../src/host/screen.ts";
 import { rememberWorkspace } from "../../src/host/data.ts";
 import { openJournal } from "../../src/host/journal.ts";
 import { takeLock } from "../../src/host/lock.ts";
@@ -37,10 +38,15 @@ async function studioOn(data: string, resumed: string[] = []) {
 /** A run's socket, with every message it has sent. */
 function watch(port: number, run: string) {
   const socket = new WebSocket(`ws://127.0.0.1:${port}/ws?run=${encodeURIComponent(run)}`, { headers: { cookie: `${cookieName(port)}=${KEY}` } } as never);
+  socket.binaryType = "arraybuffer";
   const messages: ServerMessage[] = [];
-  socket.onmessage = (event) => messages.push(JSON.parse(String(event.data)) as ServerMessage);
+  const pictures: string[] = [];
+  socket.onmessage = (event) => {
+    if (typeof event.data === "string") messages.push(JSON.parse(event.data) as ServerMessage);
+    else pictures.push(Buffer.from(event.data as ArrayBuffer).toString());
+  };
   const runs = () => messages.flatMap((message) => message.type === "run" ? [message.run] : []);
-  return { socket, messages, last: (): LiveRun | undefined => runs().at(-1) };
+  return { socket, messages, pictures, last: (): LiveRun | undefined => runs().at(-1) };
 }
 
 const call = async (port: number, path: string, body?: unknown) => {
@@ -51,6 +57,30 @@ const call = async (port: number, path: string, body?: unknown) => {
 };
 
 describe("a run in the studio", () => {
+  it("sends its live picture while it records, and asks for none otherwise", async () => {
+    const { data, run } = await setUp();
+    const lock = takeLock(join(run.dir, "owner.lock"))!;
+    const screen = new Screen();
+    const told: string[] = [];
+    screen.attach((input) => told.push(input));
+    const control = await listen(run.dir, () => {}, screen);
+    const studio = await studioOn(data);
+    try {
+      const { socket, pictures, last } = watch(studio.port, "shop/1");
+      await vi.waitFor(() => expect(last()).toMatchObject({ state: "queued" }));
+      expect(told).toEqual([]);
+      const journal = openJournal(run.dir);
+      journal.append({ type: "phase-started", phase: "record" });
+      await vi.waitFor(() => expect(told).toEqual(["watch"]));
+      screen.picture(Buffer.from("the app").toString("base64"));
+      await vi.waitFor(() => expect(pictures).toEqual(["the app"]));
+      journal.append({ type: "phase-finished", phase: "record" });
+      journal.close();
+      await vi.waitFor(() => expect(told).toEqual(["watch", "unwatch"]));
+      socket.close();
+    } finally { await studio.close(); control.close(); lock.release(); }
+  });
+
   it("is found by its id", async () => {
     const { data, run } = await setUp();
     expect(findRun(data, "shop/1").run.dir).toBe(run.dir);

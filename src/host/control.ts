@@ -7,8 +7,9 @@ import { type Socket, connect, createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { lineReader } from "../container/protocol.ts";
-import { type Command, answerLine, commandLine, readAnswer, readCommand } from "../run/control.ts";
+import { type Command, answerLine, commandLine, pictureLine, readAnswer, readCommand, readPicture } from "../run/control.ts";
 import { writePrivate } from "./files.ts";
+import { type Screen, newestOnly } from "./screen.ts";
 
 const CONTROL_FILE = "control.json";
 const LONGEST_LINE = 64 * 1024;
@@ -29,8 +30,11 @@ function addressFor(runDir: string): string {
   return join(dir, `${name}.sock`);
 }
 
-/** Takes commands for a run until it is closed. `handle` throws to refuse one. Only the run's owner may listen. */
-export async function listen(runDir: string, handle: (command: Command) => void): Promise<{ close(): void }> {
+/**
+ * Takes commands for a run until it is closed. `handle` throws to refuse one. `picture` is answered here: the
+ * connection then carries `screen`'s pictures until it closes. Only the run's owner may listen.
+ */
+export async function listen(runDir: string, handle: (command: Exclude<Command, "picture">) => void, screen?: Screen): Promise<{ close(): void }> {
   const address = addressFor(runDir);
   const token = randomBytes(16).toString("hex");
   // A process that was killed leaves its socket behind.
@@ -40,11 +44,21 @@ export async function listen(runDir: string, handle: (command: Command) => void)
     open.add(socket);
     socket.on("close", () => open.delete(socket)).on("error", () => {});
     let unread = 0;
+    let watching = false;
     const lines = lineReader((line) => {
+      if (watching) return;
       let answer: Parameters<typeof answerLine>[0] = { ok: true };
-      try { handle(readCommand(line, token)); }
-      catch (error) { answer = { ok: false, error: (error as Error).message }; }
+      try {
+        const command = readCommand(line, token);
+        if (command !== "picture") handle(command);
+        else if (!screen) throw new Error("this run has no live picture");
+        else watching = true;
+      } catch (error) { answer = { ok: false, error: (error as Error).message }; }
       socket.write(answerLine(answer));
+      if (watching) {
+        const send = newestOnly<string>((jpeg, sent) => { if (socket.writable) socket.write(pictureLine(jpeg), () => sent()); });
+        socket.once("close", screen!.watch(send));
+      }
     });
     socket.setEncoding("utf8").on("data", (chunk: string) => {
       unread = chunk.includes("\n") ? chunk.length - chunk.lastIndexOf("\n") : unread + chunk.length;
@@ -88,4 +102,38 @@ export async function sendCommand(runDir: string, command: Command): Promise<voi
       .on("close", () => fail(new NotListening("it ended")));
   });
   if (!answer.ok) throw new Error(answer.error);
+}
+
+/**
+ * Watches a run's live picture: `picture` gets each one, a JPEG, until `signal` aborts or the run's process ends.
+ * Resolves then; throws why it is refused, or NotListening.
+ */
+export async function watchPictures(runDir: string, picture: (jpeg: Buffer) => void, signal: AbortSignal): Promise<void> {
+  let control: Control;
+  try { control = JSON.parse(readFileSync(join(runDir, CONTROL_FILE), "utf8")) as Control; }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") throw new NotListening("it isn't running");
+    throw error;
+  }
+  if (signal.aborted) return;
+  await new Promise<void>((done, fail) => {
+    const socket = connect(control.address);
+    let answered = false;
+    const lines = lineReader((line) => {
+      if (answered) {
+        try { picture(Buffer.from(readPicture(line), "base64")); } catch { /* a line that isn't a picture is skipped */ }
+        return;
+      }
+      answered = true;
+      const answer = readAnswer(line);
+      if (!answer.ok) { socket.destroy(); fail(new Error(answer.error)); }
+    });
+    const stop = () => socket.destroy();
+    signal.addEventListener("abort", stop, { once: true });
+    socket.setEncoding("utf8")
+      .on("connect", () => socket.write(commandLine("picture", control.token)))
+      .on("data", (chunk: string) => lines.push(chunk))
+      .on("error", (error: NodeJS.ErrnoException) => { if (!answered) fail(new NotListening("it isn't running", { cause: error })); })
+      .on("close", () => { signal.removeEventListener("abort", stop); done(); });
+  });
 }
