@@ -5,9 +5,10 @@ import { type IncomingMessage, type ServerResponse, createServer } from "node:ht
 import type { AddressInfo } from "node:net";
 import { extname, join, resolve, sep } from "node:path";
 import type { Duplex } from "node:stream";
-import { STUDIO_API_VERSION, type Hello, type ServerMessage } from "./api.ts";
+import { type AddWorkspace, type Hello, type Problem, STUDIO_API_VERSION, type ServerMessage } from "./api.ts";
 import { type Verdict, check } from "./locks.ts";
 import { accept, isUpgrade } from "./websocket.ts";
+import { Refused, addWorkspace, clean, cleanPreview, runs, today, workspaces } from "./workspaces.ts";
 
 const TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
@@ -34,6 +35,8 @@ export interface StudioOptions {
   key: string;
   /** The built web app: `dist/web/`. */
   web: string;
+  /** flow-reel's data folder on this computer. */
+  data: string;
   version: string;
 }
 
@@ -45,8 +48,53 @@ function refuse(response: ServerResponse, verdict: Exclude<Verdict, { allow: tru
   }
 }
 
-const json = (response: ServerResponse, value: unknown) =>
-  response.writeHead(200, { ...HEADERS, "Content-Type": "application/json" }).end(JSON.stringify(value));
+const json = (response: ServerResponse, value: unknown, status = 200) =>
+  response.writeHead(status, { ...HEADERS, "Content-Type": "application/json" }).end(JSON.stringify(value));
+
+const problem = (response: ServerResponse, status: number, error: string) => json(response, { error } satisfies Problem, status);
+
+/** The longest body a change may send. */
+const LONGEST_BODY = 64 * 1024;
+
+/** A change's JSON body (GH-135 decision 002); a Refused when it isn't JSON or is too long. */
+async function body(request: IncomingMessage): Promise<unknown> {
+  if (!/^application\/json\s*(;|$)/i.test(request.headers["content-type"] ?? "")) throw new Refused(415, "a change is sent as JSON");
+  const pieces: Buffer[] = [];
+  let length = 0;
+  for await (const piece of request as AsyncIterable<Buffer>) {
+    length += piece.length;
+    if (length > LONGEST_BODY) throw new Refused(413, "that change is too long");
+    pieces.push(piece);
+  }
+  try { return JSON.parse(Buffer.concat(pieces).toString("utf8")); } catch { throw new Refused(400, "that change isn't JSON"); }
+}
+
+const text = (value: unknown, name: string): string => {
+  if (typeof value !== "string" || !value) throw new Refused(400, `${name} is missing`);
+  return value;
+};
+
+/** The API's answer to a request, or undefined when no route has its path. */
+async function api(request: IncomingMessage, url: URL, data: string, version: string): Promise<unknown> {
+  const route = `${request.method === "HEAD" ? "GET" : request.method} ${url.pathname}`;
+  switch (route) {
+    case "GET /api/hello": return { v: STUDIO_API_VERSION, version } satisfies Hello;
+    case "GET /api/workspaces": return workspaces(data);
+    case "GET /api/runs": return runs(data);
+    case "GET /api/today": {
+      const since = Date.parse(url.searchParams.get("since") ?? "");
+      return today(data, Number.isNaN(since) ? Date.now() - 24 * 3600_000 : since);
+    }
+    case "GET /api/clean": return cleanPreview(data, text(url.searchParams.get("workspace"), "workspace"));
+    case "POST /api/clean": return clean(data, text((await body(request) as { workspace?: unknown })?.workspace, "workspace"));
+    case "POST /api/workspaces": {
+      const asked = await body(request) as Partial<AddWorkspace> | null;
+      const title = asked?.init?.title;
+      return addWorkspace(data, { path: text(asked?.path, "path"), ...(asked?.init ? { init: { title: text(title, "title") } } : {}) });
+    }
+    default: return undefined;
+  }
+}
 
 /** The file a path names inside the web app, or its shell for a screen's path; undefined for anything else. */
 function fileFor(web: string, pathname: string): string | undefined {
@@ -59,19 +107,24 @@ function fileFor(web: string, pathname: string): string | undefined {
   return extname(path) === "" ? join(web, "index.html") : undefined;
 }
 
-export async function startStudio({ port, key, web, version }: StudioOptions): Promise<Studio> {
+export async function startStudio({ port, key, web, data, version }: StudioOptions): Promise<Studio> {
   const root = resolve(web);
   const asked = (request: IncomingMessage) => check({ method: request.method ?? "GET", url: request.url ?? "/",
     host: request.headers.host, origin: request.headers.origin, cookie: request.headers.cookie }, lock);
   const server = createServer((request, response) => {
     const verdict = asked(request);
     if (!verdict.allow) return refuse(response, verdict);
-    const { pathname } = new URL(request.url ?? "/", "http://studio");
+    const url = new URL(request.url ?? "/", "http://studio");
+    const { pathname } = url;
+    if (pathname.startsWith("/api/")) {
+      api(request, url, data, version).then(
+        (answer) => answer === undefined ? problem(response, 404, `there is no ${request.method} ${pathname}`) : json(response, answer),
+        (error: Error) => problem(response, error instanceof Refused ? error.status : 500, error.message));
+      return;
+    }
     if (request.method !== "GET" && request.method !== "HEAD") {
       return response.writeHead(405, { ...HEADERS, Allow: "GET, HEAD" }).end();
     }
-    if (pathname === "/api/hello") return json(response, { v: STUDIO_API_VERSION, version } satisfies Hello);
-    if (pathname.startsWith("/api/")) return response.writeHead(404, HEADERS).end();
     const file = fileFor(root, pathname);
     if (!file || !existsSync(file)) return response.writeHead(404, HEADERS).end();
     response.writeHead(200, { ...HEADERS, "Content-Type": TYPES[extname(file)] ?? "application/octet-stream" });

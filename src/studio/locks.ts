@@ -43,6 +43,10 @@ export function check(asked: Asked, { port, key }: Lock): Verdict {
   if (asked.origin !== undefined && !hosts(port).some((host) => asked.origin === `http://${host}`)) {
     return { allow: false, status: 403, reason: "requests from other sites are refused" };
   }
+  // A browser always sends its page's origin with a change (GH-135 decision 002).
+  if (asked.method !== "GET" && asked.method !== "HEAD" && asked.origin === undefined) {
+    return { allow: false, status: 403, reason: "a change needs the studio page's origin" };
+  }
   const url = new URL(asked.url, `http://${asked.host}`);
   const given = url.searchParams.get("key");
   if (given !== null && asked.method === "GET") {

@@ -98,6 +98,13 @@ describe("the server", () => {
       response.setEncoding("utf8").on("data", (chunk: string) => { body += chunk; }).on("end", () => done({ status: response.statusCode!, headers: response.headers, body }));
     }).on("error", fail).end();
   });
+  const send = (method: string, path: string, body: string, headers: Record<string, string> = {}) => new Promise<{ status: number; body: string }>((done, fail) => {
+    request({ host: "127.0.0.1", port: studio.port, path, method, headers: { host: `127.0.0.1:${studio.port}`, cookie: `${cookieName(studio.port)}=${key}`,
+      origin: `http://127.0.0.1:${studio.port}`, "content-type": "application/json", ...headers } }, (response) => {
+      let text = "";
+      response.setEncoding("utf8").on("data", (chunk: string) => { text += chunk; }).on("end", () => done({ status: response.statusCode!, body: text }));
+    }).on("error", fail).end(body);
+  });
   /** Opens a WebSocket by hand and returns the server's answer line and first frame, or the refusal. */
   const upgrade = (headers: Record<string, string> = {}) => new Promise<{ status: number; first?: string }>((done, fail) => {
     const asked = request({ host: "127.0.0.1", port: studio.port, path: "/ws", headers: { host: `127.0.0.1:${studio.port}`,
@@ -121,7 +128,7 @@ describe("the server", () => {
     writeFileSync(join(dir, "web/index.html"), "<p>shell</p>");
     writeFileSync(join(dir, "web/assets/app.js"), "console.log(1)");
     writeFileSync(join(dir, "secret.txt"), "secret");
-    studio = await startStudio({ port: 0, key, web: join(dir, "web"), version: "9.9.9" });
+    studio = await startStudio({ port: 0, key, web: join(dir, "web"), data: join(dir, "data"), version: "9.9.9" });
   });
   afterAll(async () => {
     await studio.close();
@@ -154,6 +161,29 @@ describe("the server", () => {
     expect(traded.headers["set-cookie"]).toEqual([`${cookieName(studio.port)}=${key}; Path=/; HttpOnly; SameSite=Strict`]);
   });
 
+  it("takes a change only as JSON, from its own page, and not too long", async () => {
+    const project = join(dir, "project");
+    mkdirSync(project, { recursive: true });
+    const asked = JSON.stringify({ path: project });
+    expect((await send("POST", "/api/workspaces", asked, { origin: "" })).status).toBe(403);
+    expect((await send("POST", "/api/workspaces", asked, { origin: "https://evil.example" })).status).toBe(403);
+    expect((await send("POST", "/api/workspaces", asked, { cookie: "" })).status).toBe(403);
+    expect((await send("POST", "/api/workspaces", `path=${project}`, { "content-type": "application/x-www-form-urlencoded" })).status).toBe(415);
+    expect((await send("POST", "/api/workspaces", JSON.stringify({ path: "x".repeat(70_000) }))).status).toBe(413);
+    expect((await send("POST", "/api/workspaces", "{")).status).toBe(400);
+    expect(existsSync(join(project, "flow-reel.json"))).toBe(false);
+    expect(JSON.parse((await send("POST", "/api/workspaces", asked)).body)).toEqual({ needs: "init", root: project, title: "project", scripts: "reels" });
+    const made = JSON.parse((await send("POST", "/api/workspaces", JSON.stringify({ path: project, init: { title: "My shop" } }))).body);
+    expect(made).toMatchObject({ added: { slug: "my-shop", title: "My shop" } });
+    expect(JSON.parse((await get("/api/workspaces")).body)).toMatchObject([{ slug: "my-shop", root: project, missing: false, runs: 0, bytes: 0 }]);
+    expect(JSON.parse((await get("/api/runs")).body)).toEqual([]);
+    expect((await get("/api/clean")).status).toBe(400);
+    expect((await get("/api/clean?workspace=nope")).status).toBe(404);
+    expect(JSON.parse((await get(`/api/clean?workspace=${made.added.id}`)).body)).toEqual({ runs: 0, bytes: 0 });
+    expect((await send("DELETE", "/api/workspaces", "")).status).toBe(404);
+    expect((await send("POST", "/index.html", "{}")).status).toBe(405);
+  });
+
   it("opens a WebSocket that says hello, only with the cookie and from its own page", async () => {
     expect(await upgrade()).toEqual({ status: 101, first: JSON.stringify({ v: 1, type: "hello", version: "9.9.9" }) });
     expect(await upgrade({ origin: `http://127.0.0.1:${studio.port}` })).toMatchObject({ status: 101 });
@@ -162,7 +192,7 @@ describe("the server", () => {
   });
 
   it("closes its open WebSockets when it stops", async () => {
-    const other = await startStudio({ port: 0, key, web: join(dir, "web"), version: "9.9.9" });
+    const other = await startStudio({ port: 0, key, web: join(dir, "web"), data: join(dir, "data"), version: "9.9.9" });
     const socket = new WebSocket(`ws://127.0.0.1:${other.port}/ws`, { headers: { cookie: `${cookieName(other.port)}=${key}` } } as never);
     await new Promise((done) => { socket.onmessage = done; });
     const closed = new Promise((done) => { socket.onclose = done; });

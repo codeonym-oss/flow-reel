@@ -8,6 +8,7 @@ import { listFiles } from "./files.ts";
 import { JOURNAL_FILE } from "./journal.ts";
 import { runState, whileUnowned } from "./owner.ts";
 import { whatNext } from "./resume.ts";
+import { type KnownWorkspace, localSlug } from "./data.ts";
 import { type Run, dataOf, readRunIn, runsDir } from "./run-folder.ts";
 import { type Tracked, trackedRuns } from "./tracker.ts";
 
@@ -64,4 +65,26 @@ export function leftovers(data: string, workspaceId: string): string[] {
   if (!existsSync(runs)) return [];
   return readdirSync(runs).map((name) => join(runs, name))
     .filter((dir) => !existsSync(join(dir, JOURNAL_FILE)) && Date.now() - statSync(dir).mtimeMs > DAY_MS);
+}
+
+/** What `flow-reel clean` removes: a finished run's heavy files, or the folder of a run that never started. */
+export interface Cleanable {
+  what: { run: string } | { leftover: string };
+  bytes: number;
+  /** False when the run is going on again. */
+  remove(): Promise<boolean>;
+}
+
+/** Everything `clean` would remove from these workspaces now. */
+export async function cleanable(data: string, workspaces: KnownWorkspace[]): Promise<Cleanable[]> {
+  const going: Cleanable[] = [];
+  for (const known of workspaces) {
+    for (const { number, dir } of await finishedRuns(data, known.id)) {
+      going.push({ what: { run: `${localSlug(known)}/${number}` }, bytes: heavyBytes(dir), remove: () => removeHeavyFiles(dir) });
+    }
+    for (const dir of leftovers(data, known.id)) {
+      going.push({ what: { leftover: dir }, bytes: 0, remove: async () => { rmSync(dir, { recursive: true, force: true }); return true; } });
+    }
+  }
+  return going;
 }

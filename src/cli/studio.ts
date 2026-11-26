@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { dataDir } from "../host/data.ts";
 import { packageVersion } from "../host/engine.ts";
 import { openBrowser } from "../studio/browser.ts";
 import { startStudio } from "../studio/server.ts";
@@ -24,7 +25,7 @@ export const studio: Command = {
     const web = webFolder();
     if (!existsSync(join(web, "index.html"))) throw new Error(`the studio's web app isn't built (${web}): run \`npm run build\``);
     let opened;
-    try { opened = await startStudio({ port, key: randomBytes(24).toString("base64url"), web, version: packageVersion() }); }
+    try { opened = await startStudio({ port, key: randomBytes(24).toString("base64url"), web, data: dataDir(), version: packageVersion() }); }
     catch (error) {
       if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") throw new Error(`port ${port} is in use: is the studio already open? \`--port\` picks another`);
       throw error;

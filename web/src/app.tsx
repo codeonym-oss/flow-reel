@@ -1,10 +1,11 @@
 // The studio's shell (GH-134): the side bar of screens, the top bar, and the screen of the current path.
 import type { ComponentChildren } from "preact";
-import { useEffect, useState } from "preact/hooks";
+import { useCallback, useEffect, useState } from "preact/hooks";
 import type { Hello, Screen } from "../../src/studio/api.ts";
 import { Logo } from "./logo.tsx";
 import { follow, useRoute } from "./route.ts";
 import { useTheme } from "./theme.ts";
+import { Workspaces } from "./workspaces.tsx";
 
 const TITLES: Record<Screen, string> = { workspaces: "Workspaces", scripts: "Scripts", run: "Run", reel: "Reel" };
 
@@ -17,8 +18,7 @@ const ICONS: Record<Screen | "settings", ComponentChildren> = {
 };
 
 /** What each screen will hold, until its ticket builds it. */
-const COMING: Record<Screen, string> = {
-  workspaces: "Your projects and their runs.",
+const COMING: Record<Exclude<Screen, "workspaces">, string> = {
   scripts: "Each script with its last reel; run one from here.",
   run: "A run, live: the app, its steps and the score.",
   reel: "Play a reel, and jump to any step or line.",
@@ -44,10 +44,21 @@ function useServer(): Hello | "gone" | undefined {
   return hello;
 }
 
+/** Short messages at the bottom, each gone after a few seconds. */
+function useToasts(): [string[], (text: string) => void] {
+  const [toasts, setToasts] = useState<string[]>([]);
+  const toast = useCallback((text: string) => {
+    setToasts((all) => [...all, text]);
+    setTimeout(() => setToasts((all) => all.filter((one) => one !== text)), 5000);
+  }, []);
+  return [toasts, toast];
+}
+
 export function App() {
   const { screen } = useRoute();
   const [theme, toggleTheme] = useTheme();
   const server = useServer();
+  const [toasts, toast] = useToasts();
   useEffect(() => { document.title = `${TITLES[screen]} · flow-reel studio`; }, [screen]);
   return (
     <div class="shell" onClick={follow}>
@@ -68,11 +79,13 @@ export function App() {
       </header>
       <main>
         {server === "gone" && <div class="banner" role="alert">The studio stopped. Run <code>flow-reel studio</code> again to reopen it.</div>}
-        <section class="screen" aria-labelledby="screen-title">
-          <div class="hd"><h1 id="screen-title">{TITLES[screen]}</h1></div>
-          <div class="empty">{COMING[screen]}</div>
-        </section>
+        {screen === "workspaces" ? <Workspaces toast={toast} /> :
+          <section class="screen" aria-labelledby="screen-title">
+            <div class="hd"><h1 id="screen-title">{TITLES[screen]}</h1></div>
+            <div class="empty">{COMING[screen]}</div>
+          </section>}
       </main>
+      <div class="toasts" role="status">{toasts.map((text) => <div class="toast" key={text}>{text}</div>)}</div>
     </div>
   );
 }

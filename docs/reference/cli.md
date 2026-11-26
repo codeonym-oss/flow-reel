@@ -104,6 +104,11 @@ runs go on.
   and the studio refuses every request without it, from another site, or for another host name.
 - `--no-open` prints the address without opening a browser. `--json` prints `{"url": …}`.
 
+**Workspaces**, its first screen, shows every workspace on this computer with its latest runs and their files' size,
+today's turns at heavy work, and every run, filtered by what is going on, what failed and what can go on. Runs started in
+a terminal or by an agent appear within 2 seconds. **Add a workspace** takes a project's full path (`~/` works), and
+offers to make its `flow-reel.json` as `init` does. **Clean** removes what `clean` would, after showing how much.
+
 The studio needs no account and no internet: its fonts and code come with flow-reel.
 
 ## `verify`
