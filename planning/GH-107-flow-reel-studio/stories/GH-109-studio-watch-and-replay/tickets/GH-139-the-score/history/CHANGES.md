@@ -3,3 +3,4 @@
 - 2026-11-26: ticket pass: decisions 001-004, impl.md; status planned.
 - 2026-11-26: building.
 - 2026-11-26: in review: https://github.com/codeonym-oss/flow-reel/pull/149
+- 2026-11-26: done: merged into studio.

@@ -64,16 +64,9 @@ const remembered = () => { try { return localStorage.getItem(PICTURES_KEY) !== "
 
 export function Score({ run, entries, snapshots }: { run: LiveRun; entries: RunEntry[]; snapshots?: StepSnapshots }) {
   const recorded = run.finished.includes("record");
-  const voiced = run.finished.includes("voice");
   const recording = !recorded && run.phase === "record" && (run.state === "running" || run.state === "held");
   const [data, setData] = useState<ScoreData | undefined>();
-  const [pictures, setPictures] = useState(remembered);
-  const [folded, setFolded] = useState(false);
-  const [zoom, setZoom] = useState<number | "fit">("fit");
-  const [width, setWidth] = useState(0);
   const [now, setNow] = useState(Date.now());
-  const [tip, setTip] = useState<{ text: string; x: number; y: number } | undefined>();
-  const scroller = useRef<HTMLDivElement>(null);
   const shots = useRef(new Map<number, string>());
 
   // The record result, once there is one.
@@ -100,6 +93,54 @@ export function Score({ run, entries, snapshots }: { run: LiveRun; entries: RunE
     const timer = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(timer);
   }, [recording]);
+
+  const last = live.at(-1);
+  const playhead = recording && last ? last.t + Math.max(0, now - last.at) : undefined;
+  const steps: ScoreStep[] = data
+    ? withPictures(run.id, data.steps)
+    : live.map((step, i) => ({ index: step.index, ...(step.comment ? { comment: step.comment } : {}), startMs: step.t,
+      endMs: live[i + 1]?.t ?? playhead ?? step.t + 1000, ...(shots.current.has(step.index) ? { picture: shots.current.get(step.index) } : {}) }));
+  const duration = Math.max(data?.durationMs ?? 0, playhead ?? 0, steps.at(-1)?.endMs ?? 0, 1000);
+  return (
+    <ScoreView steps={steps} marks={data?.marks ?? []} duration={duration} playhead={playhead}
+      current={recording ? steps.at(-1)?.index : undefined} voiced={run.finished.includes("voice")}
+      failedAt={run.state === "failed" && run.phase === "record" ? steps.at(-1)?.index : undefined}
+      hint={recorded ? undefined : recording || !isEndedRun(run) ? "Fills in once the recording is done" : "None: the run has no recording"}
+      empty={recording ? "The steps show as the script reaches them" : "No steps"}
+      note={recording ? "· writes itself as the script records" : "· on the recording's clock"} />
+  );
+}
+
+/** A run's step pictures, where it has them. */
+export function withPictures(id: string, steps: ScoreData["steps"]): ScoreStep[] {
+  return steps.map(({ picture, ...step }) => ({ ...step, ...(picture ? { picture: `/api/step-picture?run=${encodeURIComponent(id)}&step=${step.index}` } : {}) }));
+}
+
+export interface ScoreViewProps {
+  steps: ScoreStep[];
+  marks: ScoreMark[];
+  duration: number;
+  playhead?: number;
+  /** The step to mark as now. */
+  current?: number;
+  voiced: boolean;
+  failedAt?: number;
+  /** What the sounds, effects and cards lines say while they are empty. */
+  hint?: string;
+  empty: string;
+  note: string;
+  /** Clicking the score goes there (the Reel screen, GH-140 decision 002). */
+  onSeek?: (ms: number) => void;
+}
+
+/** The score's drawing: its lines, zoom and fold, tips and keys (decision 004). */
+export function ScoreView({ steps, marks, duration, playhead, current, voiced, failedAt, hint, empty, note, onSeek }: ScoreViewProps) {
+  const [pictures, setPictures] = useState(remembered);
+  const [folded, setFolded] = useState(false);
+  const [zoom, setZoom] = useState<number | "fit">("fit");
+  const [width, setWidth] = useState(0);
+  const [tip, setTip] = useState<{ text: string; x: number; y: number } | undefined>();
+  const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const element = scroller.current;
     if (!element) return;
@@ -108,14 +149,6 @@ export function Score({ run, entries, snapshots }: { run: LiveRun; entries: RunE
     return () => observer.disconnect();
   }, []);
 
-  const last = live.at(-1);
-  const playhead = recording && last ? last.t + Math.max(0, now - last.at) : undefined;
-  const steps: ScoreStep[] = data
-    ? data.steps.map(({ picture, ...step }) => ({ ...step, ...(picture ? { picture: `/api/step-picture?run=${encodeURIComponent(run.id)}&step=${step.index}` } : {}) }))
-    : live.map((step, i) => ({ index: step.index, ...(step.comment ? { comment: step.comment } : {}), startMs: step.t,
-      endMs: live[i + 1]?.t ?? playhead ?? step.t + 1000, ...(shots.current.has(step.index) ? { picture: shots.current.get(step.index) } : {}) }));
-  const marks: ScoreMark[] = data?.marks ?? [];
-  const duration = Math.max(data?.durationMs ?? 0, playhead ?? 0, steps.at(-1)?.endMs ?? 0, 1000);
   const folds = folded ? foldsOf(steps) : [];
   const foldedMs = folds.reduce((sum, fold) => sum + fold.endMs - fold.startMs, 0);
   const fit = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, (width - 2 * PAD - folds.length * FOLD_W) / Math.max(1, (duration - foldedMs) / 1000)));
@@ -123,14 +156,19 @@ export function Score({ run, entries, snapshots }: { run: LiveRun; entries: RunE
   const x = placer(pxPerSecond, folds);
   const full = Math.max(width, x(duration) + PAD);
   const inFold = (index: number) => folds.find((fold) => index >= fold.from && index <= fold.to);
-  const failedAt = run.state === "failed" && run.phase === "record" ? steps.at(-1)?.index : undefined;
+  /** The time at a place on the score: `x` only grows, so halving finds it. */
+  const timeAt = (px: number) => {
+    let [lo, hi] = [0, duration];
+    for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (x(mid) < px) lo = mid; else hi = mid; }
+    return Math.round(lo);
+  };
 
-  // Keep the playhead in view while it writes.
+  // Keep the playhead in view while it moves.
   useEffect(() => {
     const element = scroller.current;
     if (!element || playhead === undefined) return;
     const at = x(playhead);
-    if (at > element.scrollLeft + element.clientWidth - 60) element.scrollLeft = at - element.clientWidth * 0.35;
+    if (at > element.scrollLeft + element.clientWidth - 60 || at < element.scrollLeft) element.scrollLeft = Math.max(0, at - element.clientWidth * 0.35);
   }, [playhead !== undefined && Math.floor(x(playhead) / 40)]);
 
   const setPicturesOn = (on: boolean) => { setPictures(on); try { localStorage.setItem(PICTURES_KEY, on ? "on" : "off"); } catch { /* kept for this page only */ } };
@@ -158,7 +196,8 @@ export function Score({ run, entries, snapshots }: { run: LiveRun; entries: RunE
     setTip({ text, x: box.left + box.width / 2, y: box.top });
   };
   const hide = () => setTip(undefined);
-  const mark = (text: string) => ({ "data-mark": "", "aria-label": text, onMouseEnter: show(text), onFocus: show(text), onMouseLeave: hide, onBlur: hide });
+  const mark = (text: string, ms?: number) => ({ "data-mark": "", "aria-label": text, onMouseEnter: show(text), onFocus: show(text), onMouseLeave: hide, onBlur: hide,
+    ...(onSeek && ms !== undefined ? { onClick: (event: Event) => { event.stopPropagation(); onSeek(ms); } } : {}) });
 
   const ruler: JSX.Element[] = [];
   const every = pxPerSecond >= 40 ? 1 : pxPerSecond >= 16 ? 5 : 10;
@@ -166,20 +205,20 @@ export function Score({ run, entries, snapshots }: { run: LiveRun; entries: RunE
     const big = s % (every === 1 ? 5 : every * 2) === 0;
     const inside = folds.some((fold) => s * 1000 > fold.startMs && s * 1000 < fold.endMs);
     if (inside) continue;
-    ruler.push(<span key={s} class={`tick ${big ? "big" : ""}`} style={{ left: `${x(s * 1000)}px` }}>{big ? clock(s * 1000).replace(/\.0$/, "") : ""}</span>);
+    const label = big && x(s * 1000) + 34 <= full;
+    ruler.push(<span key={s} class={`tick ${big ? "big" : ""}`} style={{ left: `${x(s * 1000)}px` }}>{label ? clock(s * 1000).replace(/\.0$/, "") : ""}</span>);
   }
   let shownUntil = -Infinity;
   const sounds = marks.filter((m) => m.lane === "sounds").sort((a, b) => a.t - b.t);
   const lane = (name: string, children: ComponentChildren, empty?: string) => (
     <div class={`lane l-${name.toLowerCase()}`} role="group" aria-label={name}>{children}{empty && <span class="lane-empty" style={{ left: `${PAD}px` }}>{empty}</span>}</div>);
-  const waitHint = recorded ? undefined : recording || !isEndedRun(run) ? "Fills in once the recording is done" : "None: the run has no recording";
 
   return (
     <section class="card score" aria-label="Score" onKeyDown={onKey}>
       <div class="score-bar">
         <span class="title">Score</span>
         <span class="tempo">{steps.length} {steps.length === 1 ? "step" : "steps"} · {clock(duration)}</span>
-        <span class="faint small">{recording ? "· writes itself as the script records" : "· on the recording's clock"}</span>
+        <span class="faint small">{note}</span>
         <span class="sp" />
         <div class="seg" role="group" aria-label="Step pictures">
           <button aria-pressed={pictures ? "true" : "false"} onClick={() => setPicturesOn(true)}>Pictures</button>
@@ -200,7 +239,8 @@ export function Score({ run, entries, snapshots }: { run: LiveRun; entries: RunE
           <div class="h-steps">Steps</div><div class="h-comments">Comments</div><div class="h-sounds">Sounds</div>
           <div class="h-effects">Effects</div><div class="h-cards">Cards</div>
         </div>
-        <div class="score-scroll" ref={scroller} onScroll={hide}>
+        <div class={`score-scroll ${onSeek ? "seeks" : ""}`} ref={scroller} onScroll={hide}
+          onClick={onSeek && ((event: MouseEvent) => { const box = scroller.current!.getBoundingClientRect(); onSeek(timeAt(event.clientX - box.left + scroller.current!.scrollLeft)); })}>
           <div class="score-track" style={{ width: `${full}px` }}>
             <div class="ruler" aria-hidden="true">{ruler}</div>
             {pictures && lane("Pictures", steps.map((step) => {
@@ -212,53 +252,53 @@ export function Score({ run, entries, snapshots }: { run: LiveRun; entries: RunE
               shownUntil = left + 68;
               const name = fold ? `Steps ${fold.from + 1}–${fold.to + 1}, folded, picture at ${clock(step.startMs)}` : `Step ${step.index + 1}, picture at ${clock(step.startMs)}`;
               return (
-                <button key={step.index} class={`pic ${failedAt === step.index ? "bad" : ""}`} style={{ left: `${left}px` }} {...mark(name)}>
+                <button key={step.index} class={`pic ${failedAt === step.index ? "bad" : ""}`} style={{ left: `${left}px` }} {...mark(name, step.startMs)}>
                   {step.picture ? <img src={step.picture} alt="" loading="lazy" decoding="async" /> : <span class="nopic">{step.index + 1}</span>}
                 </button>);
             }), steps.length ? undefined : "No steps yet")}
             {lane("Steps", [
               ...steps.filter((step) => !inFold(step.index)).map((step) => {
                 const left = x(step.startMs), w = Math.max(3, x(step.endMs) - left);
-                const now = recording && step === steps.at(-1);
+                const now = step.index === current;
                 const bad = failedAt === step.index;
                 const name = `Step ${step.index + 1}${step.comment ? `: ${step.comment}` : ", no comment"}. ${clock(step.startMs)} to ${clock(step.endMs)}, ${((step.endMs - step.startMs) / 1000).toFixed(1)} s${bad ? ". It failed" : ""}`;
                 return { left, node: (
-                  <button key={step.index} class={`stepm ${now ? "now" : ""} ${bad ? "bad" : ""}`} style={{ left: `${left}px`, width: `${w}px` }} {...mark(name)}>
+                  <button key={step.index} class={`stepm ${now ? "now" : ""} ${bad ? "bad" : ""}`} style={{ left: `${left}px`, width: `${w}px` }} {...mark(name, step.startMs)}>
                     {w >= 12 + 7.5 * String(step.index + 1).length && <b>{step.index + 1}</b>}{w > 60 && step.comment && <span>{step.comment}</span>}
                   </button>) };
               }),
               ...folds.map((fold) => ({ left: x(fold.startMs), node: (
                 <button key={`fold-${fold.from}`} class="stepm fold" style={{ left: `${x(fold.startMs)}px`, width: `${FOLD_W}px` }}
-                  {...mark(`Steps ${fold.from + 1} to ${fold.to + 1}, folded: no comments. ${clock(fold.startMs)} to ${clock(fold.endMs)}. Press F to unfold`)}>
+                  {...mark(`Steps ${fold.from + 1} to ${fold.to + 1}, folded: no comments. ${clock(fold.startMs)} to ${clock(fold.endMs)}. Press F to unfold`, fold.startMs)}>
                   <b>{fold.from + 1}–{fold.to + 1}</b>
                 </button>) })),
             ].sort((a, b) => a.left - b.left).map((item) => item.node),
-            steps.length ? undefined : recording ? "The steps show as the script reaches them" : "No steps")}
+            steps.length ? undefined : empty)}
             {lane("Comments", steps.filter((step) => step.comment && !inFold(step.index)).map((step) => {
               const left = x(step.startMs), w = Math.max(6, x(step.endMs) - left - 3);
               return (
                 <button key={step.index} class={`comm ${voiced ? "voiced" : ""}`} style={{ left: `${left}px`, width: `${w}px` }}
-                  {...mark(`Comment of step ${step.index + 1}, ${voiced ? "voiced" : "not voiced yet"}: “${step.comment}”`)}>
+                  {...mark(`Comment of step ${step.index + 1}, ${voiced ? "voiced" : "not voiced yet"}: “${step.comment}”`, step.startMs)}>
                   <span>{step.comment}</span>
                 </button>);
             }))}
             {lane("Sounds", sounds.map((m, i) => (
-              <button key={i} class="snd" style={{ left: `${x(m.t) - 6}px` }} {...mark(`Sound ${m.label} at ${clock(m.t)}`)}>
+              <button key={i} class="snd" style={{ left: `${x(m.t) - 6}px` }} {...mark(`Sound ${m.label} at ${clock(m.t)}`, m.t)}>
                 <svg viewBox="0 0 12 16" aria-hidden="true"><ellipse cx="4.5" cy="12" rx="4" ry="3" transform="rotate(-20 4.5 12)" /><path d="M8.2 11.5V1.5" /></svg>
                 {(i === sounds.length - 1 || x(sounds[i + 1].t) - x(m.t) > 18 + 6.5 * m.label.length) && <span>{m.label}</span>}
-              </button>)), waitHint)}
+              </button>)), hint)}
             {lane("Effects", marks.filter((m) => m.lane === "effects").map((m, i) => {
               const left = x(m.t), w = m.ms ? Math.max(10, x(m.t + m.ms) - left) : 10;
               return (
                 <button key={i} class="fx" style={{ left: `${left}px`, width: `${w}px` }}
-                  {...mark(`Effect ${m.label} at ${clock(m.t)}${m.ms ? `, ${(m.ms / 1000).toFixed(1)} s` : ""}`)}>
+                  {...mark(`Effect ${m.label} at ${clock(m.t)}${m.ms ? `, ${(m.ms / 1000).toFixed(1)} s` : ""}`, m.t)}>
                   <i /><span>{m.label}</span>
                 </button>);
-            }), waitHint)}
+            }), hint)}
             {lane("Cards", marks.filter((m) => m.lane === "cards").map((m, i) => (
-              <button key={i} class="crd" style={{ left: `${x(m.t)}px` }} {...mark(`Card ${m.label} at ${clock(m.t)}`)}>
+              <button key={i} class="crd" style={{ left: `${x(m.t)}px` }} {...mark(`Card ${m.label} at ${clock(m.t)}`, m.t)}>
                 <b>{m.label[0]?.toUpperCase()}</b><span>{m.label}</span>
-              </button>)), waitHint)}
+              </button>)), hint)}
             {playhead !== undefined && <div class="playhead" style={{ left: `${x(playhead)}px` }} aria-hidden="true"><span>{clock(playhead)}</span></div>}
           </div>
         </div>

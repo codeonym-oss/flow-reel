@@ -188,3 +188,13 @@ export interface Score {
 
 /** A sound, an effect or a card on the score: when, for how long, and what it is. */
 export interface ScoreMark { lane: "sounds" | "effects" | "cards"; t: number; ms?: number; label: string }
+
+/** `GET /api/reel?run=<id>`: a run's own reel, on the video's clock (GH-140 decisions 001, 002); its files are at
+ * `GET /api/reel-file?run=<id>&path=<path>`, with byte ranges. */
+export interface ReelView extends Score {
+  /** The run's reel folder. */
+  folder: string;
+  files: { path: string; bytes: number }[];
+  bytes: number;
+  voice?: string;
+}

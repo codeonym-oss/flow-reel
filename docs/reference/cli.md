@@ -121,6 +121,12 @@ typing outlined; the picture is grabbed only while someone watches. Reopening th
 again** do what `cancel`, `resume --detach` and `compose --detach` do. Closing the page or the studio doesn't stop the
 run.
 
+**Reel** plays the reel a run made, from that run's own copy: the video with its captions, the transcript, and the score
+on the reel's clock. Clicking a step, a line or the score plays from there. Space or `K` plays and pauses, the arrows
+move 5 seconds, `L` loops the step being played and `C` turns captions on or off; the speed goes from 0.5× to 2×. It shows
+the reel's length, its size, its files and its sound level every half second, in dBFS. A run whose files were cleaned has
+no copy left to play: its reel stays in the output folder.
+
 The studio needs no account and no internet: its fonts and code come with flow-reel.
 
 ## `verify`
