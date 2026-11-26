@@ -1,0 +1,1 @@
+- 2026-11-26: created from a bug found while building GH-140; draft, impl.md; building.

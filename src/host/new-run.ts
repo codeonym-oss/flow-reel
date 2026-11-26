@@ -31,7 +31,7 @@ export async function startCompose(data: string, { path, out, sound = true, flag
   const credentials = credentialsFor(settings, env);
   const version = packageVersion();
   const engine = detectEngine();
-  const image = ensureImage(engine, version, targetFor(settings.voice.adapter), say);
+  const image = await ensureImage(engine, version, targetFor(settings.voice.adapter), say);
   const run = await createRun(data, { workspace, script, settings, sound, reel: reelFolder(workspace, script, out), credentials, flowReel: version });
   await startProcess(run, { engine, image });
   return { id: `${localSlug(known)}/${run.number}`, run, workspace, settings };
@@ -52,7 +52,7 @@ export async function resumeRun(id: string, run: Run, state: RunState, { env = p
   if (missing) throw new Error(`voice ${request.settings.voice.adapter} needs ${missing}: set it in the environment and resume again`);
   if (await changedSince(run)) say(`the scripts have changed since ${id} started: it goes on with the ones it started with`);
   const engine = detectEngine();
-  const image = ensureImage(engine, packageVersion(), targetFor(request.settings.voice.adapter), say);
+  const image = await ensureImage(engine, packageVersion(), targetFor(request.settings.voice.adapter), say);
   await startProcess(run, { engine, image });
 }
 
