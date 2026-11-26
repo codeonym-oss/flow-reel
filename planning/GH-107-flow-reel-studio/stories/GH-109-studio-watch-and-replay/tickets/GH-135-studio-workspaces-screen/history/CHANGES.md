@@ -1,2 +1,4 @@
 - 2026-11-26: drafted from story GH-109 (decision 011).
 - 2026-11-26: issue #135 created.
+- 2026-11-26: ticket pass: decisions 001–006, impl.md.
+- 2026-11-26: built; PR #143 opened into studio.

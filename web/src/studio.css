@@ -69,3 +69,76 @@ main { overflow: auto; min-width: 0 }
   .top { padding-left: max(16px, env(safe-area-inset-left, 0px)) }
   .screen { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
 }
+
+/* Parts every screen uses (the mockup's, GH-109 decision 006) */
+.small { font-size: 12.5px } .xs { font-size: 11.5px }
+.hd h2 { margin: 0; font: 600 18px/1.2 var(--ui); letter-spacing: -.01em }
+.hd .sp { flex: 1 }
+.hd .note { font-size: 12.5px; max-width: 48ch }
+.btn { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--rule); background: var(--sheet); display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; text-decoration: none; color: var(--ink) }
+.btn:hover:not(:disabled) { border-color: var(--ink-3) }
+.btn:disabled { opacity: .5; cursor: default }
+.btn.sm { height: 26px; padding: 0 9px; font-size: 12.5px }
+.btn.primary { background: var(--you); color: var(--on-you); border-color: var(--you); font-weight: 600 }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: var(--you) }
+.btn.danger { color: var(--fail); border-color: color-mix(in srgb, var(--fail) 40%, var(--rule)) }
+.field { height: 32px; border: 1px solid var(--rule); background: var(--sheet); border-radius: 8px; padding: 0 10px; font: 12.5px var(--mono); color: var(--ink); min-width: 0 }
+.field.ui { font: 13px var(--ui) }
+.field:focus { outline: none; border-color: var(--ink-3) }
+.card { background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; min-width: 0 }
+.problem { color: var(--fail); background: var(--fail-soft); border-radius: 10px; padding: 10px 14px }
+.why { color: var(--fail); font: 11.5px var(--mono) }
+.scrollx { overflow-x: auto; min-width: 0 }
+.st { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap }
+.st::before { content: ""; width: 9px; height: 9px; border-radius: 50%; flex: none; box-sizing: border-box }
+.st.done::before { background: var(--run) }
+.st.running, .st.held { color: var(--run-ink) } .st.running::before, .st.held::before { background: var(--run); box-shadow: 0 0 0 3px var(--run-soft) }
+.st.stopped::before { border: 1.5px solid var(--ink-2) }
+.st.queued::before, .st.waiting::before { border: 1.5px dashed var(--ink-2) }
+.st.failed { color: var(--fail) } .st.failed::before { content: "✕"; width: auto; height: auto; font-size: 11px; line-height: 1; border-radius: 0 }
+.st.cancelled { color: var(--ink-3) } .st.cancelled::before { border: 1.5px solid var(--ink-3); background: linear-gradient(135deg, transparent 42%, var(--ink-3) 42% 58%, transparent 58%) }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px }
+.tbl th { text-align: left; font-weight: 500; color: var(--ink-3); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 0 12px 8px 0; border-bottom: 1px solid var(--rule) }
+.tbl td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--rule-2); white-space: nowrap; vertical-align: middle }
+.tbl a { color: inherit; text-decoration: none }
+.tbl tr.click { cursor: pointer } .tbl tr.click:hover td { background: var(--glass) }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center }
+.fchip { height: 26px; padding: 0 10px; border-radius: 99px; border: 1px solid var(--rule); background: none; font-size: 12.5px; color: var(--ink-2) }
+.fchip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink) }
+.phases { display: inline-flex; gap: 2px } .phases i { width: 14px; height: 4px; border-radius: 2px; background: var(--rule) }
+.phases i.d { background: var(--ink) } .phases i.n { background: var(--run) } .phases i.x { background: var(--fail); opacity: .6 }
+.toasts { position: fixed; left: 92px; bottom: 18px; display: grid; gap: 8px; z-index: 45 }
+.toast { background: var(--ink); color: var(--paper); border-radius: 10px; padding: 10px 14px; box-shadow: 0 18px 40px -16px #0008; font-size: 13px; animation: tin .3s ease-out; max-width: min(460px, calc(100vw - 32px)) }
+@keyframes tin { from { transform: translateY(8px); opacity: 0 } }
+@keyframes pulse { 50% { opacity: .45 } }
+
+/* Workspaces */
+.ws-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px }
+.ws { padding: 16px; display: grid; gap: 12px; align-content: start }
+.ws:hover { border-color: var(--ink-3) }
+.ws h3 { margin: 0; font-size: 16px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.ws h3 a { color: inherit; text-decoration: none } .ws h3 a:hover { text-decoration: underline; text-underline-offset: 3px }
+.ws .path { font: 12px var(--mono); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.ws .row { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap }
+.ws .pair { display: flex; gap: 6px }
+.strip { display: flex; gap: 3px; align-items: flex-end; height: 28px }
+.strip i { flex: 1; background: var(--ink); opacity: .82; border-radius: 1px; min-width: 3px; max-width: 24px }
+.strip i.f { background: var(--fail); opacity: 1 } .strip i.c { background: var(--ink-3); opacity: .45 } .strip i.r { background: var(--run); opacity: 1; animation: pulse 1.6s infinite }
+.disk { height: 4px; border-radius: 3px; background: var(--rule-2); overflow: hidden } .disk i { display: block; height: 100%; background: var(--ink-2) }
+.add { border: 1px dashed var(--rule); border-radius: 14px; padding: 16px; display: grid; gap: 10px; align-content: start; min-width: 0 }
+.add .line { display: flex; gap: 8px } .add .field { flex: 1 }
+.add .offer { display: grid; gap: 8px }
+.today { padding: 14px 16px 10px; display: grid; gap: 8px }
+.today svg { display: block }
+.today .tick { font: 10px var(--mono); fill: var(--ink-3) }
+.today .lane { font: 13px var(--ui); fill: var(--ink-2) } .today .lane.first { font-weight: 500; fill: var(--ink) }
+.today .bar.turn { fill: var(--ink) } .today .bar.turn.failed { fill: var(--fail) } .today .bar.turn.live { fill: var(--run) }
+.today .bar.wait { fill: none; stroke: var(--ink-3); stroke-dasharray: 3 2 }
+.hd input[type="search"] { width: 200px }
+
+@media (prefers-reduced-motion: reduce) { .strip i.r { animation: none } .toast { animation: none } }
+@media (max-width: 700px) {
+  .toasts { left: 16px; bottom: 76px }
+  .hd input[type="search"] { width: 100% }
+}
+.clip { max-width: 52ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }

@@ -1,8 +1,7 @@
 // The runs on this computer: `runs` lists them, and `clean` removes what finished ones no longer need.
-import { rmSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
-import { type KnownWorkspace, dataDir, knownWorkspaces, localSlug } from "../host/data.ts";
-import { finishedRuns, hasHeavyFiles, heavyBytes, leftovers, removeHeavyFiles } from "../host/retention.ts";
+import { type KnownWorkspace, dataDir, knownWorkspaces } from "../host/data.ts";
+import { cleanable, hasHeavyFiles } from "../host/retention.ts";
 import { whatNext } from "../host/resume.ts";
 import { type FoundRun, workspaceRuns } from "../host/runs.ts";
 import { findWorkspace } from "../workspace/workspace.ts";
@@ -68,15 +67,7 @@ export const clean: Command = {
   async run(args) {
     const { flags } = parse(args, { all: "switch", yes: "switch", json: "switch" }, { min: 0, max: 0 });
     const data = dataDir();
-    const going: { what: { run: string } | { leftover: string }; bytes: number; remove(): Promise<boolean> }[] = [];
-    for (const known of workspaces(data, flags.all)) {
-      for (const { number, dir } of await finishedRuns(data, known.id)) {
-        going.push({ what: { run: `${localSlug(known)}/${number}` }, bytes: heavyBytes(dir), remove: () => removeHeavyFiles(dir) });
-      }
-      for (const dir of leftovers(data, known.id)) {
-        going.push({ what: { leftover: dir }, bytes: 0, remove: async () => { rmSync(dir, { recursive: true, force: true }); return true; } });
-      }
-    }
+    const going = await cleanable(data, workspaces(data, flags.all));
     const say = (text: string) => { if (!flags.json) console.log(text); };
     if (!going.length) { say("There is nothing to clean."); return EXIT.ok; }
     say(table(going.map(({ what, bytes }) => "run" in what ? [what.run, size(bytes)] : [what.leftover, "a run that never started"])));
