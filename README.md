@@ -127,6 +127,7 @@ npx flow-reel runs                        # list this workspace's runs, and what
 npx flow-reel watch <run or script>       # show a run until it ends; also wait, logs and cancel
 npx flow-reel resume <run or script>      # go on with a run that stopped, without recording again
 npx flow-reel clean                       # remove finished runs' recordings, clips and videos
+npx flow-reel studio                      # open the studio: watch runs and replay reels in the browser
 npx flow-reel verify <reel>               # the reel matches its manifest (no Docker needed)
 npx flow-reel compare <a.reel> <b.reel>   # same steps, comments, voice and effects, starts within ±150 ms
 ```

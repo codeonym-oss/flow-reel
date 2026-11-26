@@ -13,7 +13,7 @@ const [pack] = Array.isArray(packed) ? packed : Object.values(packed) as any[];
 const file = join(output, pack.filename);
 const paths: string[] = pack.files.map((f: { path: string }) => f.path);
 assert(paths.every(p => /^(dist\/|docker\/|package.json$|README.md$|LICENSE$)/.test(p)), "unexpected published file");
-for (const required of ["dist/cli.js", "dist/index.js", "dist/index.d.ts", "docker/Dockerfile", "docker/tts/worker.py", "docker/tts/assets.json", "docker/sfx/LICENSE.txt"]) {
+for (const required of ["dist/cli.js", "dist/index.js", "dist/index.d.ts", "dist/web/index.html", "docker/Dockerfile", "docker/tts/worker.py", "docker/tts/assets.json", "docker/sfx/LICENSE.txt"]) {
   assert(paths.includes(required), `package missing ${required}`);
 }
 const consumer = mkdtempSync(join(tmpdir(), "flow-reel-package-"));

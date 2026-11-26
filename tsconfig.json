@@ -25,6 +25,7 @@
     "plugin",
     "src",
     "test",
-    "scripts"
+    "scripts",
+    "vite.config.ts"
   ]
 }
