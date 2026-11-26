@@ -11,11 +11,54 @@ export type Screen = typeof SCREENS[number];
 /** `GET /api/hello`: the studio answering, and which flow-reel it is. */
 export interface Hello { v: typeof STUDIO_API_VERSION; version: string }
 
-/** What the server sends on a WebSocket, as text. Later tickets add a run's events. */
-export type ServerMessage = { v: typeof STUDIO_API_VERSION; type: "hello"; version: string };
+/** What the server sends on a WebSocket, as text. On a run's socket (`/ws?run=<id>`, GH-137 decision 001): `run` first,
+ * then each batch of new `entries` followed by the `run` they lead to. */
+export type ServerMessage = { v: typeof STUDIO_API_VERSION } & (
+  | { type: "hello"; version: string }
+  | { type: "run"; run: LiveRun }
+  | { type: "entries"; entries: RunEntry[] }
+  | { type: "problem"; error: string });
 
-/** What the web app sends on a WebSocket, as text. Later tickets add commands. */
-export type ClientMessage = { v: typeof STUDIO_API_VERSION; type: "ping" };
+/** What the web app sends on a WebSocket, as text: `cancel` on a run's socket (GH-137 decision 002). */
+export type ClientMessage = { v: typeof STUDIO_API_VERSION; type: "ping" | "cancel" };
+
+/** A line of a run's journal: what happened, and when. */
+export interface RunEntry { at: string; type: string; phase?: string; [key: string]: unknown }
+
+/** A watched run and the state its journal leads to. */
+export interface LiveRun {
+  id: string;
+  /** Its workspace's id. */
+  workspace: string;
+  script: string;
+  /** The script's path in the scripts folder. */
+  path: string;
+  startedAt: string;
+  endedAt?: string;
+  state: RunView["state"];
+  /** The phase it is in, or ended in. */
+  phase?: string;
+  finished: string[];
+  waiting?: { phase: string; behind?: string };
+  cancelling: boolean;
+  /** Why it ended, unless it is done. */
+  why?: string;
+  /** The reel, once done. */
+  reel?: string;
+  /** The phase it can go on from, once ended. */
+  resume?: string;
+  /** Why it can't go on, once ended. */
+  lost?: string;
+  voice: string;
+  /** The flow-reel that started it. */
+  flowReel: string;
+}
+
+/** `POST /api/runs/resume`: let a run go on, as `flow-reel resume --detach`. */
+export interface ResumeRun { run: string }
+
+/** `GET /api/log?run=<id>`: the end of what the run's script, browser and renderer printed. */
+export interface RunLog { text: string; cut: number }
 
 /** A run as the lists show it (`GET /api/runs`). */
 export interface RunView {

@@ -5,14 +5,19 @@ import { type IncomingMessage, type ServerResponse, createServer } from "node:ht
 import type { AddressInfo } from "node:net";
 import { extname, join, resolve, sep } from "node:path";
 import type { Duplex } from "node:stream";
-import { type AddWorkspace, type Hello, type OnSaveSwitch, type Problem, STUDIO_API_VERSION, type ServerMessage, type StartRun,
+import { type AddWorkspace, type Hello, type ClientMessage, type OnSaveSwitch, type Problem, type ResumeRun, STUDIO_API_VERSION, type ServerMessage, type StartRun,
   type StartedRun } from "./api.ts";
-import { type Verdict, check } from "./locks.ts";
-import { accept, isUpgrade } from "./websocket.ts";
+import { type Verdict, check as checkLock } from "./locks.ts";
+import { type Connection, accept, isUpgrade } from "./websocket.ts";
 import { startCompose } from "../host/new-run.ts";
 import { trackedRuns } from "../host/tracker.ts";
-import { isEnded } from "../run/machine.ts";
+import type { Entry } from "../run/journal.ts";
+import { type RunState, isEnded } from "../run/machine.ts";
 import { findScript } from "../workspace/workspace.ts";
+import { sendCommand } from "../host/control.ts";
+import { resumeRun } from "../host/new-run.ts";
+import { runState } from "../host/owner.ts";
+import { type FoundRun, findRun, followRun, liveRun, logTail } from "./live.ts";
 import { OnSave } from "./on-save.ts";
 import { openScript, scriptOf, scripts, source, workspaceOf } from "./scripts.ts";
 import { Refused, addWorkspace, clean, cleanPreview, runs, today, workspaces } from "./workspaces.ts";
@@ -46,6 +51,8 @@ export interface StudioOptions {
   data: string;
   /** Starts a run of a script file; `compose --detach`'s way unless a test gives another. */
   start?: (data: string, file: string) => Promise<StartedRun>;
+  /** Lets an ended run go on; `resume --detach`'s way unless a test gives another. */
+  resume?: (found: FoundRun, state: RunState) => Promise<void>;
   version: string;
 }
 
@@ -83,7 +90,29 @@ const text = (value: unknown, name: string): string => {
   return value;
 };
 
-interface Context { data: string; version: string; onSave: OnSave; start: (file: string) => Promise<StartedRun> }
+interface Context {
+  data: string; version: string; onSave: OnSave; start: (file: string) => Promise<StartedRun>;
+  resume: (found: FoundRun, state: RunState) => Promise<void>;
+}
+
+/** Sends a watched run's entries and state as they come, and takes its commands, until the socket closes (GH-137). */
+function watchRun(found: FoundRun, connection: Connection, say: (message: ServerMessage) => void) {
+  const stop = new AbortController();
+  connection.onClose(() => stop.abort());
+  const all: Entry[] = [];
+  followRun(found.run.dir, async (entries, state) => {
+    all.push(...entries);
+    say({ v: STUDIO_API_VERSION, type: "entries", entries });
+    say({ v: STUDIO_API_VERSION, type: "run", run: await liveRun(found, state, all) });
+  }, stop.signal).catch((error: Error) => { say({ v: STUDIO_API_VERSION, type: "problem", error: error.message }); connection.close(1011); });
+  connection.onText((text) => {
+    let message: Partial<ClientMessage>;
+    try { message = JSON.parse(text) as Partial<ClientMessage>; } catch { return connection.close(1003, "not JSON"); }
+    if (message.type !== "cancel") return;
+    sendCommand(found.run.dir, "cancel").catch((error: Error) =>
+      say({ v: STUDIO_API_VERSION, type: "problem", error: `${found.id} can't be cancelled: ${error.message}` }));
+  });
+}
 
 const startDetached = async (data: string, file: string): Promise<StartedRun> =>
   ({ id: (await startCompose(data, { path: file, say: () => {} })).id });
@@ -103,7 +132,7 @@ const flag = (value: unknown, name: string): boolean => {
 };
 
 /** The API's answer to a request, or undefined when no route has its path. */
-async function api(request: IncomingMessage, url: URL, { data, version, onSave, start }: Context): Promise<unknown> {
+async function api(request: IncomingMessage, url: URL, { data, version, onSave, start, resume }: Context): Promise<unknown> {
   const route = `${request.method === "HEAD" ? "GET" : request.method} ${url.pathname}`;
   switch (route) {
     case "GET /api/hello": return { v: STUDIO_API_VERSION, version } satisfies Hello;
@@ -138,6 +167,14 @@ async function api(request: IncomingMessage, url: URL, { data, version, onSave, 
       onSave.set(file, flag(asked?.on, "on"));
       return { on: onSave.isOn(file) };
     }
+    case "GET /api/log": return logTail(findRun(data, text(url.searchParams.get("run"), "run")).run.dir);
+    case "POST /api/runs/resume": {
+      const found = findRun(data, text((await body(request) as Partial<ResumeRun> | null)?.run, "run"));
+      const state = runState(found.run.dir);
+      if (!state || !isEnded(state)) throw new Refused(409, `${found.id} is ${state?.state ?? "queued"}: only a run that ended can go on`);
+      try { await resume(found, state); } catch (error) { throw new Refused(400, (error as Error).message); }
+      return { id: found.id } satisfies StartedRun;
+    }
     default: return undefined;
   }
 }
@@ -153,14 +190,16 @@ function fileFor(web: string, pathname: string): string | undefined {
   return extname(path) === "" ? join(web, "index.html") : undefined;
 }
 
-export async function startStudio({ port, key, web, data, version, start = startDetached }: StudioOptions): Promise<Studio> {
+const resumeDetached = (found: FoundRun, state: RunState) => resumeRun(found.id, found.run, state, { say: () => {} });
+
+export async function startStudio({ port, key, web, data, version, start = startDetached, resume = resumeDetached }: StudioOptions): Promise<Studio> {
   const root = resolve(web);
   const onSave = new OnSave({ start: async (file) => { await start(data, file); }, going: (file) => going(data, file) });
-  const context: Context = { data, version, onSave, start: (file) => start(data, file) };
-  const asked = (request: IncomingMessage) => check({ method: request.method ?? "GET", url: request.url ?? "/",
+  const context: Context = { data, version, onSave, start: (file) => start(data, file), resume };
+  const check = (request: IncomingMessage) => checkLock({ method: request.method ?? "GET", url: request.url ?? "/",
     host: request.headers.host, origin: request.headers.origin, cookie: request.headers.cookie }, lock);
   const server = createServer((request, response) => {
-    const verdict = asked(request);
+    const verdict = check(request);
     if (!verdict.allow) return refuse(response, verdict);
     const url = new URL(request.url ?? "/", "http://studio");
     const { pathname } = url;
@@ -185,14 +224,24 @@ export async function startStudio({ port, key, web, data, version, start = start
     socket.on("error", () => {});
     upgraded.add(socket);
     socket.on("close", () => upgraded.delete(socket));
-    const verdict = asked(request);
+    const verdict = check(request);
     const { pathname } = new URL(request.url ?? "/", "http://studio");
     if (!verdict.allow || pathname !== "/ws" || !isUpgrade(request)) {
       const status = verdict.allow ? 400 : verdict.status === 303 ? 403 : verdict.status;
       return socket.end(`HTTP/1.1 ${status} Refused\r\nConnection: close\r\n\r\n`);
     }
+    const asked = new URL(request.url ?? "/", "http://studio").searchParams.get("run");
+    let found: FoundRun | undefined;
+    if (asked !== null) {
+      try { found = findRun(data, asked); } catch (error) {
+        const status = error instanceof Refused ? error.status : 500;
+        return socket.end(`HTTP/1.1 ${status} Refused\r\nConnection: close\r\n\r\n`);
+      }
+    }
     const connection = accept(request, socket);
-    connection.sendText(JSON.stringify({ v: STUDIO_API_VERSION, type: "hello", version } satisfies ServerMessage));
+    const say = (message: ServerMessage) => connection.sendText(JSON.stringify(message));
+    if (!found) return say({ v: STUDIO_API_VERSION, type: "hello", version });
+    watchRun(found, connection, say);
   });
   const lock = { port, key };
   await new Promise<void>((done, fail) => { server.once("error", fail).listen(port, "127.0.0.1", () => done()); });
