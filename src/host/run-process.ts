@@ -4,6 +4,7 @@ import { runPhase } from "./compose.ts";
 import { ownRun } from "./owner.ts";
 import { isHeavy, takeTurn } from "./queue.ts";
 import { logFile, readRunIn } from "./run-folder.ts";
+import { Screen } from "./screen.ts";
 import { trim } from "./retention.ts";
 import type { StartMessage, Tools } from "./start.ts";
 
@@ -12,9 +13,10 @@ async function main([dir, tools]: string[]): Promise<void> {
   if (!run) throw new Error(`${dir} holds no run`);
   const { engine, image } = JSON.parse(tools) as Tools;
   const log = logFile(dir);
-  await ownRun(run, { phase: (phase, hooks) => runPhase(phase, { run, engine, image }, hooks),
+  const screen = new Screen();
+  await ownRun(run, { phase: (phase, hooks) => runPhase(phase, { run, engine, image }, { ...hooks, screen }),
     turn: async (phase, behind, signal) => isHeavy(phase, run.request.settings) ? takeTurn(run.dir, behind, signal) : undefined,
-    log: (line) => appendFileSync(log, `${line}\n`) }, () => { if (process.connected) process.send!({ type: "started" } satisfies StartMessage); });
+    log: (line) => appendFileSync(log, `${line}\n`) }, () => { if (process.connected) process.send!({ type: "started" } satisfies StartMessage); }, screen);
   await trim(run);
 }
 

@@ -7,6 +7,7 @@ import { listen } from "./control.ts";
 import { type Driver, type Work, drive } from "./driver.ts";
 import { journalReader, openJournal, readJournal } from "./journal.ts";
 import { isLocked, takeLock } from "./lock.ts";
+import type { Screen } from "./screen.ts";
 import { whatNext } from "./resume.ts";
 import type { Run } from "./run-folder.ts";
 
@@ -28,7 +29,7 @@ export async function whileUnowned(runDir: string, work: () => Promise<boolean>)
 }
 
 /** Owns a run until it ends: drives it, and takes commands for it. `started` is called once it does. */
-export async function ownRun(run: Run, work: Work, started: () => void = () => {}): Promise<RunState> {
+export async function ownRun(run: Run, work: Work, started: () => void = () => {}, screen?: Screen): Promise<RunState> {
   const lock = takeLock(lockFile(run.dir), TAKE_MS);
   if (!lock) throw new Error("another process is running it");
   try {
@@ -39,7 +40,7 @@ export async function ownRun(run: Run, work: Work, started: () => void = () => {
     const control = await listen(run.dir, (command) => {
       if (!driver) throw new Error("it is starting");
       driver.control({ type: command });
-    });
+    }, screen);
     try {
       driver = drive(run, work);
       started();

@@ -76,6 +76,18 @@ export async function record({ scriptsDir, script: path, brand, out }: RecordJob
 async function replay(session: Session, { capture, viewport, scriptsDir, dir, brand, report }: { capture: string;
   viewport: [number, number]; scriptsDir: string; dir: string; brand: Brand; report: Report }) {
   const events: ComposerEvent[] = [];
+  // Each click and typing with a box is also reported, for the live picture's target (GH-138 decision 004).
+  const [width, height] = viewport;
+  const log = events.push.bind(events);
+  events.push = (...added: ComposerEvent[]) => {
+    for (const event of added) {
+      if ((event.type === "click" || event.type === "type") && event.bounds) {
+        const { x, y, width: w, height: h } = event.bounds;
+        report({ type: "target", target: event.target, box: [x / width, y / height, w / width, h / height] });
+      }
+    }
+    return log(...added);
+  };
   const recording = await startRecording(capture, screenFor(viewport));
   const until = (ms: number) => sleep(Math.max(0, ms - recording.now()));
   await until(MARK_AT_MS);

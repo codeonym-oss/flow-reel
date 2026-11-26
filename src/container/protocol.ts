@@ -13,7 +13,12 @@ export type ContainerRequest =
 
 export type ContainerMessage = PhaseProgress
   /** The last message of a phase that didn't finish; the container's exit code isn't 0 either. */
-  | { type: "failed"; message: string };
+  | { type: "failed"; message: string }
+  /** A picture of the virtual screen, a base64 JPEG, while someone watches the recording (GH-138 decision 001). */
+  | { type: "picture"; jpeg: string };
+
+/** What a run's process says to its container, one per line on its input: someone watches the recording, or nobody. */
+export type ContainerInput = "watch" | "unwatch";
 
 /** Where a container finds what its phase reads, and writes. Each is a mount, read-only except `out`. */
 export const MOUNTS = { scripts: "/scripts", previous: "/previous", record: "/record", voice: "/voice", plan: "/plan", out: "/out" } as const;

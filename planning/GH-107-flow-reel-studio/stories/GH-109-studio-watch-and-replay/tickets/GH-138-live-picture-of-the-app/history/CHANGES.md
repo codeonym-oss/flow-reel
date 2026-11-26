@@ -1,2 +1,5 @@
 - 2026-11-26: drafted from story GH-109 (decision 011).
 - 2026-11-26: issue #138 created.
+- 2026-11-26: ticket pass: decisions 001 to 004, impl.md; status planned.
+- 2026-11-26: building; gate 4 measured (decision 003).
+- 2026-11-26: built; PR #146; status in-review.

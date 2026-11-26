@@ -70,7 +70,8 @@ export function decodeFrames(buffer: Buffer, longest = LONGEST_MESSAGE): { frame
 
 export interface Connection {
   sendText(text: string): void;
-  sendBinary(data: Buffer): void;
+  /** `sent` is called once the message has left. */
+  sendBinary(data: Buffer, sent?: () => void): void;
   /** Bytes written but not yet sent: a sender can drop what would queue up behind them. */
   readonly buffered: number;
   close(code?: number, reason?: string): void;
@@ -128,7 +129,7 @@ export function accept(request: IncomingMessage, socket: Duplex): Connection {
   socket.on("close", end).on("error", end);
   return {
     sendText: (text) => { if (!closed) socket.write(encodeFrame(OP.text, text)); },
-    sendBinary: (data) => { if (!closed) socket.write(encodeFrame(OP.binary, data)); },
+    sendBinary: (data, sent) => { if (!closed) socket.write(encodeFrame(OP.binary, data), () => sent?.()); },
     get buffered() { return (socket as Duplex & { writableLength: number }).writableLength; },
     close,
     onText: (listener) => { texts.push(listener); },

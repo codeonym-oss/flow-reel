@@ -230,3 +230,15 @@ main { overflow: auto; min-width: 0 }
 .runline a { color: var(--ink); text-decoration: none }
 .runline a:hover { text-decoration: underline }
 .choose li.runline { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap }
+
+/* The live picture (GH-138) */
+.frame.live img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; contain: strict }
+.frame-bar { position: absolute; left: 10px; top: 10px; right: 10px; z-index: 6; display: flex; gap: 6px; justify-content: space-between; pointer-events: none }
+/* No backdrop blur: over a picture that changes 8 times a second, it is repainted each time. */
+.chip { font: 11px var(--mono); padding: 3px 8px; border-radius: 99px; background: #15171ce6; color: #fff; display: inline-flex; align-items: center; gap: 6px; border: 0; white-space: nowrap }
+.chip i.pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--now); animation: pulse 1.6s infinite }
+button.chip { pointer-events: auto; cursor: pointer; min-height: 24px }
+button.chip[aria-pressed="true"] { background: #fff; color: #15171c; box-shadow: 0 0 0 1px #15171c33 }
+.target { position: absolute; z-index: 4; border: 2px dashed #e0a800; border-radius: 4px; pointer-events: none; transition: all .15s }
+.target span { position: absolute; left: -1.5px; bottom: 100%; margin-bottom: 3px; font: 10px var(--mono); background: #ffd400; color: #0a0a0a; font-weight: 500; padding: 1px 5px; border-radius: 3px; white-space: nowrap; max-width: 60cqw; overflow: hidden; text-overflow: ellipsis }
+@media (prefers-reduced-motion: reduce) { .chip i.pulse { animation: none } .target { transition: none } }

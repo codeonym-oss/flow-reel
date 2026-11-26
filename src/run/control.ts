@@ -3,11 +3,15 @@
 
 export const CONTROL_VERSION = 1;
 
-/** The commands this version takes. */
-export const COMMANDS = ["cancel"] as const;
+/** The commands this version takes. `picture` keeps the connection, which then carries the live picture (GH-138). */
+export const COMMANDS = ["cancel", "picture"] as const;
 export type Command = typeof COMMANDS[number];
 
 export type Answer = { ok: true } | { ok: false; error: string };
+
+/** One picture of the live screen, a base64 JPEG, as a line after `picture`'s answer. */
+export const pictureLine = (jpeg: string): string => `${JSON.stringify({ picture: jpeg })}\n`;
+export const readPicture = (line: string): string => String((JSON.parse(line) as { picture?: unknown }).picture);
 
 /** `token` proves the client can read the run's folder. */
 export const commandLine = (command: Command, token: string): string => `${JSON.stringify({ v: CONTROL_VERSION, token, command })}\n`;
