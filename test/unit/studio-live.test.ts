@@ -181,4 +181,34 @@ describe("a run in the studio", () => {
       expect((await picture("../x")).status).toBe(404);
     } finally { await studio.close(); }
   });
+
+  it("answers its own reel, and serves only the manifest's files, in byte ranges (GH-140)", async () => {
+    const { data, run } = await setUp();
+    const studio = await studioOn(data);
+    const get = (path: string, range?: string) => fetch(`http://127.0.0.1:${studio.port}${path}`,
+      { headers: { cookie: `${cookieName(studio.port)}=${KEY}`, ...(range ? { range } : {}) } });
+    try {
+      expect((await call(studio.port, "/api/reel?run=shop/1")).status).toBe(404);
+      const reel = join(run.dir, "reel");
+      mkdirSync(reel);
+      writeFileSync(join(reel, "video.mp4"), "0123456789");
+      writeFileSync(join(reel, "secret.txt"), "no");
+      writeFileSync(join(reel, "manifest.json"), JSON.stringify({ files: [{ path: "video.mp4", bytes: 10, sha256: "x" }] }));
+      writeFileSync(join(reel, "transcript.json"), JSON.stringify({ video: { durationMs: 4000 }, voice: { adapter: "openai", voice: "nova" },
+        steps: [{ index: 0, comment: "Look.", startMs: 100.4, actionEndMs: 900, endMs: 3000 }] }));
+      writeFileSync(join(reel, "events.json"), JSON.stringify({ events: [{ t: 400, type: "sound", name: "open" }] }));
+      expect((await call(studio.port, "/api/reel?run=shop/1")).body).toEqual({ durationMs: 4000,
+        steps: [{ index: 0, comment: "Look.", startMs: 100, endMs: 3000, picture: false }], marks: [{ lane: "sounds", t: 400, label: "open" }],
+        folder: reel, files: [{ path: "video.mp4", bytes: 10 }], bytes: 10, voice: "openai · nova" });
+      const whole = await get("/api/reel-file?run=shop/1&path=video.mp4");
+      expect([whole.status, whole.headers.get("content-type"), whole.headers.get("accept-ranges"), await whole.text()]).toEqual([200, "video/mp4", "bytes", "0123456789"]);
+      const part = await get("/api/reel-file?run=shop/1&path=video.mp4", "bytes=2-5");
+      expect([part.status, part.headers.get("content-range"), await part.text()]).toEqual([206, "bytes 2-5/10", "2345"]);
+      const tail = await get("/api/reel-file?run=shop/1&path=video.mp4", "bytes=-3");
+      expect([tail.status, await tail.text()]).toEqual([206, "789"]);
+      expect((await get("/api/reel-file?run=shop/1&path=video.mp4", "bytes=20-")).status).toBe(416);
+      expect((await get("/api/reel-file?run=shop/1&path=secret.txt")).status).toBe(404);
+      expect((await get("/api/reel-file?run=shop/1&path=../journal.jsonl")).status).toBe(404);
+    } finally { await studio.close(); }
+  });
 });

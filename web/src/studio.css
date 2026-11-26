@@ -298,3 +298,33 @@ button.chip[aria-pressed="true"] { background: #fff; color: #15171c; box-shadow:
 .score-keys { margin: 0; padding: 8px 14px 10px; border-top: 1px solid var(--rule-2) }
 .score-keys kbd { font: 11px var(--mono); border: 1px solid var(--rule); border-radius: 4px; padding: 0 4px }
 @media (max-width: 640px) { .score-body { grid-template-columns: 74px minmax(0, 1fr) } .lanes-h > div { padding-left: 8px; font-size: 11px } }
+
+/* The Reel screen (GH-140) */
+.frame.player video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; background: #000; cursor: pointer }
+.frame.player video::cue { font: 500 max(14px, 2.2cqw)/1.35 var(--ui); background: #000c; color: #fff }
+.frame.player .frame-bar { justify-content: flex-start }
+.transport { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; width: min(100%, calc(62vh * 16 / 9)); justify-self: center }
+.play { width: 42px; height: 42px; border-radius: 50%; background: var(--ink); color: var(--paper); border: 0; display: grid; place-items: center; flex: none }
+.play svg { width: 16px; height: 16px; fill: currentColor }
+.track { position: relative; height: 26px; flex: 1 1 240px; cursor: pointer; touch-action: none; border-radius: 4px }
+.track .rail2 { position: absolute; left: 0; right: 0; top: 11px; height: 4px; border-radius: 2px; background: var(--rule) }
+.track .fill { position: absolute; left: 0; top: 11px; height: 4px; border-radius: 2px; background: var(--now) }
+.track .knob { position: absolute; top: 6px; width: 14px; height: 14px; border-radius: 50%; background: var(--now); transform: translateX(-50%); box-shadow: 0 0 0 3px var(--sheet) }
+.track .tk { position: absolute; top: 8px; width: 1px; height: 10px; background: var(--ink-3) }
+.track .hov { position: absolute; bottom: 28px; transform: translateX(-50%); font: 11px var(--mono); background: var(--ink); color: var(--paper); padding: 2px 7px; border-radius: 4px; white-space: nowrap; pointer-events: none }
+.btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink) }
+.transcript { display: grid; gap: 2px; max-height: 300px; overflow: auto; margin: 0 -6px; position: relative }
+.transcript button { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 8px; text-align: left; border: 0; background: none; padding: 7px 6px; border-radius: 7px; font-size: 14px; line-height: 1.45; color: var(--ink-2) }
+.transcript button span:first-child { font: 11px var(--mono); color: var(--ink-3); padding-top: 3px }
+.transcript button.on { color: var(--ink); background: var(--now-soft) } .transcript button.on span:first-child { color: var(--now) }
+.transcript button:hover { background: var(--glass) }
+.facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px } .facts div { display: grid; gap: 2px }
+.facts b { font: 500 15px var(--mono) } .facts span { font-size: 11px; color: var(--ink-3) }
+.level { display: grid; gap: 6px } .level-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: baseline }
+.level-head .mono { font-size: 11px }
+.loud { display: flex; align-items: flex-end; gap: 1px; height: 40px; cursor: pointer }
+.loud i { flex: 1; background: var(--ink-2); border-radius: 1px; opacity: .6; min-width: 1px }
+.loud i.on { background: var(--now); opacity: 1 }
+.files { display: grid; gap: 6px; font: 12px var(--mono) } .files div { display: flex; justify-content: space-between; gap: 10px; color: var(--ink-2) }
+.files a { color: var(--ink); text-decoration: none; overflow-wrap: anywhere } .files a:hover { text-decoration: underline }
+.score-scroll.seeks { cursor: crosshair }

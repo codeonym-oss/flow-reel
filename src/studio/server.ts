@@ -5,7 +5,7 @@ import { type IncomingMessage, type ServerResponse, createServer } from "node:ht
 import type { AddressInfo } from "node:net";
 import { extname, join, resolve, sep } from "node:path";
 import type { Duplex } from "node:stream";
-import { type AddWorkspace, type Hello, type ClientMessage, type OnSaveSwitch, type Problem, type ResumeRun, type Score, STUDIO_API_VERSION, type ServerMessage, type StartRun,
+import { type AddWorkspace, type Hello, type ClientMessage, type OnSaveSwitch, type Problem, type ReelView, type ResumeRun, type Score, STUDIO_API_VERSION, type ServerMessage, type StartRun,
   type StartedRun } from "./api.ts";
 import { type Verdict, check as checkLock } from "./locks.ts";
 import { type Connection, accept, isUpgrade } from "./websocket.ts";
@@ -18,7 +18,7 @@ import { sendCommand, watchPictures } from "../host/control.ts";
 import { newestOnly } from "../host/screen.ts";
 import { resumeRun } from "../host/new-run.ts";
 import { runState } from "../host/owner.ts";
-import { scoreOf, stepPicture } from "../host/score.ts";
+import { reelFile, reelOf, scoreOf, stepPicture } from "../host/score.ts";
 import { type FoundRun, findRun, followRun, liveRun, logTail } from "./live.ts";
 import { OnSave } from "./on-save.ts";
 import { openScript, scriptOf, scripts, source, workspaceOf } from "./scripts.ts";
@@ -27,6 +27,10 @@ import { Refused, addWorkspace, clean, cleanPreview, runs, today, workspaces } f
 const TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
   ".svg": "image/svg+xml", ".woff2": "font/woff2", ".woff": "font/woff", ".png": "image/png", ".json": "application/json",
+};
+
+const REEL_TYPES: Record<string, string> = {
+  ".mp4": "video/mp4", ".wav": "audio/wav", ".vtt": "text/vtt; charset=utf-8", ".srt": "text/plain; charset=utf-8", ".json": "application/json",
 };
 
 /** Every response says: nothing from another site, and no framing by one. */
@@ -183,6 +187,11 @@ async function api(request: IncomingMessage, url: URL, { data, version, onSave, 
       return { on: onSave.isOn(file) };
     }
     case "GET /api/log": return logTail(findRun(data, text(url.searchParams.get("run"), "run")).run.dir);
+    case "GET /api/reel": {
+      const reel: ReelView | undefined = reelOf(findRun(data, text(url.searchParams.get("run"), "run")).run.dir);
+      if (!reel) throw new Refused(404, "this run has no reel: it didn't finish, or its files were cleaned");
+      return reel;
+    }
     case "GET /api/score": {
       const score: Score | undefined = scoreOf(findRun(data, text(url.searchParams.get("run"), "run")).run.dir);
       if (!score) throw new Refused(404, "this run has no recording yet");
@@ -210,6 +219,26 @@ function fileFor(web: string, pathname: string): string | undefined {
   return extname(path) === "" ? join(web, "index.html") : undefined;
 }
 
+/** A file, whole or the byte range asked for, so a video can be scrubbed (GH-140 decision 001). */
+function sendFile(request: IncomingMessage, response: ServerResponse, file: string, type: string): void {
+  const size = statSync(file).size;
+  const headers = { ...HEADERS, "Content-Type": type, "Accept-Ranges": "bytes", "Cache-Control": "private, max-age=3600" };
+  const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.range ?? "");
+  if (!range || (range[1] === "" && range[2] === "")) {
+    response.writeHead(200, { ...headers, "Content-Length": size });
+    createReadStream(file).pipe(response);
+    return;
+  }
+  const start = range[1] === "" ? Math.max(0, size - Number(range[2])) : Number(range[1]);
+  const end = range[1] === "" || range[2] === "" ? size - 1 : Math.min(size - 1, Number(range[2]));
+  if (start > end || start >= size) {
+    response.writeHead(416, { ...headers, "Content-Range": `bytes */${size}` }).end();
+    return;
+  }
+  response.writeHead(206, { ...headers, "Content-Range": `bytes ${start}-${end}/${size}`, "Content-Length": end - start + 1 });
+  createReadStream(file, { start, end }).pipe(response);
+}
+
 const resumeDetached = (found: FoundRun, state: RunState) => resumeRun(found.id, found.run, state, { say: () => {} });
 
 export async function startStudio({ port, key, web, data, version, start = startDetached, resume = resumeDetached }: StudioOptions): Promise<Studio> {
@@ -223,14 +252,20 @@ export async function startStudio({ port, key, web, data, version, start = start
     if (!verdict.allow) return refuse(response, verdict);
     const url = new URL(request.url ?? "/", "http://studio");
     const { pathname } = url;
-    // A step's picture is the one answer of the API that isn't JSON (GH-139 decision 003).
-    if (pathname === "/api/step-picture" && request.method === "GET") {
+    // A step's picture and a reel's files are the API's answers that aren't JSON (GH-139 decision 003, GH-140 decision 001).
+    if ((pathname === "/api/step-picture" || pathname === "/api/reel-file") && request.method === "GET") {
       try {
-        const step = Number(url.searchParams.get("step"));
-        const file = stepPicture(findRun(data, text(url.searchParams.get("run"), "run")).run.dir, step);
-        if (!file) throw new Refused(404, `step ${url.searchParams.get("step")} has no picture`);
-        response.writeHead(200, { ...HEADERS, "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=3600" });
-        createReadStream(file).pipe(response);
+        const { dir } = findRun(data, text(url.searchParams.get("run"), "run")).run;
+        if (pathname === "/api/step-picture") {
+          const file = stepPicture(dir, Number(url.searchParams.get("step")));
+          if (!file) throw new Refused(404, `step ${url.searchParams.get("step")} has no picture`);
+          sendFile(request, response, file, "image/jpeg");
+        } else {
+          const path = text(url.searchParams.get("path"), "path");
+          const file = reelFile(dir, path);
+          if (!file) throw new Refused(404, `the run's reel has no ${path}`);
+          sendFile(request, response, file, REEL_TYPES[extname(file)] ?? "application/octet-stream");
+        }
       } catch (error) { problem(response, error instanceof Refused ? error.status : 500, (error as Error).message); }
       return;
     }
