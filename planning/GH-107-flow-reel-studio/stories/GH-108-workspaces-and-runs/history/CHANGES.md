@@ -2,3 +2,4 @@
 - 2026-11-25: issue GH-108 created; folder rename waits until every issue of the epic exists.
 - 2026-11-25: folder renamed to GH-108-workspaces-and-runs.
 - 2026-11-25: story grilled (001-013), choices recorded (014-016), eight tickets created (GH-114 to GH-121).
+- 2026-11-26: its eight tickets merged into `studio`; it waits for the person's checks (GH-121 `impl.md`) before `main`.

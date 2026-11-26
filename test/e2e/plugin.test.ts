@@ -1,7 +1,7 @@
 // The plugin's worked example composes with the candidate image, and its helpers work on the real reel (GH-6
 // impl.md step 13): what an agent following the plugin would do, minus the agent.
 import { execFile } from "node:child_process";
-import { cpSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { type Server, createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join, resolve } from "node:path";
@@ -18,10 +18,8 @@ let server: Server;
 beforeAll(async () => {
   prepareImage("full");
   makeProject(OUT, {});
-  // The example's layout changes in the plugin's own pull request (GH-121); its one script is composed either way.
-  const [source] = readdirSync(example, { recursive: true, encoding: "utf8" }).filter((file) => file.endsWith(".ts"));
   mkdirSync(join(OUT, "reels"), { recursive: true });
-  cpSync(join(example, source), script);
+  cpSync(join(example, "reels/saved-views.reel.ts"), script);
   const html = readFileSync(join(example, "index.html"));
   server = createServer((_, res) => { res.writeHead(200, { "content-type": "text/html" }); res.end(html); });
   await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
