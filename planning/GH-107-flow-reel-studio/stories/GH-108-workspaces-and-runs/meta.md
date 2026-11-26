@@ -3,7 +3,7 @@ kind: story
 title: Workspaces and runs
 key: GH-108
 parent: GH-107
-status: in-review
+status: done
 branch:
 tracker-url: https://github.com/codeonym-oss/flow-reel/issues/108
 mr:
