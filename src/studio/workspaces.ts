@@ -23,7 +23,7 @@ export class Refused extends Error {
   constructor(status: number, message: string) { super(message); this.status = status; }
 }
 
-async function view(known: KnownWorkspace, { number, dir, script, startedAt, endedAt, state }: Tracked): Promise<RunView> {
+export async function view(known: KnownWorkspace, { number, dir, script, startedAt, endedAt, state }: Tracked): Promise<RunView> {
   const run = isEnded(state) ? readRunIn(dir) : undefined;
   const next = run && await whatNext(run, state);
   return { id: `${localSlug(known)}/${number}`, workspace: known.id, script, startedAt, ...(endedAt ? { endedAt } : {}),

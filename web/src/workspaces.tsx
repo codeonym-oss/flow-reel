@@ -84,7 +84,7 @@ function Card({ workspace: w, most, toast, refresh }: { workspace: WorkspaceView
   );
 }
 
-function label(run: RunView): string {
+export function label(run: RunView): string {
   if (run.waiting) return `waiting${run.waiting.behind ? ` for ${run.waiting.behind}` : ""}`;
   if (isGoing(run)) return run.phase ? `${run.state} · ${run.phase}` : run.state;
   if (run.resume) return `${run.state} · resumable`;

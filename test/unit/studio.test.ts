@@ -92,6 +92,7 @@ describe("the server", () => {
   let dir: string;
   let studio: Studio;
   const key = "the-key";
+  const started: string[] = [];
   const get = (path: string, headers: Record<string, string> = {}) => new Promise<{ status: number; headers: Record<string, unknown>; body: string }>((done, fail) => {
     request({ host: "127.0.0.1", port: studio.port, path, headers: { host: `127.0.0.1:${studio.port}`, cookie: `${cookieName(studio.port)}=${key}`, ...headers } }, (response) => {
       let body = "";
@@ -128,7 +129,12 @@ describe("the server", () => {
     writeFileSync(join(dir, "web/index.html"), "<p>shell</p>");
     writeFileSync(join(dir, "web/assets/app.js"), "console.log(1)");
     writeFileSync(join(dir, "secret.txt"), "secret");
-    studio = await startStudio({ port: 0, key, web: join(dir, "web"), data: join(dir, "data"), version: "9.9.9" });
+    studio = await startStudio({ port: 0, key, web: join(dir, "web"), data: join(dir, "data"), version: "9.9.9",
+      start: async (_data, file) => {
+        if (file.endsWith("keyless.reel.ts")) throw new Error("voice openai needs OPENAI_API_KEY: set it in the environment and compose again");
+        started.push(file);
+        return { id: "my-shop/1" };
+      } });
   });
   afterAll(async () => {
     await studio.close();
@@ -182,6 +188,26 @@ describe("the server", () => {
     expect(JSON.parse((await get(`/api/clean?workspace=${made.added.id}`)).body)).toEqual({ runs: 0, bytes: 0 });
     expect((await send("DELETE", "/api/workspaces", "")).status).toBe(404);
     expect((await send("POST", "/index.html", "{}")).status).toBe(405);
+  });
+
+  it("lists a workspace's scripts, shows one, runs it, and switches Run again on save", async () => {
+    const [{ id }] = JSON.parse((await get("/api/workspaces")).body) as { id: string }[];
+    const script = join(dir, "project/reels/tour.reel.ts");
+    writeFileSync(script, "x");
+    expect(JSON.parse((await get(`/api/scripts?workspace=${id}`)).body)).toMatchObject({ workspace: { slug: "my-shop" },
+      scripts: [{ name: "tour", path: "tour.reel.ts", runs: [], onSave: false }] });
+    expect(JSON.parse((await get(`/api/script?workspace=${id}&name=tour`)).body)).toEqual({ name: "tour", path: "tour.reel.ts", lines: ["x"], changed: [], noReel: true });
+    expect((await get(`/api/script?workspace=${id}&name=nope`)).status).toBe(404);
+    expect(JSON.parse((await send("POST", "/api/scripts/open", JSON.stringify({ path: script }))).body)).toEqual({ workspace: id, slug: "my-shop", name: "tour" });
+    expect(JSON.parse((await send("POST", "/api/runs", JSON.stringify({ workspace: id, name: "tour" }))).body)).toEqual({ id: "my-shop/1" });
+    expect(started).toEqual([script]);
+    writeFileSync(join(dir, "project/reels/keyless.reel.ts"), "x");
+    const refused = await send("POST", "/api/runs", JSON.stringify({ workspace: id, name: "keyless" }));
+    expect([refused.status, JSON.parse(refused.body).error]).toEqual([400, expect.stringContaining("needs OPENAI_API_KEY")]);
+    expect(JSON.parse((await send("POST", "/api/on-save", JSON.stringify({ workspace: id, name: "tour", on: true }))).body)).toEqual({ on: true });
+    expect(JSON.parse((await get(`/api/scripts?workspace=${id}`)).body)).toMatchObject({ scripts: [{ name: "keyless", onSave: false }, { name: "tour", onSave: true }] });
+    expect((await send("POST", "/api/on-save", JSON.stringify({ workspace: id, name: "tour", on: "yes" }))).status).toBe(400);
+    expect(JSON.parse((await send("POST", "/api/on-save", JSON.stringify({ workspace: id, name: "tour", on: false }))).body)).toEqual({ on: false });
   });
 
   it("opens a WebSocket that says hello, only with the cookie and from its own page", async () => {

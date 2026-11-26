@@ -88,3 +88,49 @@ export interface Cleaned { runs: number; bytes: number }
 
 /** The answer to a request that couldn't be done. */
 export interface Problem { error: string }
+
+/** What a script's last reel holds (GH-136 decision 001). */
+export interface ReelCounts { steps: number; comments: number; sounds: number; effects: number; cards: number; ms: number }
+
+/** A script of a workspace (`GET /api/scripts?workspace=<id>`). */
+export interface ScriptView {
+  /** Its path in the scripts folder without `.reel.ts`: `admin/refund`. */
+  name: string;
+  /** Its path in the scripts folder. */
+  path: string;
+  /** Its last reel, when it has one. */
+  reel?: ReelCounts & { at: string };
+  /** Its last runs, newest first, at most 5. */
+  runs: RunView[];
+  /** Run again on save is on. */
+  onSave: boolean;
+  /** Why the last run a save started couldn't start. */
+  onSaveFailed?: string;
+}
+
+export interface ScriptsView {
+  workspace: { id: string; slug: string; title: string; root: string; scripts: string };
+  scripts: ScriptView[];
+}
+
+/** A script's source, read only, and what changed since its last reel (`GET /api/script?workspace=&name=`). */
+export interface ScriptSource {
+  name: string;
+  path: string;
+  lines: string[];
+  /** The lines (from 1) that changed since the last reel; "unknown" when its run's copy was cleaned. */
+  changed: number[] | "unknown";
+  /** It has no reel to compare with. */
+  noReel?: true;
+}
+
+/** `POST /api/scripts/open`: a script's full path. */
+export interface OpenScript { path: string }
+export interface OpenedScript { workspace: string; slug: string; name: string }
+
+/** `POST /api/runs`: run a script, as `flow-reel compose --detach`. */
+export interface StartRun { workspace: string; name: string }
+export interface StartedRun { id: string }
+
+/** `POST /api/on-save`: turn Run again on save on or off for a script. */
+export interface OnSaveSwitch { workspace: string; name: string; on: boolean }

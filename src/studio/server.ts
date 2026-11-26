@@ -5,9 +5,16 @@ import { type IncomingMessage, type ServerResponse, createServer } from "node:ht
 import type { AddressInfo } from "node:net";
 import { extname, join, resolve, sep } from "node:path";
 import type { Duplex } from "node:stream";
-import { type AddWorkspace, type Hello, type Problem, STUDIO_API_VERSION, type ServerMessage } from "./api.ts";
+import { type AddWorkspace, type Hello, type OnSaveSwitch, type Problem, STUDIO_API_VERSION, type ServerMessage, type StartRun,
+  type StartedRun } from "./api.ts";
 import { type Verdict, check } from "./locks.ts";
 import { accept, isUpgrade } from "./websocket.ts";
+import { startCompose } from "../host/new-run.ts";
+import { trackedRuns } from "../host/tracker.ts";
+import { isEnded } from "../run/machine.ts";
+import { findScript } from "../workspace/workspace.ts";
+import { OnSave } from "./on-save.ts";
+import { openScript, scriptOf, scripts, source, workspaceOf } from "./scripts.ts";
 import { Refused, addWorkspace, clean, cleanPreview, runs, today, workspaces } from "./workspaces.ts";
 
 const TYPES: Record<string, string> = {
@@ -37,6 +44,8 @@ export interface StudioOptions {
   web: string;
   /** flow-reel's data folder on this computer. */
   data: string;
+  /** Starts a run of a script file; `compose --detach`'s way unless a test gives another. */
+  start?: (data: string, file: string) => Promise<StartedRun>;
   version: string;
 }
 
@@ -74,8 +83,27 @@ const text = (value: unknown, name: string): string => {
   return value;
 };
 
+interface Context { data: string; version: string; onSave: OnSave; start: (file: string) => Promise<StartedRun> }
+
+const startDetached = async (data: string, file: string): Promise<StartedRun> =>
+  ({ id: (await startCompose(data, { path: file, say: () => {} })).id });
+
+/** Whether the newest run of a script file is going on. */
+function going(data: string, file: string): boolean {
+  try {
+    const { workspace, script } = findScript(file);
+    const newest = trackedRuns(data, workspace.config.workspace.id).find((run) => run.script === script.name);
+    return newest !== undefined && !isEnded(newest.state);
+  } catch { return false; }
+}
+
+const flag = (value: unknown, name: string): boolean => {
+  if (typeof value !== "boolean") throw new Refused(400, `${name} must be true or false`);
+  return value;
+};
+
 /** The API's answer to a request, or undefined when no route has its path. */
-async function api(request: IncomingMessage, url: URL, data: string, version: string): Promise<unknown> {
+async function api(request: IncomingMessage, url: URL, { data, version, onSave, start }: Context): Promise<unknown> {
   const route = `${request.method === "HEAD" ? "GET" : request.method} ${url.pathname}`;
   switch (route) {
     case "GET /api/hello": return { v: STUDIO_API_VERSION, version } satisfies Hello;
@@ -92,6 +120,24 @@ async function api(request: IncomingMessage, url: URL, data: string, version: st
       const title = asked?.init?.title;
       return addWorkspace(data, { path: text(asked?.path, "path"), ...(asked?.init ? { init: { title: text(title, "title") } } : {}) });
     }
+    case "GET /api/scripts": return scripts(data, text(url.searchParams.get("workspace"), "workspace"), onSave);
+    case "GET /api/script":
+      return source(data, text(url.searchParams.get("workspace"), "workspace"), text(url.searchParams.get("name"), "name"));
+    case "POST /api/scripts/open": return openScript(data, text((await body(request) as { path?: unknown })?.path, "path"));
+    case "POST /api/runs": {
+      const asked = await body(request) as Partial<StartRun> | null;
+      const { workspace } = workspaceOf(data, text(asked?.workspace, "workspace"));
+      const { file } = scriptOf(workspace, text(asked?.name, "name"));
+      if (going(data, file)) throw new Refused(409, "a run of this script is going on: watch it, or cancel it first");
+      try { return await start(file); } catch (error) { throw new Refused(400, (error as Error).message); }
+    }
+    case "POST /api/on-save": {
+      const asked = await body(request) as Partial<OnSaveSwitch> | null;
+      const { workspace } = workspaceOf(data, text(asked?.workspace, "workspace"));
+      const { file } = scriptOf(workspace, text(asked?.name, "name"));
+      onSave.set(file, flag(asked?.on, "on"));
+      return { on: onSave.isOn(file) };
+    }
     default: return undefined;
   }
 }
@@ -107,8 +153,10 @@ function fileFor(web: string, pathname: string): string | undefined {
   return extname(path) === "" ? join(web, "index.html") : undefined;
 }
 
-export async function startStudio({ port, key, web, data, version }: StudioOptions): Promise<Studio> {
+export async function startStudio({ port, key, web, data, version, start = startDetached }: StudioOptions): Promise<Studio> {
   const root = resolve(web);
+  const onSave = new OnSave({ start: async (file) => { await start(data, file); }, going: (file) => going(data, file) });
+  const context: Context = { data, version, onSave, start: (file) => start(data, file) };
   const asked = (request: IncomingMessage) => check({ method: request.method ?? "GET", url: request.url ?? "/",
     host: request.headers.host, origin: request.headers.origin, cookie: request.headers.cookie }, lock);
   const server = createServer((request, response) => {
@@ -117,7 +165,7 @@ export async function startStudio({ port, key, web, data, version }: StudioOptio
     const url = new URL(request.url ?? "/", "http://studio");
     const { pathname } = url;
     if (pathname.startsWith("/api/")) {
-      api(request, url, data, version).then(
+      api(request, url, context).then(
         (answer) => answer === undefined ? problem(response, 404, `there is no ${request.method} ${pathname}`) : json(response, answer),
         (error: Error) => problem(response, error instanceof Refused ? error.status : 500, error.message));
       return;
@@ -153,6 +201,7 @@ export async function startStudio({ port, key, web, data, version }: StudioOptio
     url: `http://127.0.0.1:${lock.port}/?key=${key}`,
     port: lock.port,
     close: () => new Promise((done) => {
+      onSave.close();
       server.close(() => done());
       server.closeAllConnections();
       for (const socket of upgraded) socket.destroy();

@@ -142,3 +142,42 @@ main { overflow: auto; min-width: 0 }
   .hd input[type="search"] { width: 100% }
 }
 .clip { max-width: 52ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+
+/* Scripts (GH-136) */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
+.open { display: flex; gap: 8px; min-width: 0; flex: 0 1 420px }
+.open .field { flex: 1 }
+.choose { padding: 16px 18px; display: grid; gap: 8px }
+.choose p { margin: 0 }
+.choose ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px }
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 18px; align-items: start }
+.list { display: grid; gap: 10px }
+.srow { padding: 14px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px; text-decoration: none; color: var(--ink) }
+.srow:hover { border-color: var(--ink-3) }
+.srow[aria-current="page"] { border-color: var(--ink) }
+.srow h3 { margin: 0; font: 500 14.5px var(--mono); overflow-wrap: anywhere }
+.srow .counts, .srow > .small { grid-column: 1 / -1 }
+.counts { display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2) }
+.counts b { color: var(--ink); font: 500 13px var(--mono) }
+.sel { display: grid; gap: 14px; min-width: 0 }
+.actions { padding: 14px 16px; display: grid; gap: 14px }
+.actions p { margin: 0 }
+.actions .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+.actions .sp { flex: 1 }
+.toggle { display: flex; align-items: flex-start; gap: 10px; font-size: 13px }
+.sw { width: 32px; height: 18px; border-radius: 99px; background: var(--rule); position: relative; flex: none; border: 0; margin-top: 1px; padding: 0; cursor: pointer }
+.sw::after { content: ""; position: absolute; width: 14px; height: 14px; top: 2px; left: 2px; border-radius: 50%; background: var(--sheet); transition: left .15s }
+.sw[aria-checked="true"] { background: var(--run) }
+.sw[aria-checked="true"]::after { left: 16px }
+.sw:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px }
+.runs { display: grid; gap: 6px }
+.runline { display: flex; justify-content: space-between; gap: 10px; align-items: center; text-decoration: none; color: var(--ink) }
+.src { overflow: hidden; padding: 0 }
+.src-hd { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--rule-2); flex-wrap: wrap }
+.src-hd .sp { flex: 1 }
+.code { margin: 0; padding: 10px 0; font: 12.5px/1.75 var(--mono); overflow-x: auto; max-height: 70vh }
+.code div { display: grid; grid-template-columns: 44px minmax(0, 1fr); white-space: pre; padding-right: 14px }
+.code div:hover { background: var(--glass) }
+.code .ln { color: var(--ink-3); text-align: right; padding-right: 14px; user-select: none }
+.code .chg { box-shadow: inset 3px 0 0 var(--now); background: var(--now-soft) }
+@media (max-width: 860px) { .split { grid-template-columns: minmax(0, 1fr) } .open { flex-basis: 100% } }

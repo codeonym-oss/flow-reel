@@ -109,6 +109,12 @@ today's turns at heavy work, and every run, filtered by what is going on, what f
 a terminal or by an agent appear within 2 seconds. **Add a workspace** takes a project's full path (`~/` works), and
 offers to make its `flow-reel.json` as `init` does. **Clean** removes what `clean` would, after showing how much.
 
+**Scripts** lists a workspace's scripts with what each one's last reel holds: steps, comments, sounds, effects, cards and
+length. The selected script's source shows the lines changed since that reel. **Run** starts a run as
+`compose --detach` does, with the voice's key from the environment the studio was started in. **Run again on save**
+starts a run each time the file is saved with a change; a save while a run is going waits for it, and several such saves
+make one run. It stays on until it is turned off or the studio stops. A script can also be opened by its full path.
+
 The studio needs no account and no internet: its fonts and code come with flow-reel.
 
 ## `verify`
