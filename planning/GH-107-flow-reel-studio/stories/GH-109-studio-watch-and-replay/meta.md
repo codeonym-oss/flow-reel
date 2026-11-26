@@ -3,7 +3,7 @@ kind: story
 title: The studio
 key: GH-109
 parent: GH-107
-status: tracked
+status: done
 branch:
 tracker-url: https://github.com/codeonym-oss/flow-reel/issues/109
 mr:

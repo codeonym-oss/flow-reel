@@ -13,3 +13,4 @@
 - 2026-11-26: decision 010 (three locks on the studio server).
 - 2026-11-26: decision 011 (seven tickets); draft.md rewritten; seven tickets drafted.
 - 2026-11-26: tickets created as issues #134–#140.
+- 2026-11-26: done: tickets GH-134 to GH-140 and GH-147 merged into studio.
