@@ -76,7 +76,7 @@ export default script({ url: "http://localhost:4173/settings" }, async ({ page, 
 });
 ```
 
-- `before.png` is a screenshot of the old screen, saved in the script's folder. The comment plays over its card.
+- `before.png` is a screenshot of the old screen, saved in the scripts folder. The comment plays over its card.
 - With screenshots of both versions, `card.compare({ before, after })` wipes from one to the other instead.
 - The live "after" follows, framed, with a toggle sound on the switch.
 

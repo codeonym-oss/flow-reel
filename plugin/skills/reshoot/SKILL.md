@@ -19,7 +19,7 @@ effect), check `<skill-dir>/../../references/language.md` and say so; offer what
 
 ## 2. Keep the reel before
 
-Copy `<name>.reel/` to `<name>.reel.before/` beside it (the whole folder), then
+Copy `<name>.reel/` from the output folder to `<name>.reel.before/` outside it (the whole folder), then
 `npx flow-reel verify <name>.reel.before`. Keep it until the person accepts the new reel.
 
 ## 3. Change only what the feedback points at

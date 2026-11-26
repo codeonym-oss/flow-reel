@@ -2,10 +2,10 @@
 
 - **Audience:** customer — a team lead who checks project progress every week.
 - **Takeaway:** "I can save a filtered board and get back to it in one click."
-- **App:** http://localhost:4173/ (`node serve.mjs` in this folder) — starting state: all five projects, chart of
+- **App:** http://localhost:4173/ (`node serve.mjs` in the example's folder) — starting state: all five projects, chart of
   all work, no saved views. Nothing persists: reloading resets it.
-- **Runtime:** flow-reel 0.5 or later
-- **Settings:** speaker Ryan, language english (`flow-reel.json`)
+- **Runtime:** flow-reel 0.8 or later
+- **Settings:** speaker Ryan, language english (the defaults)
 - **Expected length:** about 30 s
 
 ## Scenes

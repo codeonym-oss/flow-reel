@@ -45,4 +45,4 @@ Write the plan down before the script (template: `../assets/brief.md`). Its hear
 | 3 | Read the chart | hover the chart region | Chart framed | "The chart follows the filter…" | — | `zoomIn` … next scene's `zoomOut` |
 
 Keep what you observed apart from what you assume ("Save is instant": assumed, check while exploring). The
-example `../examples/saved-views/brief.md` is a complete one.
+example `../examples/saved-views/reels/saved-views.brief.md` is a complete one.

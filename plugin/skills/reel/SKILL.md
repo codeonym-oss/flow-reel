@@ -11,14 +11,15 @@ flow-reel composes a **script** (Playwright plus the words `comment`, `sound`, `
 
 ## Pick up where things are
 
-Look in the project before starting: a `brief.md`, a script importing `flow-reel`, a `<name>.reel/` folder. Start at
-the first step whose output is missing. If a reel exists and the person has feedback on it, use the `reshoot` skill
+Look in the project before starting: `flow-reel.json`, a brief, a `<name>.reel.ts` script, a `<name>.reel/` folder in
+the output folder, and `npx flow-reel runs`. Start at the first step whose output is missing. A run that stopped or
+failed may go on with `npx flow-reel resume <script>`. If a reel exists and the person has feedback on it, use the `reshoot` skill
 (`<skill-dir>/../reshoot/SKILL.md`) instead; to only judge a reel, use `screening`.
 
 ## 1. Plan
 
 Read `<skill-dir>/../../references/story.md`. Settle the audience and the one takeaway, asking the person only what
-you can't infer. Copy `<skill-dir>/../../assets/brief.md` beside where the script will go and fill in the scenes.
+you can't infer. Copy `<skill-dir>/../../assets/brief.md` beside where the script will go, as `<name>.brief.md`, and fill in the scenes.
 
 ## 2. Explore the app
 
@@ -30,15 +31,16 @@ login the composer can't replay.
 
 Run `node <skill-dir>/../../scripts/preflight.mjs --url <app url> --script <script path>`. Fix nothing silently:
 report each failed check and its fix to the person, and do the fix only with their consent (installing flow-reel
-with `npm install --save-dev flow-reel` in their project is the usual one; a missing cloud voice key is theirs
-to set in their shell). The first compose pulls a large image.
+with `npm install --save-dev flow-reel` in their project and `npx flow-reel init --title <title>` at its root are the
+usual ones; a missing cloud voice key is theirs to set in their shell). The first compose pulls a large image.
 
 ## 4. Write the script
 
 Read `<skill-dir>/../../references/language.md` (the only source for words, options and flags),
 `<skill-dir>/../../references/scenes.md`, `<skill-dir>/../../references/comments.md`,
 `<skill-dir>/../../references/direction.md` and `<skill-dir>/../../references/sound-design.md`; take recipes from
-`<skill-dir>/../../references/shots.md`. Start from `<skill-dir>/../../assets/script.ts` or a recipe.
+`<skill-dir>/../../references/shots.md`. Start from `<skill-dir>/../../assets/script.ts` or a recipe. The script is
+`<scripts folder>/<name>.reel.ts`.
 
 - One comment per scene; wait for every visible result before marking it with a sound or a flash.
 - Let polish handle buttons and forms; direct the camera only where the story needs it.
@@ -46,13 +48,13 @@ Read `<skill-dir>/../../references/language.md` (the only source for words, opti
   matters), with a `timeout` that covers it.
 - No word, option or flag that `language.md` doesn't list.
 
-`<skill-dir>/../../examples/saved-views/` is a complete worked example (app, brief, script, settings).
+`<skill-dir>/../../examples/saved-views/` is a complete worked example (app, brief, script).
 
 ## 5. Compose
 
 `npx flow-reel compose <script>`. The local voice is slow on a CPU (about a minute a comment); say so before
-starting, or offer a cloud voice (`<skill-dir>/../../references/comments.md`, "The voice"). If it
-fails, read `<skill-dir>/../../references/troubleshooting.md` and find the cause before composing again; the old
+starting, or offer a cloud voice (`<skill-dir>/../../references/comments.md`, "The voice"). For a long compose,
+add `--detach` and `npx flow-reel wait <script>`. If it fails, read `<skill-dir>/../../references/troubleshooting.md` and find the cause before composing again; the old
 reel stays as it was.
 
 ## 6. Screen
