@@ -1,3 +1,4 @@
 - 2026-11-25: drafted in the story's global pass.
 - 2026-11-25: issue GH-119 created, folder renamed.
 - 2026-11-25: built; decisions 001 and 002 chosen alone. Publishing in order was built in #118.
+- 2026-11-26: merged into `studio` (#128).
