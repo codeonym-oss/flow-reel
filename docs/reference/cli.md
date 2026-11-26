@@ -115,6 +115,11 @@ length. The selected script's source shows the lines changed since that reel. **
 starts a run each time the file is saved with a change; a save while a run is going waits for it, and several such saves
 make one run. It stays on until it is turned off or the studio stops. A script can also be opened by its full path.
 
+**Run** watches one run as it goes, wherever it was started: its phases, its steps with how long each took, its log,
+its journal and why it failed. Reopening the page shows what happened meanwhile. **Cancel run**, **Resume** and **Run
+again** do what `cancel`, `resume --detach` and `compose --detach` do. Closing the page or the studio doesn't stop the
+run.
+
 The studio needs no account and no internet: its fonts and code come with flow-reel.
 
 ## `verify`

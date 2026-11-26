@@ -5,6 +5,7 @@ import type { Hello, Screen } from "../../src/studio/api.ts";
 import { Logo } from "./logo.tsx";
 import { follow, useRoute } from "./route.ts";
 import { useTheme } from "./theme.ts";
+import { Run } from "./run.tsx";
 import { Scripts } from "./scripts.tsx";
 import { Workspaces } from "./workspaces.tsx";
 
@@ -19,8 +20,7 @@ const ICONS: Record<Screen | "settings", ComponentChildren> = {
 };
 
 /** What each screen will hold, until its ticket builds it. */
-const COMING: Record<Exclude<Screen, "workspaces" | "scripts">, string> = {
-  run: "A run, live: the app, its steps and the score.",
+const COMING: Record<Exclude<Screen, "workspaces" | "scripts" | "run">, string> = {
   reel: "Play a reel, and jump to any step or line.",
 };
 
@@ -80,6 +80,7 @@ export function App() {
       <main>
         {server === "gone" && <div class="banner" role="alert">The studio stopped. Run <code>flow-reel studio</code> again to reopen it.</div>}
         {screen === "workspaces" ? <Workspaces toast={toast} /> : screen === "scripts" ? <Scripts rest={rest} toast={toast} /> :
+          screen === "run" ? <Run rest={rest} toast={toast} /> :
           <section class="screen" aria-labelledby="screen-title">
             <div class="hd"><h1 id="screen-title">{TITLES[screen]}</h1></div>
             <div class="empty">{COMING[screen]}</div>
