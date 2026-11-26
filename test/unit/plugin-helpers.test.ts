@@ -169,6 +169,26 @@ describe.skipIf(process.platform === "win32")("preflight.mjs", () => {
     expect(await url("not a url")).toMatchObject({ status: "fail" });
   });
 
+  it("fails outside a workspace, in one from before 0.8, and for a script not named <name>.reel.ts", async () => {
+    const fake = fakePath("workspaces", { version: true, info: true, image: true });
+    const at = async (script: string) => {
+      const result = await run(preflight, ["--script", script, "--version", supported, "--json"], fake.path);
+      return { exit: result.status, ...checks(result.stdout) };
+    };
+    const none = join(work, "no workspace");
+    mkdirSync(none);
+    writeFileSync(join(none, "demo.reel.ts"), "");
+    expect(await at(join(none, "demo.reel.ts"))).toMatchObject({ exit: 1,
+      workspace: { status: "fail", detail: expect.stringContaining("not a workspace"), fix: expect.stringContaining("flow-reel init") } });
+    const { dir, script } = project("old project");
+    writeFileSync(join(dir, "flow-reel.json"), JSON.stringify({ version: 1 }));
+    expect(await at(script)).toMatchObject({ exit: 1, workspace: { status: "fail", detail: expect.stringContaining("before flow-reel 0.8") } });
+    writeFileSync(join(dir, "flow-reel.json"), JSON.stringify(workspace()));
+    writeFileSync(join(dir, "demo.ts"), "");
+    expect(await at(join(dir, "demo.ts"))).toMatchObject({ exit: 1, workspace: { status: "ok" },
+      script: { status: "fail", detail: expect.stringContaining("isn't named <name>.reel.ts") } });
+  });
+
   it("rejects bad arguments with 2", async () => {
     expect((await run(preflight, ["--url"])).status).toBe(2);
     expect((await run(preflight, ["--wat"])).status).toBe(2);
