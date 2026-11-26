@@ -1,0 +1,240 @@
+<meta charset="utf-8">
+<title>flow-reel Brand Variants</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* PROTOTYPE (GH-109): flow-reel logo marks and palettes to choose from. Throwaway. */
+:root {
+  --ui: "IBM Plex Sans", system-ui, sans-serif; --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  /* page chrome; the chosen palette below overrides these */
+  --bg: #fafaf7; --surface: #fff; --raised: #f2f2ec; --line: #e4e4dc; --ink: #0a0a0a; --ink2: #5c5c57;
+  --brand: #ffd400; --on-brand: #0a0a0a; --now: #0a0a0a; --now-fill: #ffd400; --on-now: #0a0a0a; --ok: #047857; --fail: #d92d20;
+}
+* { box-sizing: border-box }
+html { -webkit-text-size-adjust: 100% }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--ui); -webkit-font-smoothing: antialiased; transition: background .2s, color .2s }
+button { font: inherit; color: inherit; cursor: pointer }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 6px }
+[hidden] { display: none !important }
+.mono { font-family: var(--mono) }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 28px max(16px, env(safe-area-inset-right, 0px)) 120px max(16px, env(safe-area-inset-left, 0px)) }
+header.top { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; justify-content: space-between; margin-bottom: 28px }
+h1 { margin: 0; font: 700 clamp(26px, 5vw, 40px)/1.1 var(--ui); letter-spacing: -.03em }
+h2 { margin: 0 0 4px; font: 600 20px/1.25 var(--ui); letter-spacing: -.01em }
+.lede { color: var(--ink2); margin: 6px 0 0; max-width: 60ch }
+.hint { color: var(--ink2); font-size: 13.5px; margin: 0 0 16px }
+section { margin-top: 44px }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface) }
+.seg button { border: 0; background: none; min-height: 40px; padding: 0 14px; font-size: 14px; color: var(--ink2) }
+.seg button + button { border-left: 1px solid var(--line) }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg) }
+.bar { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-wrap: wrap; gap: 10px; align-items: center }
+.bar .lbl { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink2); font-weight: 500 }
+.bar .pick { margin-left: auto; font-size: 13.5px; color: var(--ink2) } .bar .pick b { color: var(--ink) }
+
+/* Logos */
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)) }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; min-width: 0 }
+button.card { text-align: left; padding: 0 }
+.card[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink) }
+.logo-stage { display: grid; grid-template-columns: 1fr 1fr; }
+.logo-stage > div { display: grid; place-items: center; padding: 26px 10px; gap: 14px; min-height: 170px }
+.logo-stage .dk { background: #0a0a0a; color: #f5f5f0 } .logo-stage .lt { background: #ffffff; color: #0a0a0a }
+.lockup { display: flex; align-items: center; gap: 9px; font: 700 19px var(--ui); letter-spacing: -.035em; white-space: nowrap }
+.sizes { display: flex; gap: 10px; align-items: flex-end }
+.card .body { padding: 14px 16px 16px; display: grid; gap: 4px; border-top: 1px solid var(--line) }
+.card .body b { font-weight: 600 } .card .body span { color: var(--ink2); font-size: 13.5px }
+.rec { display: inline-block; font: 500 11px var(--mono); background: var(--now-fill); color: var(--on-now); border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: 2px }
+
+/* Palettes */
+.pal-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)) }
+.sw { display: grid; grid-template-columns: repeat(4, 1fr); height: 92px }
+.sw i { display: flex; align-items: flex-end; padding: 6px; font: 500 10.5px var(--mono); font-style: normal }
+.checks { display: grid; gap: 4px; font-size: 12.5px; margin-top: 6px }
+.checks div { display: flex; justify-content: space-between; gap: 10px }
+.pass { color: var(--ok); font-family: var(--mono) } .failc { color: var(--fail); font-family: var(--mono) }
+
+/* Preview: a small studio in the chosen brand */
+.pv-wrap { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)) }
+.pv { border-radius: 16px; overflow: hidden; border: 1px solid var(--p-line); background: var(--p-bg); color: var(--p-ink); font-size: 13.5px; min-width: 0; container-type: inline-size }
+.pv-top { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--p-line); flex-wrap: wrap }
+.pv-top .lockup { font-size: 15px }
+.pv-top .sp { flex: 1 }
+.pill { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--p-line); background: var(--p-surface); border-radius: 99px; padding: 3px 10px; font-size: 12.5px; white-space: nowrap }
+.pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--p-now-fill); box-shadow: 0 0 0 3px color-mix(in srgb, var(--p-now-fill) 30%, transparent); animation: pl 1.6s infinite }
+@keyframes pl { 50% { opacity: .4 } }
+.pv-body { padding: 16px 14px; display: grid; gap: 14px }
+.pv-h { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px }
+.pv-h h3 { margin: 0; font: 700 20px var(--ui); letter-spacing: -.02em }
+.pv-h .sp { flex: 1 }
+.b { min-height: 36px; border-radius: 9px; padding: 0 14px; border: 1px solid var(--p-line); background: var(--p-surface); color: var(--p-ink); font-size: 13.5px; white-space: nowrap }
+.b.pri { background: var(--p-brand); color: var(--p-on-brand); border-color: var(--p-brand); font-weight: 600 }
+.b.dan { color: var(--p-fail); border-color: color-mix(in srgb, var(--p-fail) 45%, var(--p-line)) }
+.shot { aspect-ratio: 16/9; border-radius: 10px; background: #fff; position: relative; overflow: hidden; box-shadow: 0 0 0 1px var(--p-line) }
+.shot i { position: absolute; border-radius: 3px; background: #eef0f4 }
+.shot .tg { position: absolute; border: 1.5px dashed var(--p-now-fill); border-radius: 4px; left: 56%; top: 26%; width: 38%; height: 62% }
+.shot .tg span { position: absolute; left: -1px; bottom: 100%; margin-bottom: 3px; background: var(--p-now-fill); color: var(--p-on-now); font: 500 10px var(--mono); padding: 1px 5px; border-radius: 3px; white-space: nowrap }
+.chip { position: absolute; left: 8px; top: 8px; background: #0a0a0acc; color: #fff; font: 500 10.5px var(--mono); padding: 2px 8px; border-radius: 99px; display: flex; gap: 6px; align-items: center }
+.phases { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px }
+.phases div { height: 6px; border-radius: 3px; background: var(--p-raised) } .phases div.d { background: var(--p-ok) } .phases div.n { background: linear-gradient(90deg, var(--p-now-fill) 55%, var(--p-raised) 55%) }
+.phl { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; font-size: 11.5px; color: var(--p-ink2) } .phl span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap } .phl .n { color: var(--p-ink); font-weight: 600 }
+.score { border: 1px solid var(--p-line); border-radius: 10px; background: var(--p-surface); overflow: hidden }
+.score svg { display: block; width: 100%; height: auto }
+.rows { display: grid; border: 1px solid var(--p-line); border-radius: 10px; overflow: hidden; background: var(--p-surface) }
+.rows div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 9px 12px; align-items: center }
+.rows div + div { border-top: 1px solid var(--p-line) }
+.rows .id { font: 500 12.5px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.st { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap }
+.st::before { content: ""; width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box }
+.st.run::before { background: var(--p-now-fill) } .st.done::before { background: var(--p-ok) } .st.wait::before { border: 1.5px dashed var(--p-ink2) }
+.st.bad { color: var(--p-fail) } .st.bad::before { content: "✕"; width: auto; height: auto; font-size: 11px; line-height: 1 }
+.mark { display: inline-block } .mark svg { display: block }
+footer { margin-top: 44px; color: var(--ink2); font-size: 13.5px }
+@container (max-width: 420px) { .pv-h h3 { font-size: 17px } .pv-top .pill.hide { display: none } }
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none } body { transition: none } }
+</style>
+
+<div class="bar" role="toolbar" aria-label="Choose">
+  <span class="lbl">Palette</span>
+  <div class="seg" id="pal-seg"></div>
+  <span class="pick" id="pick"></span>
+</div>
+
+<div class="wrap">
+  <header class="top">
+    <div><h1>flow-reel, a brand</h1>
+      <p class="lede">Four logo marks and four palettes on black, yellow and emerald. Pick one mark and one palette; the preview at the bottom shows them together in the studio, light and dark.</p></div>
+  </header>
+
+  <section>
+    <h2>1 · Logo marks</h2>
+    <p class="hint">Each mark on black and on white, as a lockup, an app icon and a 16 px favicon. Click a card to try it in the preview.</p>
+    <div class="grid" id="logos"></div>
+  </section>
+
+  <section>
+    <h2>2 · Palettes</h2>
+    <p class="hint">Yellow means "now" (the playhead, the running step, what needs you). Emerald means done. Black carries the rest. Contrast is checked live against WCAG AA (4.5 : 1 for text, 3 : 1 for lines and marks).</p>
+    <div class="pal-grid" id="pals"></div>
+  </section>
+
+  <section>
+    <h2>3 · In the studio</h2>
+    <p class="hint">The chosen mark and palette on the Run screen, in light and dark. On a phone the two stack.</p>
+    <div class="pv-wrap" id="preview"></div>
+  </section>
+
+  <footer>Mockup for GH-109. Reply with a mark and a palette, for example "B + 2".</footer>
+</div>
+
+<script>
+(() => {
+// ---------- Logo marks: c = colors { bg, fg, ac } ----------
+const MARKS = {
+  A: { name: "Play lanes", why: "A play button drawn as three timeline lanes: scripts become a reel. Reads at 16 px.", rec: true,
+    svg: (c) => `<rect width="48" height="48" rx="12" fill="${c.bg}"/><g stroke-linecap="round" stroke-width="5.2"><path d="M14 15.5h8" stroke="${c.fg}"/><path d="M14 24h20" stroke="${c.ac}"/><path d="M14 32.5h8" stroke="${c.fg}"/></g><path d="M14 11.5 36.5 24 14 36.5" fill="none" stroke="${c.fg}" stroke-width="2" stroke-linejoin="round" opacity=".28"/>` },
+  B: { name: "Playhead", why: "The score with its playhead: lanes of marks and the line that is now. The studio's own picture.",
+    svg: (c) => `<rect width="48" height="48" rx="12" fill="${c.bg}"/><g fill="${c.fg}"><rect x="9" y="13" width="11" height="5" rx="2.5"/><rect x="15" y="21.5" width="17" height="5" rx="2.5"/><rect x="11" y="30" width="8" height="5" rx="2.5"/></g><path d="M29 9v30" stroke="${c.ac}" stroke-width="3.4" stroke-linecap="round"/><path d="M25 8h8l-4 4.5z" fill="${c.ac}"/>` },
+  C: { name: "Flow f", why: "A lowercase f whose crossbar runs on as a timeline and ends in a play point. A monogram that moves.",
+    svg: (c) => `<rect width="48" height="48" rx="12" fill="${c.bg}"/><path d="M24 38V18.5a6 6 0 0 1 6-6h3" fill="none" stroke="${c.fg}" stroke-width="5" stroke-linecap="round"/><path d="M13 24.5h21" stroke="${c.ac}" stroke-width="5" stroke-linecap="round"/><path d="M33 19.5l6.5 5-6.5 5z" fill="${c.ac}"/>` },
+  D: { name: "Reel", why: "A film reel whose spokes are a play button. Clear as an app icon; the most literal of the four.",
+    svg: (c) => `<rect width="48" height="48" rx="12" fill="${c.bg}"/><circle cx="24" cy="24" r="14" fill="none" stroke="${c.fg}" stroke-width="3.6"/><path d="M20.5 17.5 31 24l-10.5 6.5z" fill="${c.ac}"/>` },
+};
+
+// ---------- Palettes: light and dark token sets ----------
+const P = {
+  1: { name: "Signal", line: "Black first. Yellow is the only loud thing; emerald confirms.",
+    dark: { bg: "#0a0a0a", surface: "#141414", raised: "#232323", line: "#2b2b2b", ink: "#f5f5f0", ink2: "#a3a39e", brand: "#ffd400", onBrand: "#0a0a0a", nowFill: "#ffd400", onNow: "#0a0a0a", now: "#ffd400", ok: "#10b981", fail: "#ff5a4e" },
+    light: { bg: "#fafaf7", surface: "#ffffff", raised: "#ececE4", line: "#e2e2da", ink: "#0a0a0a", ink2: "#5c5c57", brand: "#0a0a0a", onBrand: "#ffd400", nowFill: "#ffd400", onNow: "#0a0a0a", now: "#8a6d00", ok: "#047857", fail: "#d92d20" } },
+  2: { name: "Emerald studio", line: "A deep green-black room. Emerald is the brand; yellow is the playhead.",
+    dark: { bg: "#06110d", surface: "#0b1a14", raised: "#173326", line: "#1c3329", ink: "#ecf5f0", ink2: "#8fa89c", brand: "#10b981", onBrand: "#03150e", nowFill: "#facc15", onNow: "#1a1400", now: "#facc15", ok: "#34d399", fail: "#fb7185" },
+    light: { bg: "#f4f8f5", surface: "#ffffff", raised: "#dfeae3", line: "#d3e2d9", ink: "#062016", ink2: "#4e6a5d", brand: "#047857", onBrand: "#ffffff", nowFill: "#facc15", onNow: "#1a1400", now: "#8a6300", ok: "#047857", fail: "#dc2626" } },
+  3: { name: "Highlighter", line: "Paper and ink, yellow used like a marker pen on what matters.",
+    dark: { bg: "#111111", surface: "#1a1a1a", raised: "#2a2a24", line: "#2c2c28", ink: "#f4f1e8", ink2: "#a8a497", brand: "#ffe14d", onBrand: "#111111", nowFill: "#ffe14d", onNow: "#111111", now: "#ffe14d", ok: "#22c55e", fail: "#f87171" },
+    light: { bg: "#fffdf5", surface: "#ffffff", raised: "#f6efc9", line: "#ece6cf", ink: "#111111", ink2: "#5e5a4e", brand: "#ffe14d", onBrand: "#111111", nowFill: "#ffe14d", onNow: "#111111", now: "#111111", ok: "#059669", fail: "#dc2626" } },
+  4: { name: "Acid", line: "Black with a yellow-green that sits between the two colors you picked. The loudest.",
+    dark: { bg: "#050605", surface: "#0e100e", raised: "#1e231d", line: "#252a25", ink: "#f2f5ec", ink2: "#9ba394", brand: "#d7ff3a", onBrand: "#050605", nowFill: "#d7ff3a", onNow: "#050605", now: "#d7ff3a", ok: "#00c98d", fail: "#ff4d6d" },
+    light: { bg: "#f7f8f3", surface: "#ffffff", raised: "#e6ebd8", line: "#dce1d2", ink: "#0b0d0a", ink2: "#59604f", brand: "#0b0d0a", onBrand: "#d7ff3a", nowFill: "#d7ff3a", onNow: "#0b0d0a", now: "#4d6600", ok: "#047857", fail: "#d92d20" } },
+};
+let mark = "A", pal = "1";
+// The mark always sits on ink (black or green-black) with the brand's yellow or green as its accent.
+const markSvg = (k, c, size) => `<span class="mark" style="width:${size}px;height:${size}px"><svg viewBox="0 0 48 48" width="${size}" height="${size}" aria-hidden="true">${MARKS[k].svg(c)}</svg></span>`;
+const brandMarkColors = (p) => { const d = P[p].dark; return { bg: p === "2" ? "#06110d" : d.bg, fg: d.ink, ac: p === "2" ? d.brand : d.nowFill }; };
+
+// ---------- Contrast ----------
+const lum = (h) => { const n = parseInt(h.slice(1), 16), v = [n >> 16, (n >> 8) & 255, n & 255].map((x) => { x /= 255; return x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4; }); return .2126 * v[0] + .7152 * v[1] + .0722 * v[2]; };
+const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + .05) / (y + .05); };
+const chk = (label, a, b, need) => { const r = ratio(a, b); return `<div><span>${label}</span><span class="${r >= need ? "pass" : "failc"}">${r.toFixed(1)} ${r >= need ? "AA" : "low"}</span></div>`; };
+
+// ---------- Render ----------
+function drawLogos() {
+  const c = brandMarkColors(pal);
+  document.getElementById("logos").innerHTML = Object.entries(MARKS).map(([k, m]) => `
+    <button class="card" data-mark="${k}" aria-pressed="${k === mark}">
+      <div class="logo-stage">
+        <div class="dk">${markSvg(k, c, 64)}<span class="lockup">${markSvg(k, c, 24)}flow-reel</span></div>
+        <div class="lt">${markSvg(k, c, 64)}<span class="sizes">${markSvg(k, c, 32)}${markSvg(k, c, 16)}</span></div>
+      </div>
+      <div class="body"><b>${k} · ${m.name}${m.rec ? '<span class="rec">recommended</span>' : ""}</b><span>${m.why}</span></div>
+    </button>`).join("");
+}
+function drawPals() {
+  document.getElementById("pals").innerHTML = Object.entries(P).map(([k, p]) => {
+    const d = p.dark, l = p.light;
+    return `<button class="card" data-pal="${k}" aria-pressed="${k === pal}">
+      <div class="sw">${[[d.bg, d.ink, "ink"], [d.brand, d.onBrand, "brand"], [d.nowFill, d.onNow, "now"], [d.ok, d.bg, "done"]].map(([bg, fg, n]) => `<i style="background:${bg};color:${fg}">${n}<br>${bg}</i>`).join("")}</div>
+      <div class="sw" style="height:52px">${[[l.bg, l.ink, "paper"], [l.brand, l.onBrand, "brand"], [l.nowFill, l.onNow, "now"], [l.ok, l.surface, "done"]].map(([bg, fg, n]) => `<i style="background:${bg};color:${fg}">${n}</i>`).join("")}</div>
+      <div class="body"><b>${k} · ${p.name}${k === "1" ? '<span class="rec">recommended</span>' : ""}</b><span>${p.line}</span>
+        <div class="checks">${chk("Text, dark", d.ink, d.bg, 4.5)}${chk("Text, light", l.ink, l.bg, 4.5)}${chk("Secondary text, light", l.ink2, l.bg, 4.5)}${chk("Playhead line, light", l.now, l.surface, 3)}${chk("Button, light", l.onBrand, l.brand, 4.5)}${chk("Done mark, light", l.ok, l.surface, 3)}</div></div>
+    </button>`; }).join("");
+}
+function vars(t) { return Object.entries({ bg: t.bg, surface: t.surface, raised: t.raised, line: t.line, ink: t.ink, ink2: t.ink2, brand: t.brand, "on-brand": t.onBrand, "now-fill": t.nowFill, "on-now": t.onNow, now: t.now, ok: t.ok, fail: t.fail }).map(([k, v]) => `--p-${k}:${v}`).join(";"); }
+function scoreSvg(t) {
+  const W = 600, lanes = [["Steps", 30], ["Comments", 34], ["Sounds", 26]], X = (s) => 80 + s * 12.5, now = 17.3, out = [];
+  let y = 18;
+  for (let s = 0; s <= 40; s += 5) if (Math.abs(X(s) - X(now)) > 34) out.push(`<text x="${X(s)}" y="12" font-size="9" font-family="JetBrains Mono" fill="${t.ink2}">0:${String(s).padStart(2, "0")}</text>`);
+  for (const [n, h] of lanes) {
+    out.push(`<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="${t.line}"/><text x="10" y="${y + h / 2 + 4}" font-size="11" font-weight="500" font-family="IBM Plex Sans" fill="${t.ink2}">${n}</text>`);
+    if (n === "Steps") [[3, 6, 1], [9, 8, 2], [17, 6, 3], [23, 3, 4], [26, 4, 5], [30, 6, 7]].forEach(([s, d, k]) => out.push(`<rect x="${X(s)}" y="${y + 7}" width="${d * 12.5 - 3}" height="${h - 14}" rx="4" fill="${s <= now && now < s + d ? t.nowFill : s < now ? t.ok : t.raised}" opacity="${s > now ? .9 : 1}"/><text x="${X(s) + 5}" y="${y + h / 2 + 4}" font-size="10" font-weight="700" font-family="JetBrains Mono" fill="${s <= now && now < s + d ? t.onNow : s < now ? t.bg : t.ink2}">${k}</text>`));
+    if (n === "Comments") [[3.2, 4.6], [9.4, 6.2], [17.2, 3.6], [30.3, 2.9]].forEach(([s, d], i) => { for (let p = 0; p < d * 12.5; p += 3) { const a = 3 + Math.abs(Math.sin((p + i * 9) * .3)) * 14; out.push(`<rect x="${X(s) + p}" y="${y + h / 2 - a / 2}" width="1.6" height="${a}" fill="${s < now ? t.ink : t.ink2}" opacity="${s < now ? .85 : .35}"/>`); } });
+    if (n === "Sounds") [8.1, 21.4, 29.6].forEach((s) => out.push(`<circle cx="${X(s)}" cy="${y + h / 2}" r="4" fill="${s < now ? t.ink : t.ink2}" opacity="${s < now ? 1 : .4}"/>`));
+    y += h;
+  }
+  out.push(`<rect x="${X(now)}" y="18" width="${X(40) - X(now)}" height="${y - 18}" fill="${t.bg}" opacity=".35"/><line x1="${X(now)}" x2="${X(now)}" y1="14" y2="${y}" stroke="${t.now}" stroke-width="2"/><rect x="${X(now) - 21}" y="0" width="42" height="14" rx="3" fill="${t.nowFill}"/><text x="${X(now)}" y="10.5" text-anchor="middle" font-size="9" font-weight="700" font-family="JetBrains Mono" fill="${t.onNow}">0:17.3</text>`);
+  return `<svg viewBox="0 0 ${W} ${y + 4}" role="img" aria-label="The score, at 0:17.3">${out.join("")}</svg>`;
+}
+function pv(t, label) {
+  const c = brandMarkColors(pal);
+  return `<div class="pv" style="${vars(t)}" aria-label="${label} preview">
+    <div class="pv-top"><span class="lockup">${markSvg(mark, c, 22)}flow-reel</span><span style="color:var(--p-ink2);font-size:12.5px">${label}</span><span class="sp"></span>
+      <span class="pill"><span class="pulse"></span>2 runs</span><span class="pill hide mono" style="color:var(--p-ink2)">⌘K</span></div>
+    <div class="pv-body">
+      <div class="pv-h"><h3>saved-views/7</h3><span class="st run">recording · step 3</span><span class="sp"></span><button class="b dan">Cancel run</button><button class="b pri">Open the reel</button></div>
+      <div class="shot"><i style="left:0;top:0;width:20%;height:100%;background:#f3f5f9"></i><i style="left:25%;top:9%;width:28%;height:7%"></i><i style="left:25%;top:24%;width:27%;height:9%"></i><i style="left:25%;top:37%;width:27%;height:9%"></i><i style="left:25%;top:50%;width:27%;height:9%"></i>
+        ${[22, 30, 36, 44, 52, 62, 74].map((h, i) => `<i style="left:${59 + i * 5}%;bottom:16%;width:3.6%;height:${h * .7}%;background:#4f6bed;border-radius:2px 2px 0 0"></i>`).join("")}
+        <span class="chip"><span class="pulse" style="width:6px;height:6px"></span>live · 0:17.3</span><span class="tg"><span>3 · Save view</span></span></div>
+      <div><div class="phases"><div class="n"></div><div></div><div></div><div></div><div></div></div>
+        <div class="phl" style="margin-top:5px"><span class="n">Recording</span><span>Voicing</span><span>Planning</span><span>Rendering</span><span>Publishing</span></div></div>
+      <div class="score">${scoreSvg(t)}</div>
+      <div class="rows"><div><span class="id">saved-views/6</span><span class="st done">done</span></div><div><span class="id">billing-portal/7</span><span class="st wait">waiting to record</span></div><div><span class="id">saved-views/4</span><span class="st bad">failed in step 3</span></div></div>
+    </div></div>`;
+}
+function draw() {
+  const p = P[pal];
+  // page chrome follows the light set of the chosen palette
+  const l = p.light, r = document.documentElement.style;
+  Object.entries({ bg: l.bg, surface: l.surface, raised: l.raised, line: l.line, ink: l.ink, ink2: l.ink2, brand: l.nowFill, "on-brand": l.onNow, "now-fill": l.nowFill, "on-now": l.onNow, ok: l.ok, fail: l.fail }).forEach(([k, v]) => r.setProperty(`--${k}`, v));
+  document.getElementById("pal-seg").innerHTML = Object.entries(P).map(([k, x]) => `<button aria-pressed="${k === pal}" data-pal="${k}">${k} · ${x.name}</button>`).join("");
+  document.getElementById("pick").innerHTML = `Your pick: <b>${mark} + ${pal}</b> · ${MARKS[mark].name}, ${p.name}`;
+  drawLogos(); drawPals();
+  document.getElementById("preview").innerHTML = pv(p.dark, "Dark") + pv(p.light, "Light");
+}
+document.addEventListener("click", (e) => {
+  const m = e.target.closest("[data-mark]"), q = e.target.closest("[data-pal]");
+  if (m) mark = m.dataset.mark; if (q) pal = q.dataset.pal; if (m || q) draw();
+});
+draw();
+})();
+</script>

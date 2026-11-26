@@ -1,0 +1,217 @@
+<meta charset="utf-8">
+<title>flow-reel Logo Marks</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* PROTOTYPE (GH-109) round 2: abstract flow-reel marks. One smooth, tapered curve is the hero; note and play are only hinted. Throwaway. */
+:root { --bg: #f7f7f2; --surface: #fff; --line: #e3e3da; --ink: #0a0a0a; --ink2: #5c5c57; --acc: #ffd400;
+  --ui: "IBM Plex Sans", system-ui, sans-serif; --mono: "JetBrains Mono", ui-monospace, monospace }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0a0a0a; --surface: #141414; --line: #2a2a2a; --ink: #f5f5f0; --ink2: #a3a39e; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0a0a0a; --surface: #141414; --line: #2a2a2a; --ink: #f5f5f0; --ink2: #a3a39e; color-scheme: dark }
+* { box-sizing: border-box }
+html { -webkit-text-size-adjust: 100% }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--ui); -webkit-font-smoothing: antialiased }
+button, input { font: inherit; color: inherit } button { cursor: pointer }
+:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; border-radius: 6px }
+[hidden] { display: none !important }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 24px max(16px, env(safe-area-inset-right, 0px)) 96px max(16px, env(safe-area-inset-left, 0px)) }
+h1 { margin: 0; font: 700 clamp(26px, 5vw, 38px)/1.1 var(--ui); letter-spacing: -.03em }
+.lede { color: var(--ink2); margin: 8px 0 0; max-width: 64ch }
+.bar { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center }
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink2); white-space: nowrap }
+.ctl input[type=range] { width: 110px; accent-color: #10b981 }
+.ctl output { font: 500 12px var(--mono); color: var(--ink); min-width: 38px }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface) }
+.seg button { border: 0; background: none; min-height: 36px; padding: 0 12px; font-size: 13.5px; color: var(--ink2); display: inline-flex; align-items: center; gap: 7px }
+.seg button + button { border-left: 1px solid var(--line) }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg) }
+.seg i { width: 14px; height: 14px; border-radius: 50%; display: inline-block; box-shadow: 0 0 0 1px #0002 }
+.btn { min-height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-size: 13.5px }
+.grid { margin-top: 24px; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)) }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; min-width: 0; text-align: left; padding: 0 }
+.card[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink) }
+.hero { display: grid; grid-template-columns: 1.35fr 1fr; grid-template-rows: 1fr 1fr; aspect-ratio: 16 / 10 }
+.hero > div { display: grid; place-items: center; min-width: 0; min-height: 0 }
+.hero .big { grid-row: 1 / 3; background: var(--t-bg) }
+.hero .big svg { width: 66%; height: auto; max-height: 84% }
+.hero .alt { background: var(--t-alt) } .hero .w { background: #fff }
+.hero .alt svg, .hero .w svg { width: 44%; height: auto; max-height: 74% }
+.small { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-top: 1px solid var(--line); flex-wrap: wrap }
+.lockup { display: inline-flex; align-items: center; gap: 8px; font: 700 20px var(--ui); letter-spacing: -.04em; white-space: nowrap }
+.icons { display: flex; align-items: flex-end; gap: 10px; margin-left: auto }
+.icons span { display: grid; place-items: center; background: var(--t-bg); border-radius: 23% }
+.body { padding: 12px 16px 16px; border-top: 1px solid var(--line); display: grid; gap: 4px }
+.body b { font-weight: 600 } .body span { color: var(--ink2); font-size: 13.5px }
+.tag { font: 500 11px var(--mono); background: #10b981; color: #03150e; border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: 2px }
+.draw .p { clip-path: inset(0 100% 0 0); animation: wipe 1.1s cubic-bezier(.6, 0, .2, 1) forwards }
+@keyframes wipe { to { clip-path: inset(0 0 0 0) } }
+footer { margin-top: 36px; color: var(--ink2); font-size: 13.5px }
+@media (prefers-reduced-motion: reduce) { .draw .p { animation: none; clip-path: none } }
+</style>
+
+<div class="bar" role="toolbar" aria-label="Adjust the marks">
+  <label class="ctl">Tilt <input type="range" id="tilt" min="-30" max="30" step="1" value="-10"><output id="tilt-o">−10°</output></label>
+  <label class="ctl">Weight <input type="range" id="weight" min="70" max="140" step="5" value="100"><output id="weight-o">100%</output></label>
+  <div class="seg" role="group" aria-label="Colors" id="pal"></div>
+  <button class="btn" id="draw">Play the draw-in</button>
+  <button class="btn" id="spin" aria-pressed="false">Spin G</button>
+  <button class="btn" id="theme" aria-label="Switch light and dark">Light / dark</button>
+</div>
+
+<div class="wrap">
+  <h1>flow-reel marks, round 2</h1>
+  <p class="lede">Abstract this time. In each mark one smooth, tapered curve leads; the note and the play button are only hinted at by its path. Every curve is a spline with a varying width, so the edges stay smooth at any size. Pick the colors in the bar.</p>
+  <div class="grid" id="grid"></div>
+  <footer>Mockup for GH-109. Reply with a letter and the colors, for example "B, Dusk".</footer>
+</div>
+
+<script>
+(() => {
+// ---------- Smooth tapered strokes ----------
+// Centripetal Catmull-Rom through the points, sampled densely.
+function spline(pts, n = 220) {
+  const P = [pts[0], ...pts, pts[pts.length - 1]], out = [];
+  for (let i = 0; i < P.length - 3; i++) {
+    const [p0, p1, p2, p3] = [P[i], P[i + 1], P[i + 2], P[i + 3]];
+    const d = (a, b) => Math.max(1e-4, Math.hypot(b[0] - a[0], b[1] - a[1]) ** .5);
+    const t0 = 0, t1 = t0 + d(p0, p1), t2 = t1 + d(p1, p2), t3 = t2 + d(p2, p3);
+    const seg = Math.ceil(n / (P.length - 3));
+    for (let s = 0; s < seg; s++) {
+      const t = t1 + (t2 - t1) * s / seg, L = (a, b, ta, tb) => [(tb - t) / (tb - ta) * a[0] + (t - ta) / (tb - ta) * b[0], (tb - t) / (tb - ta) * a[1] + (t - ta) / (tb - ta) * b[1]];
+      const A1 = L(p0, p1, t0, t1), A2 = L(p1, p2, t1, t2), A3 = L(p2, p3, t2, t3), B1 = L(A1, A2, t0, t2), B2 = L(A2, A3, t1, t3);
+      out.push(L(B1, B2, t1, t2));
+    }
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+// Outline of a stroke whose width follows w(u), u from 0 to 1 along its length; round ends.
+function ribbon(pts, w) {
+  const c = spline(pts), len = [0];
+  for (let i = 1; i < c.length; i++) len.push(len[i - 1] + Math.hypot(c[i][0] - c[i - 1][0], c[i][1] - c[i - 1][1]));
+  const L = len[len.length - 1], left = [], right = [];
+  c.forEach((p, i) => {
+    const a = c[Math.max(0, i - 1)], b = c[Math.min(c.length - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], m = Math.hypot(dx, dy) || 1, nx = -dy / m, ny = dx / m, h = w(len[i] / L) / 2;
+    left.push([p[0] + nx * h, p[1] + ny * h]); right.push([p[0] - nx * h, p[1] - ny * h]);
+  });
+  const f = (q) => `${q[0].toFixed(2)} ${q[1].toFixed(2)}`, h0 = w(0) / 2, h1 = w(1) / 2;
+  return `M${f(left[0])}` + left.slice(1).map((q) => `L${f(q)}`).join("") + `A${h1.toFixed(2)} ${h1.toFixed(2)} 0 0 1 ${f(right[right.length - 1])}` +
+    right.slice(0, -1).reverse().map((q) => `L${f(q)}`).join("") + `A${h0.toFixed(2)} ${h0.toFixed(2)} 0 0 1 ${f(left[0])}Z`;
+}
+// A triangle with true circular corners of radius r (points clockwise on screen).
+function roundTri(v, r) {
+  const f = (q) => `${q[0].toFixed(3)} ${q[1].toFixed(3)}`, seg = [];
+  v.forEach((V, i) => { const P = v[(i + 2) % 3], N = v[(i + 1) % 3], u = (A) => { const dx = A[0] - V[0], dy = A[1] - V[1], l = Math.hypot(dx, dy); return [dx / l, dy / l]; };
+    const u1 = u(P), u2 = u(N), th = Math.acos(u1[0] * u2[0] + u1[1] * u2[1]), t = r / Math.tan(th / 2);
+    seg.push([[V[0] + u1[0] * t, V[1] + u1[1] * t], [V[0] + u2[0] * t, V[1] + u2[1] * t]]); });
+  return `M${f(seg[0][1])}` + [1, 2, 0].map((i) => `L${f(seg[i][0])}A${r} ${r} 0 0 1 ${f(seg[i][1])}`).join("") + "Z";
+}
+// A crescent from tip A to tip B: two cubic curves sharing both tips, bowed by bow, thickest near the first third.
+function crescent(bow, w1, w2) {
+  const A = [4, 88], B = [97, 11], d = [B[0] - A[0], B[1] - A[1]], L = Math.hypot(...d), n = [-d[1] / L, d[0] / L];
+  const at = (t, o) => [A[0] + d[0] * t + n[0] * o, A[1] + d[1] * t + n[1] * o], f = (q) => `${q[0].toFixed(3)} ${q[1].toFixed(3)}`;
+  return `M${f(A)}C${f(at(1 / 3, bow + w1))} ${f(at(2 / 3, bow + w2))} ${f(B)}C${f(at(2 / 3, bow - w2))} ${f(at(1 / 3, bow - w1))} ${f(A)}Z`;
+}
+// G: a tapered stroke on a tilted ellipse around (cx, cy). Returns the runs behind and in front of the play button, and the head.
+let orbitPhase = 0;
+function orbit(W) {
+  const cx = 50, cy = 50, rot = -24 * Math.PI / 180, cr = Math.cos(rot), sr = Math.sin(rot);
+  const a0 = (-150 + orbitPhase) * Math.PI / 180, a1 = a0 + 2 * Math.PI + 290 * Math.PI / 180, N = 900;
+  // Two turns: the orbit widens as it goes, so the turns never sit on each other.
+  const pt = (t, u) => { const k = 0.68 + 0.32 * u, x = 47 * k * Math.cos(t), y = 18 * k * Math.sin(t); return [cx + x * cr - y * sr, cy + x * sr + y * cr]; };
+  const wid = (u) => (0.5 + 4.2 * Math.pow(u, 1.2)) * W;
+  // Clips: the timeline is cut every 1/9 of its length, with a short gap, like clips on a track.
+  const clip = (u) => u < 0.9 && (u * 9) % 1 > 0.92;
+  const S = []; for (let i = 0; i <= N; i++) { const u = i / N, t = a0 + (a1 - a0) * u; S.push({ u, p: pt(t, u), front: Math.sin(t) >= 0, gap: clip(u) }); }
+  const f = (q) => `${q[0].toFixed(3)} ${q[1].toFixed(3)}`;
+  const band = (run) => { const L = [], R = []; run.forEach((s, i) => { const a = run[Math.max(0, i - 1)].p, b = run[Math.min(run.length - 1, i + 1)].p, dx = b[0] - a[0], dy = b[1] - a[1], m = Math.hypot(dx, dy) || 1, h = wid(s.u) / 2;
+      L.push([s.p[0] - dy / m * h, s.p[1] + dx / m * h]); R.push([s.p[0] + dy / m * h, s.p[1] - dx / m * h]); });
+    return "M" + L.map(f).join("L") + "L" + R.reverse().map(f).join("L") + "Z"; };
+  const runs = { back: [], front: [] }; let cur = [];
+  const flush = () => { if (cur.length > 1) runs[cur[0].front ? "front" : "back"].push(band(cur)); };
+  for (const x of S) {
+    if (x.gap) { flush(); cur = []; continue; }
+    if (cur.length && x.front !== cur[0].front) { cur.push(x); flush(); cur = [cur[cur.length - 2], x]; } else cur.push(x);
+  }
+  flush();
+  const h = S[S.length - 1];
+  return { back: runs.back.join(""), front: runs.front.join(""), head: [h.p[0], h.p[1], 5.6 * W], headFront: h.front };
+}
+const swell = (lo, hi, k = 1, at = .5) => (u) => lo + (hi - lo) * Math.pow(Math.sin(Math.PI * Math.min(1, u <= at ? u / at / 2 : .5 + (u - at) / (1 - at) / 2)), k);
+const fade = (hi, lo, k = 1) => (u) => lo + (hi - lo) * Math.pow(1 - u, k);
+const grow = (lo, hi, k = 1) => (u) => lo + (hi - lo) * Math.pow(u, k);
+
+// ---------- The marks (viewBox 0 0 100 100). c = { a, b, solid, bg }; paint() gives the gradient or solid fill ----------
+const MARKS = [
+  { k: "A", name: "Loop", why: "One ribbon draws a play button in a single loop and runs on past where it started, crossing its own tail. It swells at the point, where the reel plays.",
+    draw: (W, paint) => `<path class="p" d="${ribbon([[30, 88], [24, 60], [24, 30], [34, 16], [58, 28], [84, 46], [80, 58], [52, 72], [26, 80], [12, 64], [18, 44]], swell(1.5, 15 * W, .9, .55))}" fill="${paint}"/>` },
+  { k: "B", name: "Comet", why: "A round head pulls into a long tail that curves up and away: a note in motion. The bend of the tail leaves a play-shaped space under it.",
+    draw: (W, paint) => `<circle class="p" cx="30" cy="74" r="${(15 * W).toFixed(2)}" fill="${paint}"/><path class="p" d="${ribbon([[30, 74], [46, 66], [58, 50], [64, 32], [76, 18], [92, 12]], fade(24 * W, 1.2, 1.3))}" fill="${paint}"/>` },
+  { k: "C", name: "Wave", why: "A play button whose straight back is replaced by a sound wave. One closed shape, every edge a curve.",
+    draw: (W, paint) => `<path class="p" d="M27 14 C35 12 74 37 85 44 C92 48.5 92 51.5 85 56 C74 63 35 88 27 86 C${(19 - 4 * (W - 1) * 10).toFixed(1)} 84 40 66 29 50 C${(18 - 4 * (W - 1) * 10).toFixed(1)} 34 19 16 27 14Z" fill="${paint}"/>` },
+  { k: "D", name: "Cut", why: "A play button with true circular corners, cut clean through by a crescent swoosh. Every edge is one Bézier or one arc, and both swoosh tips taper to a point.",
+    draw: (W, paint, c, id) => {
+      const gap = crescent(7, 8.5 * W, 5.5 * W), blade = crescent(7, 3.6 * W, 2.4 * W);
+      return `<mask id="k${id}" maskUnits="userSpaceOnUse" x="-50" y="-50" width="200" height="200"><rect x="-50" y="-50" width="200" height="200" fill="#fff"/><path d="${gap}" fill="#000"/></mask>
+      <path class="p" d="${roundTri([[22, 14], [88, 50], [22, 86]], 11)}" fill="${paint}" mask="url(#k${id})"/>
+      <path class="p" d="${blade}" fill="${c.solid ? c.a : c.b}"/>`; } },
+  { k: "E", name: "Spiral", why: "A ribbon winds in like film on a reel and ends in a full, round note head at the centre.",
+    draw: (W, paint) => { const pts = []; for (let i = 0; i <= 22; i++) { const t = i / 22, a = (210 + t * 430) * Math.PI / 180, r = 42 - t * 28; pts.push([50 + r * Math.cos(a), 52 + r * Math.sin(a)]); }
+      return `<path class="p" d="${ribbon(pts, grow(1.2, 15 * W, 1.6))}" fill="${paint}"/>`; } },
+  { k: "F", name: "Fold", why: "Two swooshes meet at a point and cross: an open play button drawn by motion alone. The space between them is the screen.",
+    draw: (W, paint) => `<path class="p" d="${ribbon([[12, 16], [36, 22], [62, 36], [84, 50], [94, 60]], swell(1, 13 * W, 1, .35))}" fill="${paint}"/>
+      <path class="p" d="${ribbon([[12, 86], [36, 80], [62, 64], [84, 50], [94, 40]], swell(1, 13 * W, 1, .35))}" fill="${paint}" opacity=".92"/>` },
+  { k: "G", name: "Orbit", rec: true, why: "A round player with an empty play shape inside. A timeline, cut into clips, wraps twice around it, behind and then in front, and ends in a round playhead. Spin it with the button in the bar.",
+    draw: (W, paint, c, id) => { const o = orbit(W), acc = c.solid ? c.a : c.b, head = `<circle class="p" cx="${o.head[0].toFixed(3)}" cy="${o.head[1].toFixed(3)}" r="${o.head[2].toFixed(3)}" fill="${acc}"/>`;
+      return `<mask id="o${id}" maskUnits="userSpaceOnUse" x="-50" y="-50" width="200" height="200"><rect x="-50" y="-50" width="200" height="200" fill="#fff"/>
+        <path d="${o.front}" fill="#000" stroke="#000" stroke-width="${(4.4 * W).toFixed(2)}" stroke-linejoin="round"/>${o.headFront ? `<circle cx="${o.head[0]}" cy="${o.head[1]}" r="${o.head[2] + 2.4 * W}" fill="#000"/>` : ""}
+        <path d="${roundTri([[42, 37], [65, 50], [42, 63]], 3.4)}" fill="#000"/><path d="${roundTri([[46.4, 44.4], [56.6, 50], [46.4, 55.6]], 1.2)}" fill="#fff"/></mask>
+      <path class="p" d="${o.back}" fill="${acc}"/>${o.headFront ? "" : head}
+      <circle class="p" cx="50" cy="50" r="23" fill="${paint}" mask="url(#o${id})"/>
+      <path class="p" d="${o.front}" fill="${acc}"/>${o.headFront ? head : ""}`; } },
+];
+// ---------- Color sets: [name, background, from, to, alt background, on white from, on white to] ----------
+const PALS = {
+  Dusk: { label: "Yellow → emerald", bg: "#0a0a0a", a: "#ffd400", b: "#10b981", alt: "#062019", wa: "#e8b500", wb: "#059669" },
+  Lime: { label: "Lime → emerald", bg: "#07100c", a: "#e2f53b", b: "#00b37e", alt: "#0f1f18", wa: "#9fb800", wb: "#00966a" },
+  Gold: { label: "Yellow on black", bg: "#0a0a0a", a: "#ffd400", b: "#ffd400", alt: "#1c1a10", wa: "#0a0a0a", wb: "#0a0a0a", solid: true },
+  Jade: { label: "Emerald on black", bg: "#0a0a0a", a: "#10b981", b: "#10b981", alt: "#052e22", wa: "#047857", wb: "#047857", solid: true },
+  Sun: { label: "Black on yellow", bg: "#ffd400", a: "#0a0a0a", b: "#0a0a0a", alt: "#10b981", wa: "#0a0a0a", wb: "#0a0a0a", solid: true },
+};
+let tilt = -10, weight = 1, pal = "Dusk", pick = 6, uid = 0;
+function svg(i, colors, size, animate = false) {
+  const id = `g${uid++}`, m = MARKS[i];
+  const paint = colors.a === colors.b ? colors.a : `url(#${id})`;
+  return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" class="${animate ? "draw" : ""}" data-p="${paint}" data-c='${JSON.stringify(colors)}' aria-hidden="true">
+    <defs><linearGradient id="${id}" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="${colors.b}"/><stop offset="1" stop-color="${colors.a}"/></linearGradient></defs>
+    <g transform="rotate(${tilt} 50 50)">${m.draw(weight, paint, colors, id)}</g></svg>`;
+}
+function draw(animate = false) {
+  const p = PALS[pal], dark = { a: p.a, b: p.b, bg: p.bg, solid: p.solid }, alt = { ...dark, bg: p.alt }, white = { a: p.wa, b: p.wb, bg: "#fff", solid: p.wa === p.wb };
+  const isDark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.getElementById("grid").innerHTML = MARKS.map((m, i) => `
+    <button class="card" data-i="${i}" aria-pressed="${i === pick}" style="--t-bg:${p.bg};--t-alt:${p.alt}">
+      <div class="hero"><div class="big">${svg(i, dark, 220, animate)}</div><div class="alt">${svg(i, alt, 120)}</div><div class="w">${svg(i, white, 120)}</div></div>
+      <div class="small"><span class="lockup">${svg(i, isDark && p.bg !== "#ffd400" ? dark : white, 32)}flow-reel</span>
+        <span class="icons"><span style="width:44px;height:44px">${svg(i, dark, 34)}</span><span style="width:32px;height:32px">${svg(i, dark, 25)}</span><span style="width:16px;height:16px;border-radius:4px">${svg(i, dark, 14)}</span></span></div>
+      <div class="body"><b>${m.k} · ${m.name}${m.rec ? '<span class="tag">recommended</span>' : ""}</b><span>${m.why}</span></div>
+    </button>`).join("");
+  document.getElementById("pal").innerHTML = Object.entries(PALS).map(([k, x]) => `<button data-pal="${k}" aria-pressed="${k === pal}"><i style="background:${x.a === x.b ? `linear-gradient(${x.bg} 50%, ${x.a} 50%)` : `linear-gradient(135deg, ${x.a}, ${x.b})`}"></i>${k}</button>`).join("");
+}
+const tiltEl = document.getElementById("tilt"), wEl = document.getElementById("weight");
+tiltEl.addEventListener("input", () => { tilt = +tiltEl.value; document.getElementById("tilt-o").textContent = `${tilt < 0 ? "−" : ""}${Math.abs(tilt)}°`; draw(); });
+wEl.addEventListener("input", () => { weight = +wEl.value / 100; document.getElementById("weight-o").textContent = `${wEl.value}%`; draw(); });
+document.getElementById("draw").addEventListener("click", () => draw(true));
+document.getElementById("theme").addEventListener("click", () => { const r = document.documentElement, d = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; r.dataset.theme = d ? "light" : "dark"; draw(); });
+document.addEventListener("click", (e) => { const c = e.target.closest("[data-i]"), q = e.target.closest("[data-pal]"); if (c) pick = +c.dataset.i; if (q) pal = q.dataset.pal; if (c || q) draw(); });
+let spinning = false, last = 0;
+document.getElementById("spin").addEventListener("click", (e) => { spinning = !spinning; e.currentTarget.setAttribute("aria-pressed", spinning); e.currentTarget.textContent = spinning ? "Stop G" : "Spin G";
+  if (spinning) { last = 0; requestAnimationFrame(function tick(ts) { if (!spinning) return; if (last) orbitPhase = (orbitPhase + (ts - last) * 0.12) % 360; last = ts; redrawG(); requestAnimationFrame(tick); }); } });
+function redrawG() { document.querySelectorAll('.card[data-i="6"] svg').forEach((el) => { const size = el.getAttribute("width"), g = el.querySelector("g"), m = el.querySelector("mask");
+  const colors = JSON.parse(el.dataset.c), id = m.id.slice(1); g.innerHTML = MARKS[6].draw(weight, el.dataset.p, colors, id); g.querySelectorAll(".p").forEach((x) => x.classList.remove("p")); }); }
+draw(true);
+})();
+</script>
