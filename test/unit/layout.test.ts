@@ -26,6 +26,8 @@ const FENCES: { part: RegExp; why: string; forbidden: RegExp }[] = [
   { part: /^container\/protocol\.ts$/, why: "both sides read the protocol", forbidden: /^(node:|playwright|adapters\/|host\/|cli)/ },
   { part: /^workspace\//, why: "a workspace is files and their rules", forbidden: /^(node:(child_process|net|http|https|sqlite)|playwright|adapters\/|host\/|cli|container\/|run\/)/ },
   { part: /^host\//, why: "the host runs no browser and no ffmpeg: those are in the container", forbidden: /^(playwright|adapters\/(?!folder\/)|composer\/media\/|composer\/phases\/(?!plan\.ts)|cli|container\/main\.ts)/ },
+  { part: /^studio\/api\.ts$/, why: "the web app imports the studio's types too", forbidden: /^(node:|playwright|adapters\/|host\/|cli|composer\/|container\/|workspace\/|run\/|studio\/)/ },
+  { part: /^studio\//, why: "the studio is a client of the host, like the CLI (epic GH-107 decision 031)", forbidden: /^(playwright|adapters\/|composer\/|container\/|cli|node:sqlite)/ },
   { part: /^cli\//, why: "a command asks the host", forbidden: /^(playwright|adapters\/|composer\/|container\/|node:(child_process|net|http|https|sqlite))/ },
   { part: /^(index|cli|compare|reel|settings)\.ts$/, why: "the package's entry points stay light", forbidden: /^(playwright|adapters\/|composer\/(media|phases)\/|container\/|node:(child_process|net|http|https|sqlite))/ },
 ];

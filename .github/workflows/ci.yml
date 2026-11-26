@@ -13,8 +13,9 @@ jobs:
   # Which checks a pull request, or a push to main, needs (GH-66, GH-92). The rules list what each check reads, so a new
   # kind of file runs nothing until it's added here:
   # - code: the typecheck, unit tests and pack check read the package, its tests, scripts, plugin and release config.
-  # - runtime: the image and the e2e tests read the package's source, the image, the e2e tests and the plugin's examples.
-  #   A release manifest alone (a plugin release PR) isn't runtime; a runtime release also changes package.json.
+  # - runtime: the image and the e2e tests read the package's source and the studio's web app, the image, the e2e tests
+  #   and the plugin's examples. A release manifest alone (a plugin release PR) isn't runtime; a runtime release also
+  #   changes package.json.
   # Docs, planning and Markdown elsewhere run neither. A manual run, or a push whose previous commit isn't known, runs
   # everything; releases rerun the e2e from the tag anyway (publish.yml).
   changes:
@@ -46,7 +47,7 @@ jobs:
             exit 0
           fi
           echo "$changed"
-          runtime='^(src/|docker/|test/e2e/|plugin/examples/|scripts/(consumer|package)\.ts$|package(-lock)?\.json$|tsconfig(\.build)?\.json$|\.dockerignore$|\.github/workflows/ci\.yml$)'
+          runtime='^(src/|web/|docker/|test/e2e/|plugin/examples/|scripts/(consumer|package)\.ts$|package(-lock)?\.json$|tsconfig(\.build)?\.json$|vite\.config\.ts$|\.dockerignore$|\.github/workflows/ci\.yml$)'
           code="$runtime|^(test/|plugin/|scripts/|vitest\.config\.ts$|release-please-config\.json$|\.release-please-manifest\.json$|\.github/workflows/)"
           any() { printf '%s\n' "$changed" | grep -qE "$1" && echo true || echo false; }
           echo "code=$(any "$code")" | tee -a "$GITHUB_OUTPUT"

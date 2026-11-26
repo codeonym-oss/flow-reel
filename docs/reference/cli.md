@@ -13,6 +13,7 @@ flow-reel logs <run or script>
 flow-reel cancel <run or script>
 flow-reel resume <run or script> [--detach]
 flow-reel clean [--all] [--yes]
+flow-reel studio [--port <n>] [--no-open]
 flow-reel verify <reel>
 flow-reel compare <a.reel> <b.reel>
 ```
@@ -91,6 +92,19 @@ See [Runs](../guide/runs.md). A run is named by its script (`settings`), its num
 | `cancel` | Ends a run. | `run`, `state` |
 | `resume` | Lets a run that stopped or failed go on, without recording again. | its journal's entries |
 | `clean` | Removes finished runs' heavy files, after asking. `--yes` doesn't ask. | `run`, `bytes`, `removed` |
+
+## `studio`
+
+Opens the studio in the browser, to watch runs and replay reels, and stays in the terminal. Ctrl+C stops the studio;
+runs go on.
+
+- **Address:** `http://127.0.0.1:4777/`, or `--port` for another port. A port in use is an error: the studio never
+  moves to another one by itself.
+- **Key:** the address it prints and opens carries a key, good until the studio stops. The browser keeps it as a cookie,
+  and the studio refuses every request without it, from another site, or for another host name.
+- `--no-open` prints the address without opening a browser. `--json` prints `{"url": …}`.
+
+The studio needs no account and no internet: its fonts and code come with flow-reel.
 
 ## `verify`
 
