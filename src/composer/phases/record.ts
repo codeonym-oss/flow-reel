@@ -15,6 +15,7 @@ import type { Report } from "../progress.ts";
 import type { CueSheet } from "../schema/cues.ts";
 import type { ComposerEvent } from "../schema/events.ts";
 import { CAPTURE_FILE, CUES_FILE } from "../schema/files.ts";
+import { cutStepPictures, stepFrames } from "../media/step-pictures.ts";
 import { soundLogger } from "../sounds.ts";
 import { stepTimer } from "../steps.ts";
 
@@ -70,6 +71,9 @@ export async function record({ scriptsDir, script: path, brand, out }: RecordJob
     steps, events,
   };
   writeFileSync(join(out, CUES_FILE), `${JSON.stringify(cues, null, 2)}\n`);
+  // A picture of each step, for the studio's score; without them the score shows its lines only (GH-139 decision 003).
+  try { cutStepPictures(capture, stepFrames(steps, cutMs, FPS, cues.capture.frames), out); }
+  catch (error) { console.warn(`flow-reel: no step pictures: ${(error as Error).message}`); }
 }
 
 /** Replays the open script while capturing; its times come back on the video's clock, `cutMs` into the capture. */
@@ -96,7 +100,9 @@ async function replay(session: Session, { capture, viewport, scriptsDir, dir, br
   await until(markMs + MARK_HOLD_MS);
   await session.hideMarker();
   await until(CUT_MS + LEAD_IN_MS);
-  const timer = stepTimer({ clock: recording, idle: () => session.idle(), opened: (step) => report({ type: "step", ...step }) });
+  const timer = stepTimer({ clock: recording, idle: () => session.idle(), opened: ({ startMs, ...step }) =>
+    // On the video's clock as near as it is known before the marker is found: the video starts about CUT_MS in (GH-139 decision 001).
+    report({ type: "step", ...step, t: Math.max(0, startMs - CUT_MS) }) });
   let ranMs = 0;
   try {
     await session.run({ clock: recording, events, fps: FPS, comment: timer.comment, action: timer.action,

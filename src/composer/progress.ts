@@ -1,7 +1,7 @@
 // What a phase says while it works. Nothing depends on these: they are for the person watching.
 export type PhaseProgress =
-  /** The script reached a step. */
-  | { type: "step"; index: number; comment?: string }
+  /** The script reached a step: `t` is its start in milliseconds on the recording's video clock (GH-139 decision 001). */
+  | { type: "step"; index: number; comment?: string; t?: number }
   /** The comments are spoken: some by the voice, some reused from the reel being replaced. */
   | { type: "voiced"; spoken: number; reused: number }
   /** The script clicked or typed into a target: its locator, and its box as shares of the viewport (GH-138 decision 004). */

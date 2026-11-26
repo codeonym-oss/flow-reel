@@ -117,7 +117,7 @@ make one run. It stays on until it is turned off or the studio stops. A script c
 
 **Run** watches one run as it goes, wherever it was started: its phases, its steps with how long each took, its log,
 its journal and why it failed. While it records, the stage shows the app live, with the target of each click and
-typing outlined; the picture is grabbed only while someone watches. Reopening the page shows what happened meanwhile. **Cancel run**, **Resume** and **Run
+typing outlined; the picture is grabbed only while someone watches. Reopening the page shows what happened meanwhile. Under it, the **score** shows the run on one line per kind: a picture of each step, the steps, comments, sounds, effects and cards, on the recording's clock. It writes its steps as the script records, and fills in the rest once the recording is done. **Fold** joins steps without a comment; `[` and `]` zoom, `0` fits and `F` folds. **Cancel run**, **Resume** and **Run
 again** do what `cancel`, `resume --detach` and `compose --detach` do. Closing the page or the studio doesn't stop the
 run.
 

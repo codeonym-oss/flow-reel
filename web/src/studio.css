@@ -242,3 +242,59 @@ button.chip[aria-pressed="true"] { background: #fff; color: #15171c; box-shadow:
 .target { position: absolute; z-index: 4; border: 2px dashed #e0a800; border-radius: 4px; pointer-events: none; transition: all .15s }
 .target span { position: absolute; left: -1.5px; bottom: 100%; margin-bottom: 3px; font: 10px var(--mono); background: #ffd400; color: #0a0a0a; font-weight: 500; padding: 1px 5px; border-radius: 3px; white-space: nowrap; max-width: 60cqw; overflow: hidden; text-overflow: ellipsis }
 @media (prefers-reduced-motion: reduce) { .chip i.pulse { animation: none } .target { transition: none } }
+
+/* The score (GH-139) */
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: var(--sheet) }
+.seg button { border: 0; background: none; height: 26px; min-width: 28px; padding: 0 9px; font-size: 12.5px; color: var(--ink-2) }
+.seg button + button { border-left: 1px solid var(--rule) }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper) }
+.seg button:hover:not([aria-pressed="true"]) { background: var(--glass); color: var(--ink) }
+.score { overflow: hidden; position: relative }
+.score-bar { display: flex; align-items: center; gap: 8px 10px; padding: 10px 14px; border-bottom: 1px solid var(--rule-2); flex-wrap: wrap }
+.score-bar .title { font-weight: 600; font-size: 15px }
+.score-bar .tempo { font: 12px var(--mono); color: var(--ink-2) }
+.score-bar .sp { flex: 1 }
+.small { font-size: 12.5px }
+.score-body { display: grid; grid-template-columns: 96px minmax(0, 1fr) }
+.lanes-h { border-right: 1px solid var(--rule-2); font-size: 12px; color: var(--ink-2); font-weight: 500 }
+.lanes-h > div { display: flex; align-items: center; padding-left: 14px; border-top: 1px solid var(--rule-2) }
+.lanes-h .h-ruler { height: 24px; border-top: 0 }
+.h-pictures, .l-pictures { height: 58px } .h-steps, .l-steps { height: 40px } .h-comments, .l-comments { height: 46px }
+.h-sounds, .l-sounds { height: 34px } .h-effects, .l-effects { height: 34px } .h-cards, .l-cards { height: 32px }
+.lanes-h > div { box-sizing: border-box } .lane { box-sizing: border-box }
+.score-scroll { overflow-x: auto; overflow-y: hidden; min-width: 0 }
+.score-track { position: relative }
+.ruler { position: relative; height: 24px }
+.tick { position: absolute; bottom: 0; height: 6px; border-left: 1px solid var(--rule); font: 10px var(--mono); color: var(--ink-3); padding-left: 3px; line-height: 1; white-space: nowrap }
+.tick.big { height: 14px }
+.lane { position: relative; border-top: 1px solid var(--rule-2) }
+.lane > button { position: absolute; border: 0; background: none; padding: 0; color: var(--ink); display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; border-radius: 4px }
+.lane > button:hover { background: var(--glass) }
+.lane-empty { position: absolute; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--ink-3); white-space: nowrap }
+.pic { top: 9px; width: 64px; height: 38px; box-shadow: 0 0 0 1px var(--rule); background: #15171c !important; justify-content: center }
+.pic img { width: 100%; height: 100%; object-fit: cover; display: block }
+.pic.bad { box-shadow: 0 0 0 2px var(--fail) }
+.pic .nopic { font: 11px var(--mono); color: #8a8f99 }
+.stepm { top: 0; bottom: 0; height: 40px; padding: 0 0 0 5px !important; border-left: 1px solid var(--rule) !important; border-radius: 0 !important; font-size: 11.5px; white-space: nowrap }
+.stepm b { font: 600 12px var(--mono) }
+.stepm span { overflow: hidden; text-overflow: ellipsis; color: var(--ink-2) }
+.stepm.now { border-left: 2px solid var(--now) !important; background: var(--now-soft) !important }
+.stepm.now b { color: var(--now) }
+.stepm.bad { background: var(--fail-soft) !important } .stepm.bad b { color: var(--fail) }
+.stepm.fold { background: var(--glass) !important; justify-content: center; border-right: 1px solid var(--rule) !important }
+.comm { top: 8px; height: 30px; padding: 0 7px !important; border: 1px dashed var(--ink-3) !important; font-size: 12px; color: var(--ink-2) !important }
+.comm.voiced { border: 0 !important; border-left: 3px solid var(--ink) !important; background: var(--glass) !important; color: var(--ink) !important }
+.comm span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.snd { top: 5px; height: 24px; padding-right: 4px !important; font: 10.5px var(--mono); color: var(--ink-2) !important }
+.snd svg { width: 12px; height: 16px; flex: none; fill: var(--ink); stroke: var(--ink); stroke-width: 1.3 }
+.fx { top: 7px; height: 20px; font-size: 11.5px; font-style: italic; color: var(--ink-2) !important; align-items: center }
+.fx i { position: absolute; left: 0; right: 0; top: 50%; border-top: 1.5px solid var(--ink-2) }
+.fx span { position: relative; background: var(--sheet); padding: 0 4px; margin-left: 6px; white-space: nowrap }
+.crd { top: 5px; height: 22px; font-size: 11.5px; color: var(--ink-2) !important }
+.crd b { width: 18px; height: 18px; display: grid; place-items: center; border: 1.4px solid var(--ink); font-size: 11px; color: var(--ink) }
+.playhead { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1.5px solid var(--now); pointer-events: none; z-index: 3 }
+.playhead span { position: absolute; top: 2px; left: -24px; width: 48px; text-align: center; font: 10px/15px var(--mono); background: var(--now); color: var(--on-you); border-radius: 3px }
+.tip { position: fixed; z-index: 60; transform: translate(-50%, calc(-100% - 8px)); pointer-events: none; max-width: 320px; background: var(--ink); color: var(--paper); border-radius: 8px; padding: 7px 10px; font-size: 12px; line-height: 1.45 }
+.score-keys { margin: 0; padding: 8px 14px 10px; border-top: 1px solid var(--rule-2) }
+.score-keys kbd { font: 11px var(--mono); border: 1px solid var(--rule); border-radius: 4px; padding: 0 4px }
+@media (max-width: 640px) { .score-body { grid-template-columns: 74px minmax(0, 1fr) } .lanes-h > div { padding-left: 8px; font-size: 11px } }

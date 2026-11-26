@@ -177,3 +177,14 @@ export interface StartedRun { id: string }
 
 /** `POST /api/on-save`: turn Run again on save on or off for a script. */
 export interface OnSaveSwitch { workspace: string; name: string; on: boolean }
+
+/** `GET /api/score?run=<id>`: a recorded run's score, from its cue sheet, on the recording's clock (GH-139 decisions 001,
+ * 002). Step pictures are at `GET /api/step-picture?run=<id>&step=<index>` when `picture` is true. */
+export interface Score {
+  durationMs: number;
+  steps: { index: number; comment?: string; startMs: number; endMs: number; picture: boolean }[];
+  marks: ScoreMark[];
+}
+
+/** A sound, an effect or a card on the score: when, for how long, and what it is. */
+export interface ScoreMark { lane: "sounds" | "effects" | "cards"; t: number; ms?: number; label: string }

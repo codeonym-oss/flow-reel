@@ -158,4 +158,27 @@ describe("a run in the studio", () => {
     try { expect(await call(studio.port, "/api/log?run=shop/1")).toEqual({ status: 200, body: { text: "one\ntwo\nthree\n", cut: 0 } }); }
     finally { await studio.close(); }
   });
+
+  it("answers its score and step pictures once recorded, and nothing before (GH-139)", async () => {
+    const { data, run } = await setUp();
+    const studio = await studioOn(data);
+    try {
+      expect((await call(studio.port, "/api/score?run=shop/1")).status).toBe(404);
+      const record = join(run.dir, "record");
+      mkdirSync(join(record, "steps"), { recursive: true });
+      writeFileSync(join(record, "cues.json"), JSON.stringify({ version: 1, fps: 30, capture: { file: "capture.mp4", frames: 300, cutMs: 1000 },
+        steps: [{ index: 0, comment: "Look.", startMs: 500, actionEndMs: 900, endMs: 4000 }, { index: 1, startMs: 4100, actionEndMs: 4200, endMs: 6000 }],
+        events: [{ t: 600.4, type: "click", at: [1, 1], button: "left", target: "x" }, { t: 900, type: "sound", name: "toggle" },
+          { t: 1200, type: "zoom", zoom: "in", at: [1, 1], scale: 1.3, ms: 650 }, { t: 5000, type: "card", card: "outro" }] }));
+      writeFileSync(join(record, "steps", "000.jpg"), "jpeg");
+      expect((await call(studio.port, "/api/score?run=shop/1")).body).toEqual({ durationMs: 9000,
+        steps: [{ index: 0, comment: "Look.", startMs: 500, endMs: 4000, picture: true }, { index: 1, startMs: 4100, endMs: 6000, picture: false }],
+        marks: [{ lane: "sounds", t: 900, label: "toggle" }, { lane: "effects", t: 1200, ms: 650, label: "zoom in" }, { lane: "cards", t: 5000, label: "outro" }] });
+      const picture = (step: string) => fetch(`http://127.0.0.1:${studio.port}/api/step-picture?run=shop/1&step=${step}`, { headers: { cookie: `${cookieName(studio.port)}=${KEY}` } });
+      const found = await picture("0");
+      expect([found.status, found.headers.get("content-type"), await found.text()]).toEqual([200, "image/jpeg", "jpeg"]);
+      expect((await picture("1")).status).toBe(404);
+      expect((await picture("../x")).status).toBe(404);
+    } finally { await studio.close(); }
+  });
 });

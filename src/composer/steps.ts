@@ -16,8 +16,8 @@ export interface StepTimerOptions {
   idle(): Promise<boolean>;
   sleep?: (ms: number) => Promise<unknown>;
   warn?: (message: string) => void;
-  /** Called as a step opens. */
-  opened?: (step: { index: number; comment?: string }) => void;
+  /** Called as a step opens, with its start on the clock. */
+  opened?: (step: { index: number; comment?: string; startMs: number }) => void;
 }
 
 export function stepTimer({ clock, idle, sleep: wait = sleep, warn = console.warn, opened = () => {} }: StepTimerOptions) {
@@ -43,7 +43,7 @@ export function stepTimer({ clock, idle, sleep: wait = sleep, warn = console.war
     await until(settle);
     const startMs = Math.round(clock.now());
     open = { ...(comment === undefined ? {} : { comment }), startMs, actionEndMs: startMs };
-    opened({ index: steps.length, ...(comment === undefined ? {} : { comment }) });
+    opened({ index: steps.length, ...(comment === undefined ? {} : { comment }), startMs });
   }
 
   async function end() {
